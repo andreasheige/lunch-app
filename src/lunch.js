@@ -10,6 +10,18 @@ export function stockholmDate(now = new Date()) {
   return new Date(Date.UTC(y, m - 1, d));
 }
 
+// ISO 8601 timestamp in Stockholm local time with its UTC offset, e.g. 2026-09-30T20:32:41+02:00.
+export function stockholmTimestamp(now = new Date()) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: TZ, hourCycle: 'h23', timeZoneName: 'longOffset',
+      year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
+    }).formatToParts(now).map((p) => [p.type, p.value]),
+  );
+  const offset = parts.timeZoneName.replace('GMT', '') || '+00:00';
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}${offset}`;
+}
+
 export function isoWeek(date) {
   const d = new Date(date);
   d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
@@ -55,7 +67,7 @@ export async function getTodaysLunch(now = new Date()) {
   if (cache.key === key && now - cache.at < CACHE_MS) return cache.data;
 
   const restaurants = day ? await Promise.all(RESTAURANTS.map((r) => loadRestaurant(r, day, week))) : [];
-  const data = { date: key, day, week, fetchedAt: now.toISOString(), restaurants };
+  const data = { date: key, day, week, fetchedAt: stockholmTimestamp(now), restaurants };
   cache = { key, at: now.getTime(), data };
   return data;
 }
