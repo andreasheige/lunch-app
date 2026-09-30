@@ -24,9 +24,29 @@
     <p>Menyerna läses från restaurangernas egna sidor. Fråga alltid personalen om allergier.</p>
     <p id="updated"></p>
     <p class="report">
-      <a href="https://github.com/andreasheige/lunch-app/issues/new?template=bug.yml" target="_blank" rel="noopener">Rapportera fel</a>
-      · <a href="https://github.com/andreasheige/lunch-app/issues/new?template=feature.yml" target="_blank" rel="noopener">Önska funktion</a>
+      <button type="button" data-report="bug">Rapportera fel</button>
+      · <button type="button" data-report="feat-req">Önska funktion</button>
     </p>
   </footer>
+  <dialog id="report-dialog" aria-labelledby="report-heading">
+    <form id="report-form" method="dialog" novalidate>
+      <h2 id="report-heading">Rapportera fel</h2>
+      <fieldset class="kind">
+        <legend>Typ</legend>
+        <label><input type="radio" name="kind" value="bug" checked> Fel</label>
+        <label><input type="radio" name="kind" value="feat-req"> Önskemål</label>
+      </fieldset>
+      <label>Rubrik <input name="title" required maxlength="120" autocomplete="off"></label>
+      <label>Beskrivning <textarea name="text" required maxlength="4000" rows="5"></textarea></label>
+      <label class="hp" aria-hidden="true">Webbplats <input name="website" tabindex="-1" autocomplete="off"></label>
+      <div id="turnstile"></div>
+      <p id="report-status" class="report-status" role="status"></p>
+      <div class="report-actions">
+        <button type="button" value="cancel" id="report-cancel">Avbryt</button>
+        <button type="submit" id="report-submit">Skicka</button>
+      </div>
+      <p class="report-note">Rapporten blir ett publikt ärende på GitHub. Skriv inga personuppgifter.</p>
+    </form>
+  </dialog>
 </body>
 </html>
