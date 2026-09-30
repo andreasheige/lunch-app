@@ -208,6 +208,8 @@ function setupReport() {
       form.reset();
       setKind(fields.kind);
       statusEl.textContent = 'Tack! Rapporten är skickad.';
+      // Leave the thank-you visible briefly, then close.
+      setTimeout(() => dialog.close(), 1500);
     } catch (err) {
       statusEl.textContent = err instanceof TypeError ? 'Kunde inte nå servern. Försök igen.' : err.message;
     } finally {
