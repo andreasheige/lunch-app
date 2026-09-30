@@ -177,7 +177,7 @@ function setupReport() {
       dialog.showModal();
       try {
         const turnstile = await loadTurnstile();
-        turnstileWidget ??= turnstile.render('#turnstile', { sitekey: TURNSTILE_SITE_KEY, language: 'sv' });
+        turnstileWidget ??= turnstile.render('#report-turnstile', { sitekey: TURNSTILE_SITE_KEY, language: 'sv' });
       } catch {
         statusEl.textContent = 'Kunde inte ladda verifieringen. Kontrollera nätverket och försök igen.';
       }
