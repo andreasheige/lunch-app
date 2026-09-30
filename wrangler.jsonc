@@ -1,5 +1,11 @@
 {
   "name": "lunch-app",
+  "main": "src/worker.js",
   "compatibility_date": "2026-09-30",
-  "assets": { "directory": "./dist" }
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    // dist/lunch.json is a build-time snapshot (kept for GitHub Pages); the Worker serves it live.
+    "run_worker_first": ["/lunch.json"]
+  }
 }
