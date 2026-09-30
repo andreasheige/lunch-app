@@ -1,0 +1,11 @@
+name: Önska funktion
+description: Föreslå en ny funktion eller restaurang.
+title: "Önskemål: "
+labels: [feat-req]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: Vad önskar du?
+    validations:
+      required: true

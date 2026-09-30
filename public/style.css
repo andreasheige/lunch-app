@@ -341,6 +341,9 @@ footer {
 
 footer p { margin: 0; }
 
+.report a { color: var(--muted); text-underline-offset: 3px; }
+.report a:hover { color: var(--text); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
