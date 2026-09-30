@@ -1,0 +1,17 @@
+name: Rapportera fel
+description: Något i lunchappen visas fel eller fungerar inte.
+title: "Fel: "
+labels: [bug]
+body:
+  - type: input
+    id: restaurant
+    attributes:
+      label: Restaurang
+      description: Om felet gäller en viss restaurang.
+  - type: textarea
+    id: what
+    attributes:
+      label: Vad är fel?
+      description: Vad visades, och vad borde ha visats?
+    validations:
+      required: true
