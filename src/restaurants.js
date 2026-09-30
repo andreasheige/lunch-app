@@ -109,6 +109,24 @@ function parseMonopolet(lines, day) {
   return { week: menuWeek(lines), dishes };
 }
 
+// Each dish is three lines: "Dagens Fisk", "135:-", "Havets Wallenbergare / Skaldjurshollandaise / …".
+function parseMagasinFem(lines, day) {
+  const start = lines.indexOf(day);
+  if (start < 0) return { week: menuWeek(lines), dishes: [] };
+  const dishes = [];
+  for (let i = start + 1; i + 2 < lines.length; i += 3) {
+    if (WEEKDAYS.includes(lines[i]) || lines[i] === 'Dryck') break;
+    const category = lines[i].replace(/^Dagens /, '');
+    const [name, ...rest] = lines[i + 2].split(/\s*\/\s*/);
+    dishes.push({
+      category: category.charAt(0).toLocaleUpperCase('sv') + category.slice(1),
+      name,
+      description: rest.join(', ') || undefined,
+    });
+  }
+  return { week: menuWeek(lines), dishes };
+}
+
 // The lunch menu is a Canva design embedded in the page. Canva blocks server requests
 // (Cloudflare challenge), so we only pass the embed URL on for the browser to show.
 function parsePoppels(lines, day, html) {
@@ -176,6 +194,16 @@ export const RESTAURANTS = [
     hours: '11.00–13.30',
     price: '139 kr',
     parse: parseMonopolet,
+  },
+  {
+    id: 'magasinfem',
+    name: 'Magasin 5',
+    url: 'https://magasinfem.nu/',
+    address: 'Lilla Bommen 5',
+    distance: 500,
+    hours: '11.00–13.30',
+    price: '135 kr',
+    parse: parseMagasinFem,
   },
 ];
 

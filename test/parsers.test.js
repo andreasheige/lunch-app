@@ -107,3 +107,17 @@ test('Poppels: picks the Canva embed URL out of the page, nothing else', () => {
   assert.equal(parser('poppels')([], 'Måndag', html).embed, 'https://www.canva.com/design/DAFJA8wNZsw/view?embed');
   assert.equal(parser('poppels')([], 'Måndag', '<iframe src="https://evil.example/x"></iframe>').embed, null);
 });
+
+test('Magasin 5: Monday splits dish from sides and skips the price line', () => {
+  const { dishes } = parser('magasinfem')(fixture('magasinfem'), 'Måndag');
+  assert.deepEqual(dishes.map((d) => d.category), ['Vegetariska', 'Fisk', 'Grill', 'Sallad']);
+  assert.equal(dishes[1].name, 'Havets Wallenbergare');
+  assert.match(dishes[1].description, /^Skaldjurshollandaise, Smörad Sparris/);
+});
+
+test('Magasin 5: Friday stops before the drinks list', () => {
+  const { dishes } = parser('magasinfem')(fixture('magasinfem'), 'Fredag');
+  assert.equal(dishes.length, 4);
+  assert.equal(dishes[2].category, 'Schnitzel Fredag!!!!!');
+  assert.ok(dishes.every((d) => !/Mineralvatten|Läsk/.test(d.name)));
+});
