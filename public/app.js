@@ -143,3 +143,78 @@ async function main() {
 }
 
 main();
+
+const TURNSTILE_SITE_KEY = '0x4AAAAAAFKi3fMo2SvxOuOp';
+const REPORT_HEADINGS = { bug: 'Rapportera fel', 'feat-req': 'Önska funktion' };
+let turnstileWidget = null;
+
+// Loads Turnstile on first use, so visitors who never open the form don't fetch it.
+function loadTurnstile() {
+  if (window.turnstile) return Promise.resolve(window.turnstile);
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    script.onload = () => resolve(window.turnstile);
+    script.onerror = reject;
+    document.head.append(script);
+  });
+}
+
+function setupReport() {
+  const dialog = document.getElementById('report-dialog');
+  const form = document.getElementById('report-form');
+  const statusEl = document.getElementById('report-status');
+  const submit = document.getElementById('report-submit');
+  const setKind = (kind) => {
+    form.elements.kind.value = kind;
+    document.getElementById('report-heading').textContent = REPORT_HEADINGS[kind];
+  };
+
+  for (const button of document.querySelectorAll('[data-report]')) {
+    button.addEventListener('click', async () => {
+      setKind(button.dataset.report);
+      statusEl.textContent = '';
+      dialog.showModal();
+      try {
+        const turnstile = await loadTurnstile();
+        turnstileWidget ??= turnstile.render('#turnstile', { sitekey: TURNSTILE_SITE_KEY, language: 'sv' });
+      } catch {
+        statusEl.textContent = 'Kunde inte ladda verifieringen. Kontrollera nätverket och försök igen.';
+      }
+    });
+  }
+  form.elements.kind.forEach((radio) => radio.addEventListener('change', () => setKind(radio.value)));
+  document.getElementById('report-cancel').addEventListener('click', () => dialog.close());
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!form.reportValidity()) return;
+    const token = window.turnstile?.getResponse(turnstileWidget);
+    if (!token) {
+      statusEl.textContent = 'Vänta tills verifieringen är klar.';
+      return;
+    }
+    submit.disabled = true;
+    statusEl.textContent = 'Skickar…';
+    const fields = Object.fromEntries(new FormData(form));
+    try {
+      const res = await fetch('report', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...fields, token }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? 'Något gick fel. Försök igen.');
+      form.reset();
+      setKind(fields.kind);
+      statusEl.textContent = 'Tack! Rapporten är skickad.';
+    } catch (err) {
+      statusEl.textContent = err instanceof TypeError ? 'Kunde inte nå servern. Försök igen.' : err.message;
+    } finally {
+      submit.disabled = false;
+      window.turnstile?.reset(turnstileWidget);
+    }
+  });
+}
+
+setupReport();
