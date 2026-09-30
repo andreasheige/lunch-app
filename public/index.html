@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>Dagens lunch</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" type="module"></script>
+</head>
+<body>
+  <div class="glow" aria-hidden="true"></div>
+  <header class="hero">
+    <p class="eyebrow"><span class="dot" aria-hidden="true"></span><span id="now">Nära kontoret</span></p>
+    <h1>Dagens <em>lunch.</em></h1>
+    <p id="today" class="today"></p>
+  </header>
+  <main id="restaurants" aria-live="polite" aria-busy="true">
+    <article class="card skeleton" aria-hidden="true"><span></span><span></span><span></span><span></span></article>
+    <article class="card skeleton" aria-hidden="true"><span></span><span></span><span></span></article>
+    <article class="card skeleton" aria-hidden="true"><span></span><span></span><span></span><span></span></article>
+  </main>
+  <footer>
+    <p>Menyerna läses från restaurangernas egna sidor. Fråga alltid personalen om allergier.</p>
+    <p id="updated"></p>
+  </footer>
+</body>
+</html>

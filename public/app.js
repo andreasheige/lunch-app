@@ -1,0 +1,128 @@
+const TZ = 'Europe/Stockholm';
+const DATE_FMT = new Intl.DateTimeFormat('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ });
+const TIME_FMT = new Intl.DateTimeFormat('sv-SE', { hour: '2-digit', minute: '2-digit', timeZone: TZ });
+const WALK_M_PER_MIN = 80;
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text != null) node.textContent = text;
+  return node;
+}
+
+function minutesNow() {
+  const [h, m] = TIME_FMT.format(new Date()).split(':').map(Number);
+  return h * 60 + m;
+}
+
+const toMinutes = (t) => {
+  const [h, m] = t.split(/[.:]/).map(Number);
+  return h * 60 + m;
+};
+
+// Live status from an "11.00–13.30" hours string; null when it isn't today's menu.
+function status(r, isToday) {
+  const [openTime, closeTime] = r.hours.split(/\s*[–-]\s*/);
+  if (!isToday || !closeTime) return null;
+  const now = minutesNow();
+  if (now < toMinutes(openTime)) return { state: 'soon', text: `Öppnar ${openTime}` };
+  const left = toMinutes(closeTime) - now;
+  if (left <= 0) return { state: 'closed', text: 'Lunchen är slut' };
+  if (left <= 20) return { state: 'closing', text: `Stänger om ${left} min` };
+  return { state: 'open', text: `Öppet · till ${closeTime}` };
+}
+
+function renderCard(r, index, isToday) {
+  const card = el('article', 'card');
+  card.style.setProperty('--i', index);
+
+  const top = el('div', 'card-top');
+  top.append(el('span', 'idx', String(index + 1).padStart(2, '0')));
+  const s = status(r, isToday);
+  if (s) top.append(el('span', `status ${s.state}`, s.text));
+  card.append(top);
+
+  card.append(el('h2', null, r.name));
+
+  const meta = el('p', 'meta');
+  const walk = Math.max(1, Math.round(r.distance / WALK_M_PER_MIN));
+  meta.append(el('span', 'walk', `${walk} min gång`), el('span', null, `${r.distance} m`), el('span', null, r.hours));
+  card.append(meta);
+  if (r.price) card.append(el('p', 'price', r.price));
+
+  if (r.stale) card.append(el('p', 'badge warn', `Menyn gäller vecka ${r.menuWeek} – kan vara inaktuell`));
+
+  if (r.error) {
+    card.append(el('p', 'empty', r.error));
+  } else if (r.embed) {
+    const frame = el('iframe', 'embed');
+    frame.src = r.embed;
+    frame.title = `Lunchmeny för ${r.name}`;
+    frame.loading = 'lazy';
+    frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups');
+    card.append(frame);
+  } else {
+    const list = el('ul', 'dishes');
+    for (const d of r.dishes) {
+      const item = el('li');
+      if (d.category) item.append(el('span', 'category', d.category));
+      item.append(el('span', 'dish', d.name));
+      if (d.description) item.append(el('span', 'desc', d.description));
+      list.append(item);
+    }
+    card.append(list);
+  }
+
+  const link = el('a', 'source');
+  link.append(el('span', null, 'Restaurangens sida'), el('span', 'arrow', '↗'));
+  link.href = r.url;
+  link.target = '_blank';
+  link.rel = 'noopener';
+  card.append(link);
+  return card;
+}
+
+function renderHeaderStatus(isLunchDay) {
+  const now = document.getElementById('now');
+  const m = minutesNow();
+  const live = isLunchDay && m >= 11 * 60 && m < 14 * 60;
+  if (!isLunchDay) now.textContent = 'Nära kontoret';
+  else if (m < 11 * 60) now.textContent = `Lunchen börjar 11.00 · klockan är ${TIME_FMT.format(new Date())}`;
+  else if (live) now.textContent = 'Lunch serveras nu';
+  else now.textContent = 'Lunchen är över för idag';
+  document.body.classList.toggle('live', live);
+}
+
+async function main() {
+  const container = document.getElementById('restaurants');
+  document.getElementById('today').textContent = DATE_FMT.format(new Date());
+  try {
+    const res = await fetch('lunch.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date());
+    const isToday = data.date === today;
+    const fetchedAt = new Date(data.fetchedAt);
+
+    document.getElementById('today').textContent = `${DATE_FMT.format(new Date(data.date))} · vecka ${data.week}`;
+    document.getElementById('updated').textContent = `Uppdaterad ${DATE_FMT.format(fetchedAt)} kl. ${TIME_FMT.format(fetchedAt)}`;
+    renderHeaderStatus(isToday && Boolean(data.day));
+
+    container.replaceChildren();
+    if (!isToday) {
+      container.append(el('p', 'notice', `Menyerna har inte uppdaterats idag – visar ${DATE_FMT.format(new Date(data.date))}.`));
+    }
+    if (!data.day) {
+      container.append(el('p', 'notice', 'Ingen lunch idag – det är helg. Välkommen tillbaka på måndag!'));
+      return;
+    }
+    const sorted = [...data.restaurants].sort((a, b) => a.distance - b.distance);
+    container.append(...sorted.map((r, i) => renderCard(r, i, isToday)));
+  } catch {
+    container.replaceChildren(el('p', 'notice', 'Kunde inte hämta menyerna just nu. Försök igen om en stund.'));
+  } finally {
+    container.setAttribute('aria-busy', 'false');
+  }
+}
+
+main();
