@@ -93,6 +93,18 @@ function renderHeaderStatus(isLunchDay) {
   document.body.classList.toggle('live', live);
 }
 
+// Matches main.masonry in style.css: 4px grid rows, plus the 16px gap below each card.
+const ROW_PX = 4;
+const GAP_PX = 16;
+
+function packCards(container) {
+  container.classList.add('masonry');
+  const observer = new ResizeObserver((entries) => {
+    for (const { target } of entries) target.style.gridRowEnd = `span ${Math.ceil((target.offsetHeight + GAP_PX) / ROW_PX)}`;
+  });
+  for (const child of container.children) observer.observe(child);
+}
+
 async function main() {
   const container = document.getElementById('restaurants');
   document.getElementById('today').textContent = DATE_FMT.format(new Date());
@@ -117,7 +129,12 @@ async function main() {
       return;
     }
     const sorted = [...data.restaurants].sort((a, b) => a.distance - b.distance);
+    // Magasin 5 is shown in Indya's place and vice versa; their distances stay as they are.
+    const indya = sorted.findIndex((r) => r.id === 'indya');
+    const fem = sorted.findIndex((r) => r.id === 'magasinfem');
+    if (indya >= 0 && fem >= 0) [sorted[indya], sorted[fem]] = [sorted[fem], sorted[indya]];
     container.append(...sorted.map((r, i) => renderCard(r, i, isToday)));
+    packCards(container);
   } catch {
     container.replaceChildren(el('p', 'notice', 'Kunde inte hämta menyerna just nu. Försök igen om en stund.'));
   } finally {

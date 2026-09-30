@@ -149,6 +149,9 @@ main {
   align-items: start;
 }
 
+/* Masonry: app.js sets each card's row span from its height, so short cards leave no hole below. */
+main.masonry { grid-auto-rows: 4px; row-gap: 0; }
+
 .card {
   display: flex;
   flex-direction: column;
