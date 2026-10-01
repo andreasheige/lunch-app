@@ -1,7 +1,7 @@
-// Local dev server, build script, tests, and the shared src/ code they import.
+// Local dev server, build script, and the server/shared code they import.
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": { "lib": ["es2024"], "types": ["node"] },
-  "include": ["server.js", "scripts", "test", "src"],
-  "exclude": ["src/worker.js"]
+  "include": ["server.ts", "scripts", "src/server", "src/shared"],
+  "exclude": ["src/server/worker.ts"]
 }

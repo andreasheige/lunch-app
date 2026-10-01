@@ -12,8 +12,7 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "noEmit": true,
-    // Plain JS until the code itself is converted; type checking JS is off so this only checks resolution.
-    "allowJs": true,
-    "checkJs": false
+    // Node runs .ts directly (type stripping) and wrangler bundles it, so imports name the .ts file.
+    "allowImportingTsExtensions": true
   }
 }

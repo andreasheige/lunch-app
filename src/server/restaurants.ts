@@ -1,9 +1,26 @@
 // Each parser gets the page as text lines, the Swedish weekday name ('Måndag'..'Fredag')
 // and the raw HTML, and returns { week, dishes: [{ category, name, description }], embed? }.
+// Indexing below is bounds-checked by each loop, so `?? ''` only satisfies noUncheckedIndexedAccess.
+import type { Dish, RestaurantInfo, Weekday } from '../shared/types.ts';
 
-const WEEKDAYS = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag'];
+export interface ParsedMenu {
+  week: number | null;
+  dishes: Dish[];
+  embed?: string | null;
+}
 
-function menuWeek(lines) {
+export type Parser = (lines: string[], day: Weekday, html: string) => ParsedMenu;
+
+export interface Restaurant extends RestaurantInfo {
+  parse: Parser;
+  /** For menus published as a PDF: finds the PDF link in the page HTML. */
+  pdf?: (html: string) => string | null;
+}
+
+const WEEKDAYS: readonly Weekday[] = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag'];
+const isWeekday = (l: string): boolean => (WEEKDAYS as readonly string[]).includes(l);
+
+function menuWeek(lines: string[]): number | null {
   for (const l of lines) {
     const m = l.match(/\bv(?:ecka|\.)\s*(\d{1,2})\b/i);
     if (m) return Number(m[1]);
@@ -12,25 +29,26 @@ function menuWeek(lines) {
 }
 
 // "KÖTTBULLAR I GRÄDDSÅS" -> "Köttbullar i gräddsås"; mixed-case text is left alone.
-function sentenceCase(s) {
+function sentenceCase(s: string): string {
   if (s !== s.toUpperCase()) return s;
   const lower = s.toLocaleLowerCase('sv');
   return lower.charAt(0).toLocaleUpperCase('sv') + lower.slice(1);
 }
 
-function parsePocket(lines, day) {
+function parsePocket(lines: string[], day: Weekday): ParsedMenu {
   const start = lines.indexOf(
     day,
     lines.findIndex((l) => /^Lunch v\./.test(l)),
   );
   if (start < 0) return { week: menuWeek(lines), dishes: [] };
-  const dishes = [];
+  const dishes: Dish[] = [];
   for (let i = start + 1; i < lines.length; i++) {
-    const l = lines[i];
-    if (WEEKDAYS.includes(l) || l === 'Klimato') break;
-    if (/^Dagens /.test(l) && lines[i + 1]) {
+    const l = lines[i] ?? '';
+    const next = lines[i + 1];
+    if (isWeekday(l) || l === 'Klimato') break;
+    if (/^Dagens /.test(l) && next) {
       const category = l.replace(/^Dagens /, '');
-      dishes.push({ category: category.charAt(0).toLocaleUpperCase('sv') + category.slice(1), name: lines[i + 1] });
+      dishes.push({ category: category.charAt(0).toLocaleUpperCase('sv') + category.slice(1), name: next });
       i++;
     }
   }
@@ -38,21 +56,22 @@ function parsePocket(lines, day) {
 }
 
 // "Höst Bowl – Örtmarinerad …" / "Klassisk lasagne … serveras med …" -> short name + description.
-function splitPagodenDish(text) {
+function splitPagodenDish(text: string): Pick<Dish, 'name' | 'description'> {
   const m = text.match(/^(.+?)\s–\s?(.+)$/) ?? text.match(/^(.+?) ((?:serveras|toppas) .+)$/);
   if (!m) return { name: text };
-  return { name: m[1], description: m[2].charAt(0).toLocaleUpperCase('sv') + m[2].slice(1) };
+  const [, name = '', rest = ''] = m;
+  return { name, description: rest.charAt(0).toLocaleUpperCase('sv') + rest.slice(1) };
 }
 
 const PAGODEN_KITCHENS = ['Around the world', 'Green Kitchen', 'Fish Market', 'Butcher´s', 'East Asia'];
 
-function parsePagoden(lines, day) {
+function parsePagoden(lines: string[], day: Weekday): ParsedMenu {
   const start = lines.findIndex((l) => new RegExp(`Lunch ${day}$`).test(l));
   if (start < 0) return { week: menuWeek(lines), dishes: [] };
-  const dishes = [];
-  let category = null;
+  const dishes: Dish[] = [];
+  let category: string | null = null;
   for (let i = start + 1; i < lines.length; i++) {
-    const l = lines[i];
+    const l = lines[i] ?? '';
     if (/^OBS!/.test(l) || /^Lunch /.test(l)) break;
     if (PAGODEN_KITCHENS.includes(l)) category = l;
     else if (category && !/^Inkl\./.test(l)) dishes.push({ category, ...splitPagodenDish(l) });
@@ -60,67 +79,78 @@ function parsePagoden(lines, day) {
   return { week: menuWeek(lines), dishes };
 }
 
-function parseBjorkmans(lines, day) {
+function parseBjorkmans(lines: string[], day: Weekday): ParsedMenu {
   const start = lines.indexOf(day.toLocaleUpperCase('sv'));
   if (start < 0) return { week: menuWeek(lines), dishes: [] };
   const upperDays = WEEKDAYS.map((d) => d.toLocaleUpperCase('sv'));
-  const body = [];
+  const body: string[] = [];
   for (let i = start + 1; i < lines.length; i++) {
-    const l = lines[i];
+    const l = lines[i] ?? '';
     if (upperDays.includes(l) || /^VECKA \d+/.test(l) || l === 'GRÖNT') break;
     // Each day block carries a hidden "<Weekday> / Stängt" badge; skip it.
-    if (WEEKDAYS.includes(l) || l === 'Stängt') continue;
+    if (isWeekday(l) || l === 'Stängt') continue;
     body.push(l);
   }
-  const dishes = [];
+  const dishes: Dish[] = [];
   for (let i = 0; i < body.length; i += 2) {
-    dishes.push({ category: null, name: sentenceCase(body[i]), description: body[i + 1] && sentenceCase(body[i + 1]) });
+    const description = body[i + 1];
+    dishes.push({
+      category: null,
+      name: sentenceCase(body[i] ?? ''),
+      description: description && sentenceCase(description),
+    });
   }
   return { week: menuWeek(lines), dishes };
 }
 
-function parseIndya(lines, day) {
+function parseIndya(lines: string[], day: Weekday): ParsedMenu {
   const start = lines.indexOf(day.toLocaleUpperCase('sv'));
   if (start < 0) return { week: menuWeek(lines), dishes: [] };
   const upperDays = WEEKDAYS.map((d) => d.toLocaleUpperCase('sv'));
-  const body = [];
+  const body: string[] = [];
   for (let i = start + 1; i < lines.length; i++) {
+    const l = lines[i] ?? '';
     // "Stående Rätter" (the fixed dishes) closes each day's own menu.
-    if (upperDays.includes(lines[i]) || /^Stående Rätter/.test(lines[i])) break;
-    body.push(lines[i]);
+    if (upperDays.includes(l) || /^Stående Rätter/.test(l)) break;
+    body.push(l);
   }
-  const dishes = [];
+  const dishes: Dish[] = [];
   for (let i = 0; i < body.length; i += 2) {
-    const name = body[i].replace(/^DAGENS\b/i, 'Dagens').replace(/\s*(\d+):-$/, ' ($1 kr)');
+    const name = (body[i] ?? '').replace(/^DAGENS\b/i, 'Dagens').replace(/\s*(\d+):-$/, ' ($1 kr)');
     dishes.push({ category: null, name, description: body[i + 1] });
   }
   return { week: menuWeek(lines), dishes };
 }
 
 // Lines look like "Dagens Kött –Bao Buns / Långbakad Fläsksida / …".
-function parseMonopolet(lines, day) {
+function parseMonopolet(lines: string[], day: Weekday): ParsedMenu {
   const start = lines.indexOf(day);
   if (start < 0) return { week: menuWeek(lines), dishes: [] };
-  const dishes = [];
+  const dishes: Dish[] = [];
   for (let i = start + 1; i < lines.length; i++) {
-    const l = lines[i];
-    if (WEEKDAYS.includes(l) || /^(Hjärtligt|———)/.test(l)) break;
+    const l = lines[i] ?? '';
+    if (isWeekday(l) || /^(Hjärtligt|———)/.test(l)) break;
     const m = l.match(/^(.+?)\s*–\s*(.+)$/);
-    const [name, ...rest] = (m ? m[2] : l).split(/\s*\/\s*/);
-    dishes.push({ category: m ? m[1].replace(/^Dagens /, '') : null, name, description: rest.join(', ') || undefined });
+    const [name = '', ...rest] = (m?.[2] ?? l).split(/\s*\/\s*/);
+    dishes.push({
+      category: m?.[1]?.replace(/^Dagens /, '') ?? null,
+      name,
+      description: rest.join(', ') || undefined,
+    });
   }
   return { week: menuWeek(lines), dishes };
 }
 
 // Each dish is three lines: "Dagens Fisk", "135:-", "Havets Wallenbergare / Skaldjurshollandaise / …".
-function parseMagasinFem(lines, day) {
+function parseMagasinFem(lines: string[], day: Weekday): ParsedMenu {
   const start = lines.indexOf(day);
   if (start < 0) return { week: menuWeek(lines), dishes: [] };
-  const dishes = [];
+  const dishes: Dish[] = [];
   for (let i = start + 1; i + 2 < lines.length; i += 3) {
-    if (WEEKDAYS.includes(lines[i]) || lines[i] === 'Dryck') break;
-    const category = lines[i].replace(/^Dagens /, '');
-    const [name, ...rest] = lines[i + 2].split(/\s*\/\s*/);
+    const l = lines[i] ?? '';
+    if (isWeekday(l) || l === 'Dryck') break;
+    const category = l.replace(/^Dagens /, '');
+    const [name = '', ...rest] = (lines[i + 2] ?? '').split(/\s*\/\s*/);
     dishes.push({
       category: category.charAt(0).toLocaleUpperCase('sv') + category.slice(1),
       name,
@@ -132,46 +162,46 @@ function parseMagasinFem(lines, day) {
 
 // The lunch menu is a Canva design embedded in the page. Canva blocks server requests
 // (Cloudflare challenge), so we only pass the embed URL on for the browser to show.
-function parsePoppels(_lines, _day, html) {
+function parsePoppels(_lines: string[], _day: Weekday, html: string): ParsedMenu {
   const embed = html.match(/https:\/\/www\.canva\.com\/design\/[\w-]+\/view\?embed/)?.[0] ?? null;
   return { week: null, dishes: [], embed };
 }
 
-// The weekly menu is a Canva PDF linked from the home page (see pdf.js). Day sections hold
+// The weekly menu is a Canva PDF linked from the home page (see pdf.ts). Day sections hold
 // "KÖTT: Grillad ryggbiff …" lines, sometimes wrapped onto the next line; the "VECKANS …"
-// dishes at the bottom are served all week. The PDF has no week number; lunch.js derives it from
+// dishes at the bottom are served all week. The PDF has no week number; lunch.ts derives it from
 // the PDF creation date (pdfMenuWeek).
 const DELISSIMO_LABEL = /^([A-ZÅÄÖ][A-ZÅÄÖ ]*[A-ZÅÄÖ]):\s*(.+)$/;
 const DELISSIMO_DAY = new RegExp(`^(${WEEKDAYS.map((d) => d.toLocaleUpperCase('sv')).join('|')})\\b`);
 
-function parseDelissimo(lines, day) {
-  const dishes = [];
+function parseDelissimo(lines: string[], day: Weekday): ParsedMenu {
+  const dishes: Dish[] = [];
   const start = lines.findIndex((l) => l.match(DELISSIMO_DAY)?.[1] === day.toLocaleUpperCase('sv'));
   if (start >= 0) {
     for (const l of lines.slice(start + 1)) {
       if (DELISSIMO_DAY.test(l) || /^VECKANS\b/.test(l) || /^Vid specialkost/.test(l)) break;
       const m = l.match(DELISSIMO_LABEL);
       const last = dishes.at(-1);
-      if (m) dishes.push({ category: sentenceCase(m[1]), name: m[2] });
+      if (m) dishes.push({ category: sentenceCase(m[1] ?? ''), name: m[2] ?? '' });
       else if (last && !/[.!]$/.test(last.name)) last.name += ` ${l}`;
       else dishes.push({ category: null, name: l });
     }
   }
   // Weekly dishes follow the last day section ("VECKANS LUNCH" at the top is the page title).
   const lastDay = lines.findLastIndex((l) => DELISSIMO_DAY.test(l));
-  let weekly = null;
+  let weekly: Dish | null = null;
   for (const l of lines.slice(lastDay + 1)) {
     if (/^Vid specialkost/.test(l)) break;
     const m = l.match(/^VECKANS (.+)$/);
     if (m) {
-      weekly = { category: 'Veckans', name: sentenceCase(m[1]), description: '' };
+      weekly = { category: 'Veckans', name: sentenceCase(m[1] ?? ''), description: '' };
       dishes.push(weekly);
     } else if (weekly) weekly.description = `${weekly.description} ${l}`.trim();
   }
   return { week: null, dishes };
 }
 
-export const RESTAURANTS = [
+export const RESTAURANTS: Restaurant[] = [
   {
     id: 'poppels',
     name: 'Poppels Citybryggeri',
@@ -250,7 +280,7 @@ export const RESTAURANTS = [
     distance: 100,
     hours: '11.00–14.00',
     price: '149 kr inkl. salladsbuffé, bröd & kaffe',
-    pdf: (html) => html.match(/href="([^"]*\/Platinan\.pdf)"/i)?.[1] ?? null,
+    pdf: (html: string) => html.match(/href="([^"]*\/Platinan\.pdf)"/i)?.[1] ?? null,
     parse: parseDelissimo,
   },
 ];

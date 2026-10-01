@@ -1,6 +1,12 @@
 // Browser code served from public/.
 {
   "extends": "./tsconfig.base.json",
-  "compilerOptions": { "lib": ["es2024", "dom", "dom.iterable"], "types": [] },
+  "compilerOptions": {
+    "lib": ["es2024", "dom", "dom.iterable"],
+    "types": [],
+    // Plain JS until the client is converted; JS type checking stays off so this only checks resolution.
+    "allowJs": true,
+    "checkJs": false
+  },
   "include": ["public"]
 }

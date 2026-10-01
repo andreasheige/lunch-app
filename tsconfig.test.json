@@ -1,0 +1,7 @@
+// Tests index into known fixtures (a missing dish fails the test anyway), so unchecked indexing is allowed here only.
+{
+  "extends": "./tsconfig.node.json",
+  "compilerOptions": { "noUncheckedIndexedAccess": false },
+  "include": ["test"],
+  "exclude": []
+}
