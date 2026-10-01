@@ -10,15 +10,17 @@ export default {
     if (pathname === '/report') return handleReport(request, env);
     if (pathname !== '/lunch.json') return env.ASSETS.fetch(request);
 
+    // Keyed by deployed version, so a deploy starts with an empty cache instead of serving the old menu list.
+    const key = new Request(`${new URL(request.url).origin}/lunch.json?v=${env.CF_VERSION_METADATA.id}`);
     const cache = caches.default;
-    const cached = await cache.match(request);
+    const cached = await cache.match(key);
     if (cached) return cached;
 
     const data = await getTodaysLunch();
     const res = new Response(JSON.stringify(data), {
       headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': `public, max-age=${MAX_AGE}` },
     });
-    ctx.waitUntil(cache.put(request, res.clone()));
+    ctx.waitUntil(cache.put(key, res.clone()));
     return res;
   },
 };
