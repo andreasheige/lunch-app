@@ -1,18 +1,19 @@
-import { htmlToLines } from './html.js';
-import { readPdf } from './pdf.js';
-import { RESTAURANTS, WEEKDAYS } from './restaurants.js';
+import type { LunchResponse, RestaurantMenu, Weekday } from '../shared/types.ts';
+import { htmlToLines } from './html.ts';
+import { readPdf } from './pdf.ts';
+import { RESTAURANTS, type Restaurant, WEEKDAYS } from './restaurants.ts';
 
 const CACHE_MS = 30 * 60 * 1000;
 const TZ = 'Europe/Stockholm';
 
 // Calendar date in Stockholm as a UTC-midnight Date, so weekday/week maths ignore the host timezone.
-export function stockholmDate(now = new Date()) {
-  const [y, m, d] = new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(now).split('-').map(Number);
+export function stockholmDate(now = new Date()): Date {
+  const [y = 0, m = 1, d = 1] = new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(now).split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d));
 }
 
 // ISO 8601 timestamp in Stockholm local time with its UTC offset, e.g. 2026-09-30T20:32:41+02:00.
-export function stockholmTimestamp(now = new Date()) {
+export function stockholmTimestamp(now = new Date()): string {
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat('en-CA', {
       timeZone: TZ,
@@ -28,18 +29,18 @@ export function stockholmTimestamp(now = new Date()) {
       .formatToParts(now)
       .map((p) => [p.type, p.value]),
   );
-  const offset = parts.timeZoneName.replace('GMT', '') || '+00:00';
+  const offset = (parts.timeZoneName ?? '').replace('GMT', '') || '+00:00';
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}${offset}`;
 }
 
-export function isoWeek(date) {
+export function isoWeek(date: Date): number {
   const d = new Date(date);
   d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+  return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
 }
 
-async function fetchPage(url) {
+async function fetchPage(url: string): Promise<Response> {
   const res = await fetch(url, {
     headers: { 'user-agent': 'knowit-lunch-app (lunch menu reader)' },
     signal: AbortSignal.timeout(10_000),
@@ -50,7 +51,7 @@ async function fetchPage(url) {
 
 // Week a PDF menu is for, from when it was made: Friday–Sunday uploads are next week's menu,
 // Monday–Thursday ones this week's (shifting by three days maps exactly that onto ISO weeks).
-export function pdfMenuWeek(created) {
+export function pdfMenuWeek(created: Date): number {
   const date = stockholmDate(created);
   date.setUTCDate(date.getUTCDate() + 3);
   return isoWeek(date);
@@ -58,7 +59,7 @@ export function pdfMenuWeek(created) {
 
 // Page text lines; for restaurants whose menu is a PDF linked from the page (r.pdf finds the link),
 // the PDF's lines and the week its creation date points to.
-async function menuSource(r, html) {
+async function menuSource(r: Restaurant, html: string): Promise<{ lines: string[]; week: number | null }> {
   if (!r.pdf) return { lines: htmlToLines(html), week: null };
   const href = r.pdf(html);
   if (!href) throw new Error('hittade ingen PDF-meny');
@@ -67,7 +68,7 @@ async function menuSource(r, html) {
   return { lines, week: created ? pdfMenuWeek(created) : null };
 }
 
-async function loadRestaurant(r, day, week) {
+async function loadRestaurant(r: Restaurant, day: Weekday, week: number): Promise<RestaurantMenu> {
   const { parse, pdf, ...info } = r;
   try {
     const html = await (await fetchPage(r.url)).text();
@@ -90,23 +91,23 @@ async function loadRestaurant(r, day, week) {
       embed: null,
       stale: false,
       menuWeek: null,
-      error: `Kunde inte hämta menyn (${err.message})`,
+      error: `Kunde inte hämta menyn (${err instanceof Error ? err.message : String(err)})`,
     };
   }
 }
 
-let cache = { key: null, at: 0, data: null };
+let cache: { key: string | null; at: number; data: LunchResponse | null } = { key: null, at: 0, data: null };
 
-export async function getTodaysLunch(now = new Date()) {
+export async function getTodaysLunch(now = new Date()): Promise<LunchResponse> {
   const date = stockholmDate(now);
   const day = WEEKDAYS[date.getUTCDay() - 1] ?? null;
   const week = isoWeek(date);
   const key = date.toISOString().slice(0, 10);
 
-  if (cache.key === key && now - cache.at < CACHE_MS) return cache.data;
+  if (cache.data && cache.key === key && now.getTime() - cache.at < CACHE_MS) return cache.data;
 
   const restaurants = day ? await Promise.all(RESTAURANTS.map((r) => loadRestaurant(r, day, week))) : [];
-  const data = { date: key, day, week, fetchedAt: stockholmTimestamp(now), restaurants };
+  const data: LunchResponse = { date: key, day, week, fetchedAt: stockholmTimestamp(now), restaurants };
   cache = { key, at: now.getTime(), data };
   return data;
 }

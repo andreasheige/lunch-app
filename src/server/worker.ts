@@ -1,11 +1,16 @@
 // Cloudflare Worker: live /lunch.json (edge-cached 30 min), POST /report → GitHub issue; everything else is served from dist/ assets.
-import { getTodaysLunch } from './lunch.js';
-import { handleReport } from './report.js';
+import { getTodaysLunch } from './lunch.ts';
+import { handleReport, type ReportEnv } from './report.ts';
+
+interface Env extends ReportEnv {
+  ASSETS: Fetcher;
+  CF_VERSION_METADATA: WorkerVersionMetadata;
+}
 
 const MAX_AGE = 30 * 60;
 
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, env, ctx): Promise<Response> {
     const { pathname } = new URL(request.url);
     if (pathname === '/report') return handleReport(request, env);
     if (pathname !== '/lunch.json') return env.ASSETS.fetch(request);
@@ -23,4 +28,4 @@ export default {
     ctx.waitUntil(cache.put(key, res.clone()));
     return res;
   },
-};
+} satisfies ExportedHandler<Env>;

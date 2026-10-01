@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { issueBody, parseReport } from '../src/report.js';
+import { issueBody, parseReport } from '../src/server/report.ts';
 
 test('issueBody fences text longer than any backtick run inside it', () => {
   const body = issueBody('hej @someone ```kod``` ![x](https://evil)', 'lunchit.se');

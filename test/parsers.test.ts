@@ -1,18 +1,27 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { test } from 'node:test';
-import { decodeEntities, htmlToLines } from '../src/html.js';
-import { isoWeek, pdfMenuWeek, stockholmDate } from '../src/lunch.js';
-import { readPdf } from '../src/pdf.js';
-import { RESTAURANTS } from '../src/restaurants.js';
+import { decodeEntities, htmlToLines } from '../src/server/html.ts';
+import { isoWeek, pdfMenuWeek, stockholmDate } from '../src/server/lunch.ts';
+import { readPdf } from '../src/server/pdf.ts';
+import { RESTAURANTS, type Restaurant } from '../src/server/restaurants.ts';
+import type { Weekday } from '../src/shared/types.ts';
 
 // Fixtures are the restaurants' pages as captured 2026-09-28 (vecka 40), already flattened with htmlToLines.
-const fixture = (id) =>
+const fixture = (id: string): string[] =>
   fs
     .readFileSync(new URL(`fixtures/${id}.txt`, import.meta.url), 'utf8')
     .trimEnd()
     .split('\n');
-const parser = (id) => RESTAURANTS.find((r) => r.id === id).parse;
+const restaurant = (id: string): Restaurant => {
+  const r = RESTAURANTS.find((r) => r.id === id);
+  if (!r) throw new Error(`no restaurant ${id}`);
+  return r;
+};
+const parser =
+  (id: string) =>
+  (lines: string[], day: Weekday, html = '') =>
+    restaurant(id).parse(lines, day, html);
 
 test('Pocket: Monday has veg, fish and meat', () => {
   const { week, dishes } = parser('pocket')(fixture('pocket'), 'Måndag');
@@ -35,7 +44,7 @@ test('Pagoden: Monday skips the intro text and groups by kitchen', () => {
   assert.equal(week, 40);
   assert.equal(dishes[0].category, 'Around the world');
   assert.equal(dishes[0].name, 'Klassisk lasagne på färsk pasta med nötfärs');
-  assert.match(dishes[0].description, /^Serveras med tomat/);
+  assert.match(dishes[0].description ?? '', /^Serveras med tomat/);
   assert.equal(dishes[2].name, 'Vegetarisk Höst Bowl');
   assert.equal(dishes.filter((d) => d.category === 'Green Kitchen').length, 3);
   assert.ok(dishes.every((d) => !/Julbord|OBS!/.test(d.name)));
@@ -54,7 +63,7 @@ test('Björkmans: Monday has four dishes incl. the one after the hidden "Stängt
     dishes.map((d) => d.name),
     ['Chicken cashew', 'Halstrad kummel', 'Köttbullar i gräddsås med potatismos', 'Friterad svensk falafel'],
   );
-  assert.match(dishes[3].description, /^Serverad med hummus/);
+  assert.match(dishes[3].description ?? '', /^Serverad med hummus/);
 });
 
 test('Björkmans: Friday (first on the page) does not bleed into Thursday', () => {
@@ -89,7 +98,7 @@ test('Indya: Monday stops before the fixed "Stående Rätter" dishes', () => {
     dishes.map((d) => d.name),
     ['Chicken Do Pyaza', 'Lamm Korma', 'Vegetarisk Thali', 'Dagens Thali (139 kr)'],
   );
-  assert.match(dishes[1].description, /^Krämig och mild lammgryta/);
+  assert.match(dishes[1].description ?? '', /^Krämig och mild lammgryta/);
 });
 
 test('Indya: Friday keeps its extra dessert and skips the duplicated block', () => {
@@ -106,7 +115,7 @@ test('Monopolet: splits "Dagens X – a / b / c" into category, name and descrip
     ['Kött', 'Fisk', 'Veg'],
   );
   assert.equal(dishes[0].name, 'Bao Buns');
-  assert.match(dishes[0].description, /^Långbakad Fläsksida, Gochujangkräm/);
+  assert.match(dishes[0].description ?? '', /^Långbakad Fläsksida, Gochujangkräm/);
 });
 
 test('Monopolet: Friday stops before the sign-off', () => {
@@ -129,7 +138,7 @@ test('Magasin 5: Monday splits dish from sides and skips the price line', () => 
     ['Vegetariska', 'Fisk', 'Grill', 'Sallad'],
   );
   assert.equal(dishes[1].name, 'Havets Wallenbergare');
-  assert.match(dishes[1].description, /^Skaldjurshollandaise, Smörad Sparris/);
+  assert.match(dishes[1].description ?? '', /^Skaldjurshollandaise, Smörad Sparris/);
 });
 
 test('Magasin 5: Friday stops before the drinks list', () => {
@@ -158,7 +167,7 @@ test('Delissimo: Tuesday has its four dishes plus the weekly pizza and salad', (
   );
   assert.equal(dishes[3].name, 'Stekt bacon i parmesansås med vitlök & svartpeppar.');
   assert.equal(dishes[4].name, 'Pizza - parma');
-  assert.match(dishes[4].description, /^Frasig surdegspizza .* parmesan\.$/);
+  assert.match(dishes[4].description ?? '', /^Frasig surdegspizza .* parmesan\.$/);
 });
 
 test('Delissimo: wrapped lines are joined and an unlabelled dish keeps its own entry', () => {
@@ -174,7 +183,8 @@ test('Delissimo: wrapped lines are joined and an unlabelled dish keeps its own e
 });
 
 test('Delissimo: finds the Platinan PDF link on the home page', () => {
-  const pdf = RESTAURANTS.find((r) => r.id === 'delissimo').pdf;
+  const { pdf } = restaurant('delissimo');
+  assert.ok(pdf);
   assert.equal(
     pdf('<a href="http://delissimo.se/wp-content/uploads/2026/09/Platinan.pdf">'),
     'http://delissimo.se/wp-content/uploads/2026/09/Platinan.pdf',
@@ -183,10 +193,11 @@ test('Delissimo: finds the Platinan PDF link on the home page', () => {
 });
 
 test('readPdf: creation date from the Info dictionary', () => {
-  assert.equal(delissimoPdf.created.toISOString(), '2026-09-27T13:16:04.000Z');
+  assert.equal(delissimoPdf.created?.toISOString(), '2026-09-27T13:16:04.000Z');
 });
 
 test('pdfMenuWeek: Friday–Sunday uploads count as next week, Monday–Thursday as this week', () => {
+  assert.ok(delissimoPdf.created);
   assert.equal(pdfMenuWeek(delissimoPdf.created), 40); // Sunday of week 39
   assert.equal(pdfMenuWeek(new Date('2026-09-25T10:00:00Z')), 40); // Friday, week 39
   assert.equal(pdfMenuWeek(new Date('2026-09-28T07:00:00Z')), 40); // Monday, week 40

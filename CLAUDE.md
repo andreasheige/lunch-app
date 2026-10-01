@@ -1,14 +1,15 @@
 # lunch-app
 
-Shows today's lunch menus for restaurants near the Knowit office (Göteborg). Node ≥22, no dependencies.
+Shows today's lunch menus for restaurants near the Knowit office (Göteborg). Strict TypeScript (TS 7), run directly by Node ≥22.18 (type stripping) and wrangler; no runtime dependencies.
 
-- `src/restaurants.js` — restaurant list + one parser per site (page text lines → today's dishes)
-- `src/pdf.js` — dependency-free PDF text extraction (Canva exports; drops rotated background text) for PDF menus (`pdf` field on a restaurant)
-- `src/lunch.js` — fetches pages, picks today's weekday (Europe/Stockholm), caches 30 min
-- `src/worker.js` — Cloudflare Worker (`wrangler.jsonc`): live `/lunch.json` edge-cached 30 min (keyed by deployed version, so deploys need no purge), rest from `dist/`
-- `src/report.js` — `POST /report`: in-page form → GitHub issue (honeypot, Turnstile, per-IP rate limit); Worker secrets `TURNSTILE_SECRET`, `GITHUB_TOKEN`
-- `server.js` — local dev: serves `public/` and a live `GET /lunch.json`
-- `scripts/build.js` — static build to `dist/` (public/ + fetched `lunch.json` snapshot)
+- `src/shared/types.ts` — shapes shared by server and client (`LunchResponse`, `Dish`, `ReportRequest`, …)
+- `src/server/restaurants.ts` — restaurant list + one parser per site (page text lines → today's dishes)
+- `src/server/pdf.ts` — dependency-free PDF text extraction (Canva exports; drops rotated background text) for PDF menus (`pdf` field on a restaurant)
+- `src/server/lunch.ts` — fetches pages, picks today's weekday (Europe/Stockholm), caches 30 min
+- `src/server/worker.ts` — Cloudflare Worker (`wrangler.jsonc`): live `/lunch.json` edge-cached 30 min (keyed by deployed version, so deploys need no purge), rest from `dist/`
+- `src/server/report.ts` — `POST /report`: in-page form → GitHub issue (honeypot, Turnstile, per-IP rate limit); Worker secrets `TURNSTILE_SECRET`, `GITHUB_TOKEN`
+- `server.ts` — local dev: serves `public/` and a live `GET /lunch.json`
+- `scripts/build.ts` — static build to `dist/` (public/ + fetched `lunch.json` snapshot)
 - `.github/workflows/deploy.yml` — tests, builds and `wrangler deploy`s to Cloudflare on push to main
 - `test/fixtures/*.txt` — each parsed site's page flattened with `htmlToLines`, captured 2026-09-28 (v. 40); `delissimo.pdf` is the raw menu PDF
 
@@ -17,7 +18,7 @@ Shows today's lunch menus for restaurants near the Knowit office (Göteborg). No
 - `npm run build` — build `dist/` (prints one line per restaurant)
 - `node --test --test-reporter=dot` — quiet test run
 - `npm run -s lint` — Biome lint + format check (`npm run format` applies fixes)
-- `npm run -s typecheck` — tsc (TS 7) over the node, worker and client tsconfigs
+- `npm run -s typecheck` — tsc (TS 7) over the node, worker, test and client tsconfigs
 
 Port 3000 is often taken on this machine; use e.g. `PORT=3124 npm start`.
 

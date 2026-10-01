@@ -1,7 +1,7 @@
 // Builds the static site for GitHub Pages: public/ plus a freshly fetched lunch.json in dist/.
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { getTodaysLunch } from '../src/lunch.js';
+import { getTodaysLunch } from '../src/server/lunch.ts';
 
 const root = path.join(import.meta.dirname, '..');
 const dist = path.join(root, 'dist');

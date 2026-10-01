@@ -1,4 +1,4 @@
-const NAMED = {
+const NAMED: Record<string, string> = {
   amp: '&',
   lt: '<',
   gt: '>',
@@ -25,8 +25,8 @@ const NAMED = {
   hellip: '…',
 };
 
-export function decodeEntities(s) {
-  return s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) => {
+export function decodeEntities(s: string): string {
+  return s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e: string) => {
     if (e[0] === '#') {
       const code = e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
       return String.fromCodePoint(code);
@@ -37,8 +37,8 @@ export function decodeEntities(s) {
 
 // Applies a regex replacement until the string stops changing, so removed markup can't
 // reassemble from its leftovers (e.g. "<scr<script></script>ipt>").
-function replaceAll(s, re, to) {
-  let prev;
+function replaceAll(s: string, re: RegExp, to: string): string {
+  let prev: string;
   do {
     prev = s;
     s = s.replace(re, to);
@@ -48,7 +48,7 @@ function replaceAll(s, re, to) {
 
 // Flattens an HTML page into trimmed, non-empty text lines (one per block element).
 // The result is plain text: it is only ever rendered with textContent.
-export function htmlToLines(html) {
+export function htmlToLines(html: string): string[] {
   let text = replaceAll(html, /<(script|style|noscript)[\s\S]*?<\/\1>/gi, '');
   text = replaceAll(text, /<!--[\s\S]*?-->/g, '');
   text = text.replace(/<(br|\/p|\/div|\/h\d|\/li|\/tr)[^>]*>/gi, '\n');
