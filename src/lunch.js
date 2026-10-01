@@ -1,5 +1,5 @@
 import { htmlToLines } from './html.js';
-import { pdfToLines } from './pdf.js';
+import { readPdf } from './pdf.js';
 import { RESTAURANTS, WEEKDAYS } from './restaurants.js';
 
 const CACHE_MS = 30 * 60 * 1000;
@@ -39,20 +39,33 @@ async function fetchPage(url) {
   return res;
 }
 
-// Page text lines; for restaurants whose menu is a PDF linked from the page (r.pdf finds the link), the PDF's lines.
-async function menuLines(r, html) {
-  if (!r.pdf) return htmlToLines(html);
+// Week a PDF menu is for, from when it was made: Friday–Sunday uploads are next week's menu,
+// Monday–Thursday ones this week's (shifting by three days maps exactly that onto ISO weeks).
+export function pdfMenuWeek(created) {
+  const date = stockholmDate(created);
+  date.setUTCDate(date.getUTCDate() + 3);
+  return isoWeek(date);
+}
+
+// Page text lines; for restaurants whose menu is a PDF linked from the page (r.pdf finds the link),
+// the PDF's lines and the week its creation date points to.
+async function menuSource(r, html) {
+  if (!r.pdf) return { lines: htmlToLines(html), week: null };
   const href = r.pdf(html);
   if (!href) throw new Error('hittade ingen PDF-meny');
   const pdf = await fetchPage(new URL(href, r.url).href.replace(/^http:/, 'https:'));
-  return pdfToLines(new Uint8Array(await pdf.arrayBuffer()));
+  const { lines, created } = await readPdf(new Uint8Array(await pdf.arrayBuffer()));
+  return { lines, week: created ? pdfMenuWeek(created) : null };
 }
 
 async function loadRestaurant(r, day, week) {
   const { parse, pdf, ...info } = r;
   try {
     const html = await (await fetchPage(r.url)).text();
-    const { week: menuWeek, dishes, embed = null } = parse(await menuLines(r, html), day, html);
+    const source = await menuSource(r, html);
+    const parsed = parse(source.lines, day, html);
+    const { dishes, embed = null } = parsed;
+    const menuWeek = parsed.week ?? source.week;
     return {
       ...info,
       dishes,

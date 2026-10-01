@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { RESTAURANTS } from '../src/restaurants.js';
 import { decodeEntities, htmlToLines } from '../src/html.js';
-import { isoWeek, stockholmDate } from '../src/lunch.js';
-import { pdfToLines } from '../src/pdf.js';
+import { isoWeek, pdfMenuWeek, stockholmDate } from '../src/lunch.js';
+import { readPdf } from '../src/pdf.js';
 
 // Fixtures are the restaurants' pages as captured 2026-09-28 (vecka 40), already flattened with htmlToLines.
 const fixture = (id) => fs.readFileSync(new URL(`fixtures/${id}.txt`, import.meta.url), 'utf8').trimEnd().split('\n');
@@ -123,10 +123,11 @@ test('Magasin 5: Friday stops before the drinks list', () => {
   assert.ok(dishes.every((d) => !/Mineralvatten|Läsk/.test(d.name)));
 });
 
-// Delissimo's menu is a Canva PDF (captured 2026-09-28), read with pdfToLines.
-const delissimoLines = await pdfToLines(new Uint8Array(fs.readFileSync(new URL('fixtures/delissimo.pdf', import.meta.url))));
+// Delissimo's menu is a Canva PDF (captured 2026-09-28), read with readPdf.
+const delissimoPdf = await readPdf(new Uint8Array(fs.readFileSync(new URL('fixtures/delissimo.pdf', import.meta.url))));
+const delissimoLines = delissimoPdf.lines;
 
-test('pdfToLines: Canva PDF yields clean upright text without the rotated background pattern', () => {
+test('readPdf: Canva PDF yields clean upright text without the rotated background pattern', () => {
   assert.ok(delissimoLines.includes('MÅNDAG'));
   assert.ok(delissimoLines.includes('KÖTT: Grillad ryggbiff med grönpepparsås & friterad klyftpotatis.'));
   assert.ok(!delissimoLines.some((l) => /^[DELISMO ]+$/.test(l) && l !== 'DELISSIMO'), 'no background letter noise');
@@ -154,4 +155,16 @@ test('Delissimo: finds the Platinan PDF link on the home page', () => {
   const pdf = RESTAURANTS.find((r) => r.id === 'delissimo').pdf;
   assert.equal(pdf('<a href="http://delissimo.se/wp-content/uploads/2026/09/Platinan.pdf">'), 'http://delissimo.se/wp-content/uploads/2026/09/Platinan.pdf');
   assert.equal(pdf('<a href="/Veckans-lunch.pdf">'), null);
+});
+
+test('readPdf: creation date from the Info dictionary', () => {
+  assert.equal(delissimoPdf.created.toISOString(), '2026-09-27T13:16:04.000Z');
+});
+
+test('pdfMenuWeek: Friday–Sunday uploads count as next week, Monday–Thursday as this week', () => {
+  assert.equal(pdfMenuWeek(delissimoPdf.created), 40); // Sunday of week 39
+  assert.equal(pdfMenuWeek(new Date('2026-09-25T10:00:00Z')), 40); // Friday, week 39
+  assert.equal(pdfMenuWeek(new Date('2026-09-28T07:00:00Z')), 40); // Monday, week 40
+  assert.equal(pdfMenuWeek(new Date('2026-10-01T20:00:00Z')), 40); // Thursday evening, week 40
+  assert.equal(pdfMenuWeek(new Date('2026-10-01T22:30:00Z')), 41); // 00:30 Friday in Stockholm
 });
