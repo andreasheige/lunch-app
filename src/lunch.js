@@ -1,4 +1,5 @@
 import { htmlToLines } from './html.js';
+import { pdfToLines } from './pdf.js';
 import { RESTAURANTS, WEEKDAYS } from './restaurants.js';
 
 const CACHE_MS = 30 * 60 * 1000;
@@ -29,20 +30,29 @@ export function isoWeek(date) {
   return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
 }
 
-async function fetchHtml(url) {
+async function fetchPage(url) {
   const res = await fetch(url, {
     headers: { 'user-agent': 'knowit-lunch-app (lunch menu reader)' },
     signal: AbortSignal.timeout(10_000),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.text();
+  return res;
+}
+
+// Page text lines; for restaurants whose menu is a PDF linked from the page (r.pdf finds the link), the PDF's lines.
+async function menuLines(r, html) {
+  if (!r.pdf) return htmlToLines(html);
+  const href = r.pdf(html);
+  if (!href) throw new Error('hittade ingen PDF-meny');
+  const pdf = await fetchPage(new URL(href, r.url).href.replace(/^http:/, 'https:'));
+  return pdfToLines(new Uint8Array(await pdf.arrayBuffer()));
 }
 
 async function loadRestaurant(r, day, week) {
-  const { parse, ...info } = r;
+  const { parse, pdf, ...info } = r;
   try {
-    const html = await fetchHtml(r.url);
-    const { week: menuWeek, dishes, embed = null } = parse(htmlToLines(html), day, html);
+    const html = await (await fetchPage(r.url)).text();
+    const { week: menuWeek, dishes, embed = null } = parse(await menuLines(r, html), day, html);
     return {
       ...info,
       dishes,

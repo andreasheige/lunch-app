@@ -134,6 +134,37 @@ function parsePoppels(lines, day, html) {
   return { week: null, dishes: [], embed };
 }
 
+// The weekly menu is a Canva PDF linked from the home page (see pdf.js). Day sections hold
+// "KÖTT: Grillad ryggbiff …" lines, sometimes wrapped onto the next line; the "VECKANS …"
+// dishes at the bottom are served all week. The PDF has no week number.
+const DELISSIMO_LABEL = /^([A-ZÅÄÖ][A-ZÅÄÖ ]*[A-ZÅÄÖ]):\s*(.+)$/;
+const DELISSIMO_DAY = new RegExp(`^(${WEEKDAYS.map((d) => d.toLocaleUpperCase('sv')).join('|')})\\b`);
+
+function parseDelissimo(lines, day) {
+  const dishes = [];
+  const start = lines.findIndex((l) => l.match(DELISSIMO_DAY)?.[1] === day.toLocaleUpperCase('sv'));
+  if (start >= 0) {
+    for (const l of lines.slice(start + 1)) {
+      if (DELISSIMO_DAY.test(l) || /^VECKANS\b/.test(l) || /^Vid specialkost/.test(l)) break;
+      const m = l.match(DELISSIMO_LABEL);
+      const last = dishes.at(-1);
+      if (m) dishes.push({ category: sentenceCase(m[1]), name: m[2] });
+      else if (last && !/[.!]$/.test(last.name)) last.name += ` ${l}`;
+      else dishes.push({ category: null, name: l });
+    }
+  }
+  // Weekly dishes follow the last day section ("VECKANS LUNCH" at the top is the page title).
+  const lastDay = lines.findLastIndex((l) => DELISSIMO_DAY.test(l));
+  let weekly = null;
+  for (const l of lines.slice(lastDay + 1)) {
+    if (/^Vid specialkost/.test(l)) break;
+    const m = l.match(/^VECKANS (.+)$/);
+    if (m) dishes.push((weekly = { category: 'Veckans', name: sentenceCase(m[1]), description: '' }));
+    else if (weekly) weekly.description = `${weekly.description} ${l}`.trim();
+  }
+  return { week: null, dishes };
+}
+
 export const RESTAURANTS = [
   {
     id: 'poppels',
@@ -204,6 +235,17 @@ export const RESTAURANTS = [
     hours: '11.00–13.30',
     price: '135 kr',
     parse: parseMagasinFem,
+  },
+  {
+    id: 'delissimo',
+    name: 'Delissimo Platinan',
+    url: 'https://delissimo.se/',
+    address: 'Platinan, Centralen',
+    distance: 100,
+    hours: '11.00–14.00',
+    price: '149 kr inkl. salladsbuffé, bröd & kaffe',
+    pdf: (html) => html.match(/href="([^"]*\/Platinan\.pdf)"/i)?.[1] ?? null,
+    parse: parseDelissimo,
   },
 ];
 

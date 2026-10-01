@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import { RESTAURANTS } from '../src/restaurants.js';
 import { decodeEntities, htmlToLines } from '../src/html.js';
 import { isoWeek, stockholmDate } from '../src/lunch.js';
+import { pdfToLines } from '../src/pdf.js';
 
 // Fixtures are the restaurants' pages as captured 2026-09-28 (vecka 40), already flattened with htmlToLines.
 const fixture = (id) => fs.readFileSync(new URL(`fixtures/${id}.txt`, import.meta.url), 'utf8').trimEnd().split('\n');
@@ -120,4 +121,37 @@ test('Magasin 5: Friday stops before the drinks list', () => {
   assert.equal(dishes.length, 4);
   assert.equal(dishes[2].category, 'Schnitzel Fredag!!!!!');
   assert.ok(dishes.every((d) => !/Mineralvatten|Läsk/.test(d.name)));
+});
+
+// Delissimo's menu is a Canva PDF (captured 2026-09-28), read with pdfToLines.
+const delissimoLines = await pdfToLines(new Uint8Array(fs.readFileSync(new URL('fixtures/delissimo.pdf', import.meta.url))));
+
+test('pdfToLines: Canva PDF yields clean upright text without the rotated background pattern', () => {
+  assert.ok(delissimoLines.includes('MÅNDAG'));
+  assert.ok(delissimoLines.includes('KÖTT: Grillad ryggbiff med grönpepparsås & friterad klyftpotatis.'));
+  assert.ok(!delissimoLines.some((l) => /^[DELISMO ]+$/.test(l) && l !== 'DELISSIMO'), 'no background letter noise');
+});
+
+test('Delissimo: Tuesday has its four dishes plus the weekly pizza and salad', () => {
+  const { week, dishes } = parser('delissimo')(delissimoLines, 'Tisdag');
+  assert.equal(week, null);
+  assert.deepEqual(dishes.map((d) => d.category), ['Kött', 'Fågel', 'Fisk', 'Pasta carbonara', 'Veckans', 'Veckans']);
+  assert.equal(dishes[3].name, 'Stekt bacon i parmesansås med vitlök & svartpeppar.');
+  assert.equal(dishes[4].name, 'Pizza - parma');
+  assert.match(dishes[4].description, /^Frasig surdegspizza .* parmesan\.$/);
+});
+
+test('Delissimo: wrapped lines are joined and an unlabelled dish keeps its own entry', () => {
+  const thursday = parser('delissimo')(delissimoLines, 'Torsdag').dishes;
+  assert.equal(thursday[0].name, 'Handrullad högrevsköttbullar med gräddsås, potatismos, rårörda lingon & inlagd gurka.');
+  const friday = parser('delissimo')(delissimoLines, 'Fredag').dishes;
+  assert.equal(friday[0].category, null);
+  assert.match(friday[0].name, /^Grillmix .* BBQ-sås\. 159:-$/);
+  assert.equal(friday[1].category, 'Pasta pesce');
+});
+
+test('Delissimo: finds the Platinan PDF link on the home page', () => {
+  const pdf = RESTAURANTS.find((r) => r.id === 'delissimo').pdf;
+  assert.equal(pdf('<a href="http://delissimo.se/wp-content/uploads/2026/09/Platinan.pdf">'), 'http://delissimo.se/wp-content/uploads/2026/09/Platinan.pdf');
+  assert.equal(pdf('<a href="/Veckans-lunch.pdf">'), null);
 });
