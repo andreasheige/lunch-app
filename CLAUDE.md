@@ -3,13 +3,14 @@
 Shows today's lunch menus for restaurants near the Knowit office (Göteborg). Node ≥22, no dependencies.
 
 - `src/restaurants.js` — restaurant list + one parser per site (page text lines → today's dishes)
+- `src/pdf.js` — dependency-free PDF text extraction (Canva exports; drops rotated background text) for PDF menus (`pdf` field on a restaurant)
 - `src/lunch.js` — fetches pages, picks today's weekday (Europe/Stockholm), caches 30 min
 - `src/worker.js` — Cloudflare Worker (`wrangler.jsonc`): live `/lunch.json` edge-cached 30 min, rest from `dist/`
 - `src/report.js` — `POST /report`: in-page form → GitHub issue (honeypot, Turnstile, per-IP rate limit); Worker secrets `TURNSTILE_SECRET`, `GITHUB_TOKEN`
 - `server.js` — local dev: serves `public/` and a live `GET /lunch.json`
 - `scripts/build.js` — static build to `dist/` (public/ + fetched `lunch.json` snapshot)
 - `.github/workflows/deploy.yml` — tests, builds and `wrangler deploy`s to Cloudflare on push to main
-- `test/fixtures/*.txt` — each parsed site's page flattened with `htmlToLines`, captured 2026-09-28 (v. 40)
+- `test/fixtures/*.txt` — each parsed site's page flattened with `htmlToLines`, captured 2026-09-28 (v. 40); `delissimo.pdf` is the raw menu PDF
 
 ## Common commands
 - `npm start` — run on http://localhost:3000 (`PORT=…` to change)
