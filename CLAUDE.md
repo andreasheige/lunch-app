@@ -16,6 +16,8 @@ Shows today's lunch menus for restaurants near the Knowit office (Göteborg). No
 - `npm start` — run on http://localhost:3000 (`PORT=…` to change)
 - `npm run build` — build `dist/` (prints one line per restaurant)
 - `node --test --test-reporter=dot` — quiet test run
+- `npm run -s lint` — Biome lint + format check (`npm run format` applies fixes)
+- `npm run -s typecheck` — tsc (TS 7) over the node, worker and client tsconfigs
 
 Port 3000 is often taken on this machine; use e.g. `PORT=3124 npm start`.
 
