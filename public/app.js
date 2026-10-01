@@ -100,7 +100,8 @@ const GAP_PX = 16;
 function packCards(container) {
   container.classList.add('masonry');
   const observer = new ResizeObserver((entries) => {
-    for (const { target } of entries) target.style.gridRowEnd = `span ${Math.ceil((target.offsetHeight + GAP_PX) / ROW_PX)}`;
+    for (const { target } of entries)
+      target.style.gridRowEnd = `span ${Math.ceil((target.offsetHeight + GAP_PX) / ROW_PX)}`;
   });
   for (const child of container.children) observer.observe(child);
 }
@@ -117,12 +118,15 @@ async function main() {
     const fetchedAt = new Date(data.fetchedAt);
 
     document.getElementById('today').textContent = `${DATE_FMT.format(new Date(data.date))} · vecka ${data.week}`;
-    document.getElementById('updated').textContent = `Uppdaterad ${DATE_FMT.format(fetchedAt)} kl. ${TIME_FMT.format(fetchedAt)}`;
+    document.getElementById('updated').textContent =
+      `Uppdaterad ${DATE_FMT.format(fetchedAt)} kl. ${TIME_FMT.format(fetchedAt)}`;
     renderHeaderStatus(isToday && Boolean(data.day));
 
     container.replaceChildren();
     if (!isToday) {
-      container.append(el('p', 'notice', `Menyerna har inte uppdaterats idag – visar ${DATE_FMT.format(new Date(data.date))}.`));
+      container.append(
+        el('p', 'notice', `Menyerna har inte uppdaterats idag – visar ${DATE_FMT.format(new Date(data.date))}.`),
+      );
     }
     if (!data.day) {
       container.append(el('p', 'notice', 'Ingen lunch idag – det är helg. Välkommen tillbaka på måndag!'));
@@ -183,7 +187,9 @@ function setupReport() {
       }
     });
   }
-  form.elements.kind.forEach((radio) => radio.addEventListener('change', () => setKind(radio.value)));
+  form.elements.kind.forEach((radio) => {
+    radio.addEventListener('change', () => setKind(radio.value));
+  });
   document.getElementById('report-cancel').addEventListener('click', () => dialog.close());
 
   form.addEventListener('submit', async (event) => {

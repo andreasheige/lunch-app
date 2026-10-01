@@ -19,7 +19,10 @@ function sentenceCase(s) {
 }
 
 function parsePocket(lines, day) {
-  const start = lines.indexOf(day, lines.findIndex((l) => /^Lunch v\./.test(l)));
+  const start = lines.indexOf(
+    day,
+    lines.findIndex((l) => /^Lunch v\./.test(l)),
+  );
   if (start < 0) return { week: menuWeek(lines), dishes: [] };
   const dishes = [];
   for (let i = start + 1; i < lines.length; i++) {
@@ -129,7 +132,7 @@ function parseMagasinFem(lines, day) {
 
 // The lunch menu is a Canva design embedded in the page. Canva blocks server requests
 // (Cloudflare challenge), so we only pass the embed URL on for the browser to show.
-function parsePoppels(lines, day, html) {
+function parsePoppels(_lines, _day, html) {
   const embed = html.match(/https:\/\/www\.canva\.com\/design\/[\w-]+\/view\?embed/)?.[0] ?? null;
   return { week: null, dishes: [], embed };
 }
@@ -160,8 +163,10 @@ function parseDelissimo(lines, day) {
   for (const l of lines.slice(lastDay + 1)) {
     if (/^Vid specialkost/.test(l)) break;
     const m = l.match(/^VECKANS (.+)$/);
-    if (m) dishes.push((weekly = { category: 'Veckans', name: sentenceCase(m[1]), description: '' }));
-    else if (weekly) weekly.description = `${weekly.description} ${l}`.trim();
+    if (m) {
+      weekly = { category: 'Veckans', name: sentenceCase(m[1]), description: '' };
+      dishes.push(weekly);
+    } else if (weekly) weekly.description = `${weekly.description} ${l}`.trim();
   }
   return { week: null, dishes };
 }

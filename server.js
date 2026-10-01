@@ -1,11 +1,16 @@
-import http from 'node:http';
 import fs from 'node:fs/promises';
+import http from 'node:http';
 import path from 'node:path';
 import { getTodaysLunch } from './src/lunch.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC_DIR = path.join(import.meta.dirname, 'public');
-const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml' };
+const TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css',
+  '.js': 'text/javascript',
+  '.svg': 'image/svg+xml',
+};
 
 const server = http.createServer(async (req, res) => {
   const { pathname } = new URL(req.url, 'http://localhost');
