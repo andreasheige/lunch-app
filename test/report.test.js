@@ -1,5 +1,5 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { test } from 'node:test';
 import { issueBody, parseReport } from '../src/report.js';
 
 test('issueBody fences text longer than any backtick run inside it', () => {
@@ -10,8 +10,12 @@ test('issueBody fences text longer than any backtick run inside it', () => {
 });
 
 test('parseReport trims fields and rejects missing, unknown or oversized input', () => {
-  assert.deepEqual(parseReport({ kind: 'bug', title: ' Fel pris ', text: ' Pocket ', token: 't' }),
-    { kind: 'bug', title: 'Fel pris', text: 'Pocket', token: 't' });
+  assert.deepEqual(parseReport({ kind: 'bug', title: ' Fel pris ', text: ' Pocket ', token: 't' }), {
+    kind: 'bug',
+    title: 'Fel pris',
+    text: 'Pocket',
+    token: 't',
+  });
   assert.equal(parseReport({ kind: 'spam', title: 'a', text: 'b', token: 't' }), null);
   assert.equal(parseReport({ kind: 'bug', title: '   ', text: 'b', token: 't' }), null);
   assert.equal(parseReport({ kind: 'bug', title: 'a'.repeat(121), text: 'b', token: 't' }), null);

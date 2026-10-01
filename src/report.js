@@ -5,10 +5,11 @@ const MAX_BODY_CHARS = 16 * 1024;
 const MAX_TITLE = 120;
 const MAX_TEXT = 4000;
 
-const json = (status, data) => new Response(JSON.stringify(data), {
-  status,
-  headers: { 'content-type': 'application/json; charset=utf-8' },
-});
+const json = (status, data) =>
+  new Response(JSON.stringify(data), {
+    status,
+    headers: { 'content-type': 'application/json; charset=utf-8' },
+  });
 
 // User text goes in a code fence longer than any backtick run inside it, so @mentions, links and images stay inert.
 export function issueBody(text, host) {
@@ -71,7 +72,8 @@ export async function handleReport(request, env) {
   if (input?.website) return json(200, { ok: true });
 
   const report = parseReport(input);
-  if (!report) return json(400, { error: `Fyll i rubrik (max ${MAX_TITLE} tecken) och beskrivning (max ${MAX_TEXT} tecken).` });
+  if (!report)
+    return json(400, { error: `Fyll i rubrik (max ${MAX_TITLE} tecken) och beskrivning (max ${MAX_TEXT} tecken).` });
   if (!(await verifyTurnstile(env.TURNSTILE_SECRET, report.token, ip))) {
     return json(403, { error: 'Verifieringen misslyckades. Ladda om sidan och försök igen.' });
   }

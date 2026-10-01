@@ -15,9 +15,18 @@ export function stockholmDate(now = new Date()) {
 export function stockholmTimestamp(now = new Date()) {
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat('en-CA', {
-      timeZone: TZ, hourCycle: 'h23', timeZoneName: 'longOffset',
-      year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
-    }).formatToParts(now).map((p) => [p.type, p.value]),
+      timeZone: TZ,
+      hourCycle: 'h23',
+      timeZoneName: 'longOffset',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
+      .formatToParts(now)
+      .map((p) => [p.type, p.value]),
   );
   const offset = parts.timeZoneName.replace('GMT', '') || '+00:00';
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}${offset}`;
@@ -75,7 +84,14 @@ async function loadRestaurant(r, day, week) {
       error: dishes.length || embed ? null : 'Hittade ingen meny för idag',
     };
   } catch (err) {
-    return { ...info, dishes: [], embed: null, stale: false, menuWeek: null, error: `Kunde inte hämta menyn (${err.message})` };
+    return {
+      ...info,
+      dishes: [],
+      embed: null,
+      stale: false,
+      menuWeek: null,
+      error: `Kunde inte hämta menyn (${err.message})`,
+    };
   }
 }
 
