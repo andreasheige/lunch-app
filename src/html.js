@@ -16,13 +16,24 @@ export function decodeEntities(s) {
   });
 }
 
+// Applies a regex replacement until the string stops changing, so removed markup can't
+// reassemble from its leftovers (e.g. "<scr<script></script>ipt>").
+function replaceAll(s, re, to) {
+  let prev;
+  do {
+    prev = s;
+    s = s.replace(re, to);
+  } while (s !== prev);
+  return s;
+}
+
 // Flattens an HTML page into trimmed, non-empty text lines (one per block element).
+// The result is plain text: it is only ever rendered with textContent.
 export function htmlToLines(html) {
-  const text = html
-    .replace(/<(script|style|noscript)[\s\S]*?<\/\1>/gi, '')
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/<(br|\/p|\/div|\/h\d|\/li|\/tr)[^>]*>/gi, '\n')
-    .replace(/<[^>]+>/g, '');
+  let text = replaceAll(html, /<(script|style|noscript)[\s\S]*?<\/\1>/gi, '');
+  text = replaceAll(text, /<!--[\s\S]*?-->/g, '');
+  text = text.replace(/<(br|\/p|\/div|\/h\d|\/li|\/tr)[^>]*>/gi, '\n');
+  text = replaceAll(text, /<[^>]+>/g, '');
   return decodeEntities(text)
     .replace(/[\u200b\u00a0]/g, ' ')
     .split('\n')
