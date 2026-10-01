@@ -168,3 +168,7 @@ test('pdfMenuWeek: Friday–Sunday uploads count as next week, Monday–Thursday
   assert.equal(pdfMenuWeek(new Date('2026-10-01T20:00:00Z')), 40); // Thursday evening, week 40
   assert.equal(pdfMenuWeek(new Date('2026-10-01T22:30:00Z')), 41); // 00:30 Friday in Stockholm
 });
+
+test('htmlToLines: markup split around a removed tag does not reassemble', () => {
+  assert.deepEqual(htmlToLines('<p>Före</p><scr<script>x</script>ipt>alert(1)</script><p>Efter</p>'), ['Före', 'Efter']);
+});
