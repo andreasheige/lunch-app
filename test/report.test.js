@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import { issueBody, parseReport } from '../src/report.js';
 
 test('issueBody fences text longer than any backtick run inside it', () => {
-  const body = issueBody('hej @someone ```kod``` ![x](https://evil)');
+  const body = issueBody('hej @someone ```kod``` ![x](https://evil)', 'lunchit.se');
   assert.ok(body.startsWith('````text\n'));
   assert.ok(body.includes('\n````\n'));
+  assert.ok(body.endsWith('formuläret på lunchit.se._'));
 });
 
 test('parseReport trims fields and rejects missing, unknown or oversized input', () => {

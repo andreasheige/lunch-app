@@ -11,10 +11,10 @@ const json = (status, data) => new Response(JSON.stringify(data), {
 });
 
 // User text goes in a code fence longer than any backtick run inside it, so @mentions, links and images stay inert.
-export function issueBody(text) {
+export function issueBody(text, host) {
   const longestRun = Math.max(0, ...(text.match(/`+/g) ?? []).map((run) => run.length));
   const fence = '`'.repeat(Math.max(3, longestRun + 1));
-  return `${fence}text\n${text}\n${fence}\n\n_Skickat via formuläret på lunch-app.andreasheige.cc._`;
+  return `${fence}text\n${text}\n${fence}\n\n_Skickat via formuläret på ${host}._`;
 }
 
 // Trimmed string fields from the form; null when a required one is missing or too long.
@@ -36,7 +36,7 @@ async function verifyTurnstile(secret, token, ip) {
   return outcome.success === true;
 }
 
-async function createIssue(githubToken, { kind, title, text }) {
+async function createIssue(githubToken, { kind, title, text }, host) {
   const res = await fetch(`https://api.github.com/repos/${REPO}/issues`, {
     method: 'POST',
     headers: {
@@ -45,7 +45,7 @@ async function createIssue(githubToken, { kind, title, text }) {
       'x-github-api-version': '2022-11-28',
       'user-agent': 'knowit-lunch-app',
     },
-    body: JSON.stringify({ title: `${KINDS[kind]}: ${title}`, body: issueBody(text), labels: [kind] }),
+    body: JSON.stringify({ title: `${KINDS[kind]}: ${title}`, body: issueBody(text, host), labels: [kind] }),
   });
   if (!res.ok) throw new Error(`GitHub ${res.status}: ${(await res.text()).slice(0, 200)}`);
   return (await res.json()).html_url;
@@ -77,7 +77,7 @@ export async function handleReport(request, env) {
   }
 
   try {
-    return json(201, { ok: true, url: await createIssue(env.GITHUB_TOKEN, report) });
+    return json(201, { ok: true, url: await createIssue(env.GITHUB_TOKEN, report, new URL(request.url).host) });
   } catch (err) {
     // Surfaces in Workers Logs (observability is enabled in wrangler.jsonc).
     console.error('report: issue creation failed', err.message);
