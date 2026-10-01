@@ -168,7 +168,18 @@ function parseDocument(bytes) {
   const trailerRoot = s.match(/\/Root\s+(\d+)\s+\d+\s+R/);
   const catalog = trailerRoot && objects.get(Number(trailerRoot[1]))?.value;
   if (catalog instanceof Map) walk(catalog.get('Pages'));
-  return { resolve, streamData, pages };
+  const infoRef = s.match(/\/Info\s+(\d+)\s+\d+\s+R/);
+  const info = infoRef && objects.get(Number(infoRef[1]))?.value;
+  return { resolve, streamData, pages, created: info instanceof Map ? parseDate(info.get('CreationDate')) : null };
+}
+
+// PDF date string "D:YYYYMMDDHHmmSS+HH'mm'" → Date (null when missing or malformed).
+function parseDate(str) {
+  const m = typeof str === 'string' && str.match(/^D:(\d{4})(\d{2})(\d{2})(\d{2})?(\d{2})?(\d{2})?(?:([+-])(\d{2})'?(\d{2})?'?|Z)?/);
+  if (!m) return null;
+  const [, y, mo, d, h = '00', mi = '00', sec = '00', sign, oh = '00', om = '00'] = m;
+  const offset = sign ? (sign === '-' ? -1 : 1) * (Number(oh) * 60 + Number(om)) : 0;
+  return new Date(Date.UTC(+y, +mo - 1, +d, +h, +mi, +sec) - offset * 60_000);
 }
 
 // --- ToUnicode CMaps ---
@@ -318,7 +329,8 @@ function toLines(pieces) {
   }).filter(Boolean);
 }
 
-export async function pdfToLines(bytes) {
+// Text lines of every page, plus the document's creation date.
+export async function readPdf(bytes) {
   const doc = parseDocument(bytes);
   const lines = [];
   for (const page of doc.pages) {
@@ -330,5 +342,5 @@ export async function pdfToLines(bytes) {
     await runContent(doc, content, doc.resolve(page.get('Resources')), ID, pieces, new Map(), 0);
     lines.push(...toLines(pieces));
   }
-  return lines;
+  return { lines, created: doc.created };
 }

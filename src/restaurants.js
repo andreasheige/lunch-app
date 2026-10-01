@@ -136,7 +136,8 @@ function parsePoppels(lines, day, html) {
 
 // The weekly menu is a Canva PDF linked from the home page (see pdf.js). Day sections hold
 // "KÖTT: Grillad ryggbiff …" lines, sometimes wrapped onto the next line; the "VECKANS …"
-// dishes at the bottom are served all week. The PDF has no week number.
+// dishes at the bottom are served all week. The PDF has no week number; lunch.js derives it from
+// the PDF creation date (pdfMenuWeek).
 const DELISSIMO_LABEL = /^([A-ZÅÄÖ][A-ZÅÄÖ ]*[A-ZÅÄÖ]):\s*(.+)$/;
 const DELISSIMO_DAY = new RegExp(`^(${WEEKDAYS.map((d) => d.toLocaleUpperCase('sv')).join('|')})\\b`);
 
