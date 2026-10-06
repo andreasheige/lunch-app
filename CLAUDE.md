@@ -10,6 +10,8 @@ Shows today's lunch menus for restaurants near the Knowit office (Göteborg). St
 - `src/server/worker.ts` — Cloudflare Worker (`wrangler.jsonc`): live `/lunch.json` edge-cached 30 min (keyed by deployed version, so deploys need no purge), rest from `dist/`
 - `src/server/report.ts` — `POST /report`: in-page form → GitHub issue (honeypot, Turnstile, per-IP rate limit); Worker secrets `TURNSTILE_SECRET`, `GITHUB_TOKEN`
 - `public/picker.js` — "Välj åt mig": 3 random questions from a pool score dishes/restaurants (plus distance, open now, the diet filter and the per-browser visit history in localStorage); pure functions, tested in `test/picker.test.js`
+- `src/server/releases.ts` + `public/nyheter.html` — release notes at `/nyheter`: build writes feat/fix commits from git log to `dist/commits.json`; the Worker's `/releases.json` rewrites new ones into Swedish with Workers AI (8 per request) and stores them in D1 `release_notes`, so each commit is rewritten once
+- `migrations/` — D1 (`lunch-app`, binding `DB`) schema; apply with `npx wrangler d1 migrations apply lunch-app --remote` (and `--local` for `wrangler dev`)
 - `server.ts` — local dev: serves `public/` and a live `GET /lunch.json`
 - `scripts/capture.ts` — reads Poppels' Canva menu text with a headed Playwright Chromium (headless is blocked by Cloudflare) into `captured.json`; CI runs it under `xvfb-run` before the build
 - `scripts/build.ts` — static build to `dist/` (public/ + fetched `lunch.json` snapshot + `captured.json`, which the Worker reads via `ASSETS`)

@@ -6,10 +6,15 @@
     "directory": "./dist",
     "binding": "ASSETS",
     // dist/lunch.json is a build-time snapshot; the Worker serves it live instead.
-    "run_worker_first": ["/lunch.json", "/report"]
+    "run_worker_first": ["/lunch.json", "/report", "/releases.json"]
   },
   // Workers AI, for veg/fish/meat guesses on dishes the restaurant doesn't label (see diet.ts).
   "ai": { "binding": "AI" },
+  // Release-note texts (and, later, ratings). Schema in migrations/; apply with
+  // `npx wrangler d1 migrations apply lunch-app --remote`.
+  "d1_databases": [
+    { "binding": "DB", "database_name": "lunch-app", "database_id": "ff75d76e-6847-4a47-991d-cc5b928c2d0d" }
+  ],
   // Deployed version id, used in the /lunch.json cache key.
   "version_metadata": { "binding": "CF_VERSION_METADATA" },
   // Per-IP cap on POST /report, on top of Turnstile.

@@ -1,3 +1,4 @@
+import { el } from './dom.js';
 import { drawQuestions, rank, reasonText } from './picker.js';
 
 const TZ = 'Europe/Stockholm';
@@ -37,13 +38,6 @@ const DIETS = {
   fish: { icon: '🐟', label: 'Fisk' },
   meat: { icon: '🥩', label: 'Kött' },
 };
-
-function el(tag, className, text) {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text != null) node.textContent = text;
-  return node;
-}
 
 function minutesNow() {
   const [h, m] = TIME_FMT.format(new Date()).split(':').map(Number);

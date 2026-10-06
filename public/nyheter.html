@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>Nyheter – Dagens lunch</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <script src="nyheter.js" type="module"></script>
+</head>
+<body>
+  <div class="glow" aria-hidden="true"></div>
+  <nav class="site-nav" aria-label="Sajtnavigering">
+    <a href="/">Lunch</a>
+    <a href="/nyheter" aria-current="page">Nyheter</a>
+  </nav>
+  <header class="hero">
+    <p class="eyebrow"><span class="dot" aria-hidden="true"></span>Vad är nytt</p>
+    <h1>Nyheter<em>.</em></h1>
+    <p class="today">Allt nytt och fixat på lunchsajten – oftast för att någon önskade det.</p>
+  </header>
+  <main id="notes" class="blog" aria-live="polite" aria-busy="true">
+    <article class="post skeleton" aria-hidden="true"><span></span><span></span><span></span></article>
+    <article class="post skeleton" aria-hidden="true"><span></span><span></span><span></span></article>
+  </main>
+  <footer>
+    <p>Texterna skrivs om till svenska av AI utifrån ändringarna i koden.</p>
+    <p><a class="footer-link" href="/">← Tillbaka till dagens lunch</a></p>
+  </footer>
+</body>
+</html>
