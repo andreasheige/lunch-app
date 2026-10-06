@@ -17,23 +17,35 @@
     <p id="today" class="today"></p>
   </header>
   <section class="filters" aria-label="Filter">
-    <fieldset class="filter-group">
-      <legend class="filter-label">Visa</legend>
-      <button type="button" class="chip" data-diet="veg" aria-pressed="false">🌱 Vegetariskt</button>
-      <button type="button" class="chip" data-diet="fish" aria-pressed="false">🐟 Fisk</button>
-      <button type="button" class="chip" data-diet="meat" aria-pressed="false">🥩 Kött</button>
-    </fieldset>
-    <fieldset class="filter-group">
-      <legend class="filter-label">Markera</legend>
-      <button type="button" class="chip" data-allergen="nuts" aria-pressed="false">Nötter</button>
-      <button type="button" class="chip" data-allergen="gluten" aria-pressed="false">Gluten</button>
-      <button type="button" class="chip" data-allergen="lactose" aria-pressed="false">Laktos</button>
-      <button type="button" class="chip" data-allergen="shellfish" aria-pressed="false">Skaldjur</button>
-      <button type="button" class="chip" data-allergen="egg" aria-pressed="false">Ägg</button>
-    </fieldset>
-    <p id="filter-note" class="filter-note" hidden>
-      Markeringen bygger bara på vad menytexten nämner. Omarkerade rätter kan ändå innehålla allergenen – fråga alltid restaurangen.
-    </p>
+    <div class="filter-bar">
+      <fieldset class="segmented">
+        <legend class="visually-hidden">Visa kost</legend>
+        <button type="button" class="seg" data-diet="veg" aria-pressed="false"><span aria-hidden="true">🌱</span> Vegetariskt</button>
+        <button type="button" class="seg" data-diet="fish" aria-pressed="false"><span aria-hidden="true">🐟</span> Fisk</button>
+        <button type="button" class="seg" data-diet="meat" aria-pressed="false"><span aria-hidden="true">🥩</span> Kött</button>
+      </fieldset>
+      <details class="allergen-menu">
+        <summary>
+          <span aria-hidden="true">⚠️</span> Allergier <span id="allergen-count" class="count" hidden></span>
+          <svg class="caret" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </summary>
+        <div class="allergen-panel">
+          <fieldset class="allergen-chips">
+            <legend>Markera rätter som nämner</legend>
+            <button type="button" class="chip" data-allergen="nuts" aria-pressed="false"><span aria-hidden="true">🥜</span> Nötter</button>
+            <button type="button" class="chip" data-allergen="gluten" aria-pressed="false"><span aria-hidden="true">🌾</span> Gluten</button>
+            <button type="button" class="chip" data-allergen="lactose" aria-pressed="false"><span aria-hidden="true">🥛</span> Laktos</button>
+            <button type="button" class="chip" data-allergen="shellfish" aria-pressed="false"><span aria-hidden="true">🦐</span> Skaldjur</button>
+            <button type="button" class="chip" data-allergen="egg" aria-pressed="false"><span aria-hidden="true">🥚</span> Ägg</button>
+          </fieldset>
+          <p class="filter-note">
+            Bygger bara på vad menytexten nämner. Omarkerade rätter kan ändå innehålla allergenen – fråga alltid restaurangen.
+          </p>
+        </div>
+      </details>
+      <p id="filter-summary" class="filter-summary" aria-live="polite"></p>
+      <button type="button" id="filter-clear" class="filter-clear" hidden>Rensa</button>
+    </div>
   </section>
   <main id="restaurants" aria-live="polite" aria-busy="true">
     <article class="card skeleton" aria-hidden="true"><span></span><span></span><span></span><span></span></article>

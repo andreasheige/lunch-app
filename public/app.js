@@ -207,21 +207,54 @@ function applyFilter(filter) {
     }
     card.querySelector('.filtered').hidden = visible > 0;
   }
-  document.getElementById('filter-note').hidden = filter.allergens.length === 0;
+  const count = document.getElementById('allergen-count');
+  count.hidden = filter.allergens.length === 0;
+  count.textContent = String(filter.allergens.length);
+  const active = filter.diets.length > 0 || filter.allergens.length > 0;
+  document.getElementById('filter-clear').hidden = !active;
+  const all = document.querySelectorAll('#restaurants .dishes li');
+  const shown = [...all].filter((li) => !li.hidden).length;
+  document.getElementById('filter-summary').textContent =
+    filter.diets.length && all.length ? `Visar ${shown} av ${all.length} rätter` : '';
 }
 
 function setupFilter() {
   const filter = loadFilter();
-  for (const chip of document.querySelectorAll('.chip')) {
-    const [list, value] = chip.dataset.diet ? ['diets', chip.dataset.diet] : ['allergens', chip.dataset.allergen];
-    chip.setAttribute('aria-pressed', String(filter[list].includes(value)));
-    chip.addEventListener('click', () => {
+  const buttons = document.querySelectorAll('[data-diet], [data-allergen]');
+  const listOf = (button) =>
+    button.dataset.diet ? ['diets', button.dataset.diet] : ['allergens', button.dataset.allergen];
+  const sync = () => {
+    for (const button of buttons) {
+      const [list, value] = listOf(button);
+      button.setAttribute('aria-pressed', String(filter[list].includes(value)));
+    }
+    saveFilter(filter);
+    applyFilter(filter);
+  };
+  for (const button of buttons) {
+    button.addEventListener('click', () => {
+      const [list, value] = listOf(button);
       filter[list] = filter[list].includes(value) ? filter[list].filter((v) => v !== value) : [...filter[list], value];
-      chip.setAttribute('aria-pressed', String(filter[list].includes(value)));
-      saveFilter(filter);
-      applyFilter(filter);
+      sync();
     });
   }
+  document.getElementById('filter-clear').addEventListener('click', () => {
+    filter.diets = [];
+    filter.allergens = [];
+    sync();
+  });
+  // The allergen menu closes on a click outside it or Escape, like other dropdowns.
+  const menu = document.querySelector('.allergen-menu');
+  document.addEventListener('click', (event) => {
+    if (menu.open && !menu.contains(event.target)) menu.open = false;
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && menu.open) {
+      menu.open = false;
+      menu.querySelector('summary').focus();
+    }
+  });
+  sync();
   return filter;
 }
 
