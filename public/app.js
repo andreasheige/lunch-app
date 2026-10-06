@@ -78,7 +78,88 @@ function dishIcons(d) {
   return [icon(kind.icon, kind.label), ...(d.diet === 'veg' ? [dietIcon] : [])];
 }
 
-function renderCard(r, index, isToday) {
+const VOTER_KEY = 'lunch-voter';
+const VOTES_KEY = 'lunch-votes';
+
+// A random id per browser, so a changed vote replaces the old one; it isn't tied to a person.
+function voterId() {
+  let id = readStored(VOTER_KEY, null);
+  if (!id) {
+    id = crypto.randomUUID();
+    writeStored(VOTER_KEY, id);
+  }
+  return id;
+}
+
+const summaryText = (s) =>
+  s?.count ? `${s.avg.toFixed(1).replace('.', ',')} ★ · ${s.count} ${s.count === 1 ? 'röst' : 'röster'}` : '';
+
+// Five star buttons and today's average; a click votes (or changes your vote) for this dish.
+function ratingRow(r, d, date) {
+  const row = el('div', 'rating');
+  const key = `${r.id}\n${d.name}`;
+  row.dataset.key = key;
+  const stars = el('div', 'stars');
+  stars.setAttribute('role', 'group');
+  stars.setAttribute('aria-label', `Betygsätt ${d.name}`);
+  const voteKey = `${date}|${key}`;
+  // data-show is what's lit: the hovered star while pointing, else your vote.
+  const setValue = (n) => {
+    stars.dataset.value = String(n);
+    stars.dataset.show = String(n);
+    for (const b of stars.children) b.setAttribute('aria-pressed', String(Number(b.dataset.stars) === n));
+  };
+  const summary = el('span', 'rating-summary');
+  for (let i = 1; i <= 5; i++) {
+    const b = el('button', 'star', '★');
+    b.type = 'button';
+    b.dataset.stars = String(i);
+    b.setAttribute('aria-label', `${i} av 5 stjärnor`);
+    b.addEventListener('pointerenter', () => {
+      stars.dataset.show = String(i);
+    });
+    b.addEventListener('click', async () => {
+      const votes = readStored(VOTES_KEY, {});
+      const before = votes[voteKey] ?? 0;
+      setValue(i);
+      writeStored(VOTES_KEY, { ...votes, [voteKey]: i });
+      try {
+        const res = await fetch('rate', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ restaurant: r.id, dish: d.name, stars: i, voter: voterId() }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        summary.textContent = summaryText(data);
+      } catch {
+        setValue(before);
+        writeStored(VOTES_KEY, { ...readStored(VOTES_KEY, {}), [voteKey]: before || undefined });
+        summary.textContent = 'Kunde inte spara betyget';
+      }
+    });
+    stars.append(b);
+  }
+  stars.addEventListener('pointerleave', () => {
+    stars.dataset.show = stars.dataset.value;
+  });
+  setValue(readStored(VOTES_KEY, {})[voteKey] ?? 0);
+  row.append(stars, summary);
+  return row;
+}
+
+async function fillRatings() {
+  try {
+    const res = await fetch('ratings.json', { cache: 'no-store' });
+    if (!res.ok) return;
+    const ratings = await res.json();
+    for (const row of document.querySelectorAll('.rating')) {
+      row.querySelector('.rating-summary').textContent = summaryText(ratings[row.dataset.key]);
+    }
+  } catch {}
+}
+
+function renderCard(r, index, isToday, rateDate) {
   const card = el('article', 'card');
   card.dataset.id = r.id;
   card.style.setProperty('--i', index);
@@ -122,6 +203,7 @@ function renderCard(r, index, isToday) {
       const mentions = el('span', 'mentions');
       mentions.hidden = true;
       item.append(mentions);
+      if (rateDate) item.append(ratingRow(r, d, rateDate));
       list.append(item);
     }
     card.append(list);
@@ -286,7 +368,9 @@ async function main() {
     const indya = sorted.findIndex((r) => r.id === 'indya');
     const fem = sorted.findIndex((r) => r.id === 'magasinfem');
     if (indya >= 0 && fem >= 0) [sorted[indya], sorted[fem]] = [sorted[fem], sorted[indya]];
-    container.append(...sorted.map((r, i) => renderCard(r, i, isToday)));
+    const rateDate = isToday && data.day ? data.date : null;
+    container.append(...sorted.map((r, i) => renderCard(r, i, isToday, rateDate)));
+    if (rateDate) fillRatings();
     lunch = { data, isToday };
     document.getElementById('picker-open').hidden = false;
     applyFilter(filter);

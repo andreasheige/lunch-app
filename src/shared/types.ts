@@ -102,6 +102,37 @@ export interface ReleaseNote {
   pending: boolean;
 }
 
+// POST /rate body (date is set by the server).
+export interface RatingInput {
+  date: string;
+  restaurant: string;
+  dish: string;
+  stars: number;
+  /** Random id from the voter's browser. */
+  voter: string;
+}
+
+export interface RatingSummary {
+  avg: number;
+  count: number;
+}
+
+// GET /ratings.json: today's ratings by `${restaurant}\n${dish}`.
+export type TodaysRatings = Record<string, RatingSummary>;
+
+// GET /stats.json?range=14|all
+export interface StatsResponse {
+  range: '14' | 'all';
+  from: string;
+  to: string;
+  totals: { votes: number; voters: number; dishes: number; avg: number | null };
+  restaurants: { id: string; name: string; avg: number; votes: number }[];
+  dishes: { restaurant: string; dish: string; avg: number; votes: number }[];
+  days: { date: string; votes: number; avg: number }[];
+  /** Widest spread of stars (min 3 votes): the dish people disagree on most. */
+  divisive: { restaurant: string; dish: string; avg: number; votes: number; spread: number } | null;
+}
+
 export type ReportKind = 'bug' | 'feat-req';
 
 // POST /report body. `website` is the honeypot field.
