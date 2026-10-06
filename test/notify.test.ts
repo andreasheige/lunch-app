@@ -26,8 +26,11 @@ test('notifyEmail: not planned gets a friendly no, bugs are called fel, no name 
   assert.match(mail.text, /gör inget åt det just nu/);
 });
 
-test('notifyEmail escapes form text in the HTML part', () => {
-  const mail = notifyEmail({ ...row, name: '<b>x</b>', title: '"><script>alert(1)</script>' }, 'completed');
-  assert.doesNotMatch(mail.html, /<script>|<b>/);
-  assert.match(mail.html, /&lt;script&gt;/);
+test('notifyEmail escapes form text in the HTML part, whatever the case', () => {
+  const mail = notifyEmail({ ...row, name: '<b>x</b>', title: '"><SCRIPT>alert(1)</script>' }, 'completed');
+  // Every character that could open a tag or attribute is escaped, so none of the input survives as markup.
+  assert.ok(mail.html.includes('Hej &lt;b&gt;x&lt;/b&gt;!'));
+  assert.ok(mail.html.includes('&quot;&gt;&lt;SCRIPT&gt;alert(1)&lt;/script&gt;'));
+  assert.ok(!mail.html.toLowerCase().includes('<script'));
+  assert.ok(!mail.html.includes('<b>'));
 });
