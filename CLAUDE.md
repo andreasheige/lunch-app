@@ -5,6 +5,7 @@ Shows today's lunch menus for restaurants near the Knowit office (Göteborg). St
 - `src/shared/types.ts` — shapes shared by server and client (`LunchResponse`, `Dish`, `ReportRequest`, …)
 - `src/server/restaurants.ts` — restaurant list + one parser per site (page text lines → today's dishes)
 - `src/server/pdf.ts` — dependency-free PDF text extraction (Canva exports; drops rotated background text) for PDF menus (`pdf` field on a restaurant)
+- `src/server/diet.ts` — veg/fish/meat per dish: from the restaurant's category label, else guessed by Workers AI (Llama 3.3 70B via the Worker's `AI` binding; answer edge-cached a day per dish list, free tier)
 - `src/server/lunch.ts` — fetches pages, picks today's weekday (Europe/Stockholm), caches 30 min
 - `src/server/worker.ts` — Cloudflare Worker (`wrangler.jsonc`): live `/lunch.json` edge-cached 30 min (keyed by deployed version, so deploys need no purge), rest from `dist/`
 - `src/server/report.ts` — `POST /report`: in-page form → GitHub issue (honeypot, Turnstile, per-IP rate limit); Worker secrets `TURNSTILE_SECRET`, `GITHUB_TOKEN`

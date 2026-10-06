@@ -2,6 +2,11 @@ const TZ = 'Europe/Stockholm';
 const DATE_FMT = new Intl.DateTimeFormat('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ });
 const TIME_FMT = new Intl.DateTimeFormat('sv-SE', { hour: '2-digit', minute: '2-digit', timeZone: TZ });
 const WALK_M_PER_MIN = 80;
+const DIETS = {
+  veg: { icon: '🌱', label: 'Vegetariskt' },
+  fish: { icon: '🐟', label: 'Fisk' },
+  meat: { icon: '🥩', label: 'Kött' },
+};
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -66,7 +71,17 @@ function renderCard(r, index, isToday) {
     for (const d of r.dishes) {
       const item = el('li');
       if (d.category) item.append(el('span', 'category', d.category));
-      item.append(el('span', 'dish', d.name));
+      const dish = el('span', 'dish', d.name);
+      const diet = DIETS[d.diet];
+      if (diet) {
+        const label = d.dietByAi ? `${diet.label} (AI-bedömning)` : diet.label;
+        const icon = el('span', 'diet', diet.icon);
+        icon.title = label;
+        icon.setAttribute('role', 'img');
+        icon.setAttribute('aria-label', label);
+        dish.prepend(icon);
+      }
+      item.append(dish);
       if (d.description) item.append(el('span', 'desc', d.description));
       list.append(item);
     }

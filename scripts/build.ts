@@ -1,6 +1,7 @@
 // Builds the static site for GitHub Pages: public/ plus a freshly fetched lunch.json in dist/.
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { addDiets } from '../src/server/diet.ts';
 import { getTodaysLunch, parseCaptured } from '../src/server/lunch.ts';
 
 const root = path.join(import.meta.dirname, '..');
@@ -13,7 +14,8 @@ await fs.cp(path.join(root, 'public'), dist, { recursive: true });
 const captured = await fs.readFile(path.join(root, 'captured.json'), 'utf8').catch(() => null);
 if (captured !== null) await fs.writeFile(path.join(dist, 'captured.json'), captured);
 
-const data = await getTodaysLunch(parseCaptured(captured));
+// Label-based diets only; the Worker adds Workers AI guesses for the rest.
+const data = addDiets(await getTodaysLunch(parseCaptured(captured)), {});
 await fs.writeFile(path.join(dist, 'lunch.json'), JSON.stringify(data));
 
 for (const r of data.restaurants) {

@@ -8,6 +8,8 @@
     // dist/lunch.json is a build-time snapshot; the Worker serves it live instead.
     "run_worker_first": ["/lunch.json", "/report"]
   },
+  // Workers AI, for veg/fish/meat guesses on dishes the restaurant doesn't label (see diet.ts).
+  "ai": { "binding": "AI" },
   // Deployed version id, used in the /lunch.json cache key.
   "version_metadata": { "binding": "CF_VERSION_METADATA" },
   // Per-IP cap on POST /report, on top of Turnstile.
