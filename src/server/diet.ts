@@ -1,6 +1,6 @@
 // Veg / fish / meat per dish: from the restaurant's own category label where it says, else guessed by
 // Workers AI (worker.ts sends the unlabelled dishes with DIET_PROMPT). Plus the allergens a dish's text mentions.
-import type { Allergen, Diet, Dish, LunchResponse } from '../shared/types.ts';
+import type { Allergen, Diet, Dish, DishKind, LunchResponse } from '../shared/types.ts';
 
 /** AI-guessed diets for dishes without a telling label, by dishKey. */
 export type Classified = Record<string, Diet>;
@@ -73,6 +73,57 @@ export function mentions(d: Dish): Allergen[] {
   return MENTIONS.filter(([, re]) => re.test(text)).map(([a]) => a);
 }
 
+// Dish kinds by keyword, in priority order: what the dish *is* (burger, soup, curry …) beats what's in it
+// (chicken, fish …), so "Chicken Karahi" is a curry and "Pulled pork-burgare" a burger. Protein kinds carry the
+// diet they imply, so a kind that contradicts the dish's diet ("Vegetarisk köttbullar") is dropped.
+const KINDS: [DishKind, RegExp, Diet?][] = [
+  ['burger', /burgare|burger/i],
+  ['pizza', /pizza/i],
+  ['taco', /taco/i],
+  ['wrap', /wrap|burrito|quesadilla|tortilla|kebabrulle/i],
+  ['soup', /soppa|soup|gryta|bouillabaisse|chili con carne/i],
+  ['curry', /curry|karahi|tikka|masala|korma|thali|biryani|vindaloo|\bdaa?l\b|paneer/i],
+  ['noodles', /nudlar|noodle|ramen|udon|ph?ad thai|\bpho\b/i],
+  ['pasta', /pasta|spaghetti|tagliatelle|penne|lasagne|lasagna|carbonara|gnocchi|ravioli|tortellini/i],
+  ['sushi', /sushi|poké|poke bowl/i],
+  ['sandwich', /smörgås|macka|sandwich|toast|baguette|smørrebrød/i],
+  ['dumpling', /dumpling|gyoza|dim sum|pirog|empanada/i],
+  ['pie', /\bpaj|quiche/i],
+  ['pancake', /pannkak|raggmunk|crêpe|crepe|plättar/i],
+  ['falafel', /falafel/i],
+  ['salad', /sallad|salad|caesar|cesar/i],
+  ['wok', /\bwok/i],
+  [
+    'fish',
+    /fisk|fish|\blax|torsk|kolja|\bsej\b|kummel|havskatt|röding|sill|strömming|gös|abborre|tonfisk|flundra|rödspätta|makrill|fångst|havets/i,
+    'fish',
+  ],
+  ['shellfish', /räk|scampi|skaldjur|mussl|kräft|hummer/i, 'fish'],
+  ['chicken', /kyckling|chicken|wings|vingar|buffalo|coq au vin|\bank(a|bröst)/i, 'meat'],
+  ['sausage', /korv|sausage|hot ?dog|chorizo/i, 'meat'],
+  ['mince', /köttbull|färs|järpar|pannbiff|hackebiff|wallenbergare/i, 'meat'],
+  ['steak', /biff|entrecote|oxfilé|nötstek|högrev|flankstek|steak|schnitzel|lamm|kalv|hjort|älg|secreto/i, 'meat'],
+  ['pork', /fläsk|bacon|karré|kassler|revben|ribs|pulled pork/i, 'meat'],
+  ['mushroom', /champinjon|svamp|kantarell/i],
+];
+
+// The part of the name that says what the dish is: a quoted title, else up to "med …", ", …" or " – …".
+function dishHead(name: string): string {
+  const quoted = name.match(/^["“”]([^"“”]+)["“”]/);
+  if (quoted) return quoted[1] ?? name;
+  return name.split(/,|\s[–-]\s|\s(?:med|i|serveras|toppad|toppas|på)\s/)[0] ?? name;
+}
+
+export function dishKind(d: Dish, diet: Diet | undefined): DishKind | null {
+  const text = `${d.category ?? ''} ${dishHead(d.name)}`;
+  for (const [kind, re, implies] of KINDS) {
+    if (!re.test(text)) continue;
+    if (implies && diet && implies !== diet) continue;
+    return kind;
+  }
+  return null;
+}
+
 export function addDiets(data: LunchResponse, classified: Classified): LunchResponse {
   return {
     ...data,
@@ -80,11 +131,17 @@ export function addDiets(data: LunchResponse, classified: Classified): LunchResp
       ...r,
       dishes: r.dishes.map((d): Dish => {
         const found = mentions(d);
-        const dish = found.length ? { ...d, mentions: found } : d;
         const fromMenu = dietFromCategory(d.category);
-        if (fromMenu) return { ...dish, diet: fromMenu };
-        const guess = classified[dishKey(d)];
-        return guess ? { ...dish, diet: guess, dietByAi: true } : dish;
+        const guess = fromMenu ? undefined : classified[dishKey(d)];
+        const diet = fromMenu ?? guess;
+        const kind = dishKind(d, diet);
+        return {
+          ...d,
+          ...(diet && { diet }),
+          ...(guess && { dietByAi: true }),
+          ...(kind && { kind }),
+          ...(found.length && { mentions: found }),
+        };
       }),
     })),
   };
