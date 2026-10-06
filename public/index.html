@@ -16,6 +16,25 @@
     <h1>Dagens <em>lunch.</em></h1>
     <p id="today" class="today"></p>
   </header>
+  <section class="filters" aria-label="Filter">
+    <fieldset class="filter-group">
+      <legend class="filter-label">Visa</legend>
+      <button type="button" class="chip" data-diet="veg" aria-pressed="false">🌱 Vegetariskt</button>
+      <button type="button" class="chip" data-diet="fish" aria-pressed="false">🐟 Fisk</button>
+      <button type="button" class="chip" data-diet="meat" aria-pressed="false">🥩 Kött</button>
+    </fieldset>
+    <fieldset class="filter-group">
+      <legend class="filter-label">Markera</legend>
+      <button type="button" class="chip" data-allergen="nuts" aria-pressed="false">Nötter</button>
+      <button type="button" class="chip" data-allergen="gluten" aria-pressed="false">Gluten</button>
+      <button type="button" class="chip" data-allergen="lactose" aria-pressed="false">Laktos</button>
+      <button type="button" class="chip" data-allergen="shellfish" aria-pressed="false">Skaldjur</button>
+      <button type="button" class="chip" data-allergen="egg" aria-pressed="false">Ägg</button>
+    </fieldset>
+    <p id="filter-note" class="filter-note" hidden>
+      Markeringen bygger bara på vad menytexten nämner. Omarkerade rätter kan ändå innehålla allergenen – fråga alltid restaurangen.
+    </p>
+  </section>
   <main id="restaurants" aria-live="polite" aria-busy="true">
     <article class="card skeleton" aria-hidden="true"><span></span><span></span><span></span><span></span></article>
     <article class="card skeleton" aria-hidden="true"><span></span><span></span><span></span></article>

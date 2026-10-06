@@ -2,6 +2,8 @@ const TZ = 'Europe/Stockholm';
 const DATE_FMT = new Intl.DateTimeFormat('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ });
 const TIME_FMT = new Intl.DateTimeFormat('sv-SE', { hour: '2-digit', minute: '2-digit', timeZone: TZ });
 const WALK_M_PER_MIN = 80;
+const ALLERGENS = { nuts: 'nötter', gluten: 'gluten', lactose: 'laktos', shellfish: 'skaldjur', egg: 'ägg' };
+const FILTER_KEY = 'lunch-filter';
 const DIETS = {
   veg: { icon: '🌱', label: 'Vegetariskt' },
   fish: { icon: '🐟', label: 'Fisk' },
@@ -83,9 +85,17 @@ function renderCard(r, index, isToday) {
       }
       item.append(dish);
       if (d.description) item.append(el('span', 'desc', d.description));
+      item.dataset.diet = d.diet ?? '';
+      item.dataset.mentions = (d.mentions ?? []).join(' ');
+      const mentions = el('span', 'mentions');
+      mentions.hidden = true;
+      item.append(mentions);
       list.append(item);
     }
     card.append(list);
+    const filtered = el('p', 'empty filtered', 'Inget som matchar filtret.');
+    filtered.hidden = true;
+    card.append(filtered);
   }
 
   const link = el('a', 'source');
@@ -121,6 +131,65 @@ function packCards(container) {
   for (const child of container.children) observer.observe(child);
 }
 
+// Saved per browser; storage can be unavailable (private mode), so failures just mean no memory.
+function loadFilter() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(FILTER_KEY) ?? '{}');
+    return {
+      diets: (saved.diets ?? []).filter((d) => d in DIETS),
+      allergens: (saved.allergens ?? []).filter((a) => a in ALLERGENS),
+    };
+  } catch {
+    return { diets: [], allergens: [] };
+  }
+}
+
+function saveFilter(filter) {
+  try {
+    localStorage.setItem(FILTER_KEY, JSON.stringify(filter));
+  } catch {}
+}
+
+// Diet filter: matching dishes stay, dishes without a diet stay dimmed, the rest hide.
+// Allergens only add a "Nämner: …" note; nothing is hidden or called free-from because of them.
+function applyFilter(filter) {
+  for (const card of document.querySelectorAll('#restaurants .card')) {
+    const items = card.querySelectorAll('.dishes li');
+    if (!items.length) continue;
+    let visible = 0;
+    for (const li of items) {
+      const diet = li.dataset.diet;
+      const active = filter.diets.length > 0;
+      li.hidden = active && diet !== '' && !filter.diets.includes(diet);
+      li.classList.toggle('unsure', active && diet === '');
+      if (li.classList.contains('unsure')) li.title = 'Okänt om rätten passar filtret';
+      else li.removeAttribute('title');
+      if (!li.hidden) visible++;
+      const hits = li.dataset.mentions.split(' ').filter((a) => filter.allergens.includes(a));
+      const note = li.querySelector('.mentions');
+      note.hidden = hits.length === 0;
+      note.textContent = hits.length ? `Nämner: ${hits.map((a) => ALLERGENS[a]).join(', ')}` : '';
+    }
+    card.querySelector('.filtered').hidden = visible > 0;
+  }
+  document.getElementById('filter-note').hidden = filter.allergens.length === 0;
+}
+
+function setupFilter() {
+  const filter = loadFilter();
+  for (const chip of document.querySelectorAll('.chip')) {
+    const [list, value] = chip.dataset.diet ? ['diets', chip.dataset.diet] : ['allergens', chip.dataset.allergen];
+    chip.setAttribute('aria-pressed', String(filter[list].includes(value)));
+    chip.addEventListener('click', () => {
+      filter[list] = filter[list].includes(value) ? filter[list].filter((v) => v !== value) : [...filter[list], value];
+      chip.setAttribute('aria-pressed', String(filter[list].includes(value)));
+      saveFilter(filter);
+      applyFilter(filter);
+    });
+  }
+  return filter;
+}
+
 async function main() {
   const container = document.getElementById('restaurants');
   document.getElementById('today').textContent = DATE_FMT.format(new Date());
@@ -153,6 +222,7 @@ async function main() {
     const fem = sorted.findIndex((r) => r.id === 'magasinfem');
     if (indya >= 0 && fem >= 0) [sorted[indya], sorted[fem]] = [sorted[fem], sorted[indya]];
     container.append(...sorted.map((r, i) => renderCard(r, i, isToday)));
+    applyFilter(filter);
     packCards(container);
   } catch {
     container.replaceChildren(el('p', 'notice', 'Kunde inte hämta menyerna just nu. Försök igen om en stund.'));
@@ -161,6 +231,7 @@ async function main() {
   }
 }
 
+const filter = setupFilter();
 main();
 
 const TURNSTILE_SITE_KEY = '0x4AAAAAAFKi3fMo2SvxOuOp';
