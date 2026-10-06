@@ -211,3 +211,25 @@ test('htmlToLines: markup split around a removed tag does not reassemble', () =>
     'Efter',
   ]);
 });
+
+// carotte.txt was captured 2026-10-06 (vecka 41).
+test('Carotte: Tuesday has meat, fish and veg, then the weekly salad and soup', () => {
+  const { week, dishes } = parser('carotte')(fixture('carotte'), 'Tisdag');
+  assert.equal(week, 41);
+  assert.deepEqual(
+    dishes.map((d) => d.category),
+    ['Kött', 'Fisk', 'Veg', 'Veckans sallad', 'Soppa'],
+  );
+  assert.match(dishes[0].name, /^Nattbakad fläsksida/);
+  assert.equal(dishes[3].description, 'Välj mellan kyckling / varmrökt lax / vegetariskt');
+  assert.match(dishes[4].name, /^Indisk linssoppa/);
+});
+
+test('Carotte: Thursday stops at the dessert heading, Friday before the price list', () => {
+  const day = (d: Weekday) =>
+    parser('carotte')(fixture('carotte'), d).dishes.filter(
+      (x) => x.category !== 'Veckans sallad' && x.category !== 'Soppa',
+    );
+  assert.equal(day('Torsdag').length, 3);
+  assert.match(day('Fredag')[2].name, /^Halloumiburgare/);
+});
