@@ -266,3 +266,29 @@ test('parseCaptured keeps string-array entries and treats anything else as nothi
   assert.deepEqual(parseCaptured('not json'), {});
   assert.deepEqual(parseCaptured('[1]'), {});
 });
+
+// bbbangers.txt was captured 2026-10-06 (vecka 41).
+test('Bang Bang Bangers: the sausage menu with toppings, side and price, the same every day', () => {
+  const { week, dishes } = parser('bbbangers')(fixture('bbbangers'), 'Onsdag');
+  assert.equal(week, null);
+  assert.deepEqual(
+    dishes.map((d) => d.name),
+    [
+      'Veckans banger',
+      'Ruben the banger',
+      'Das tyska banger',
+      'Lagom svensk banger',
+      'Classic special banger',
+      'Bangers kebab',
+      'Banger mash plate',
+    ],
+  );
+  assert.equal(
+    dishes[0].description,
+    'Bamsekorv, brioche, surkål, söt senap, mangomajonnäs · Side: Potatiamos · 120 kr',
+  );
+  assert.equal(dishes[3].description, 'Bamsekorv 140 g, briochebröd, gurkmajonnäs, rostad lök · 90/125 kr');
+  assert.equal(dishes[5].category, 'Nyhet');
+  assert.match(dishes[6].description ?? '', /· från 85 kr$/);
+  assert.deepEqual(parser('bbbangers')(fixture('bbbangers'), 'Måndag').dishes, dishes);
+});

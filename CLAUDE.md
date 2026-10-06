@@ -13,7 +13,7 @@ Shows today's lunch menus for restaurants near the Knowit office (Göteborg). St
 - `scripts/capture.ts` — reads Poppels' Canva menu text with a headed Playwright Chromium (headless is blocked by Cloudflare) into `captured.json`; CI runs it under `xvfb-run` before the build
 - `scripts/build.ts` — static build to `dist/` (public/ + fetched `lunch.json` snapshot + `captured.json`, which the Worker reads via `ASSETS`)
 - `.github/workflows/deploy.yml` — tests, captures, builds and `wrangler deploy`s to Cloudflare on push to main and weekdays 08:00 UTC
-- `test/fixtures/*.txt` — each parsed site's page flattened with `htmlToLines`, captured 2026-09-28 (v. 40); `delissimo.pdf` is the raw menu PDF; `poppels.txt` is `scripts/capture.ts` output from 2026-10-06 (v. 41); `carotte.txt` is from 2026-10-06 (v. 41)
+- `test/fixtures/*.txt` — each parsed site's page flattened with `htmlToLines`, captured 2026-09-28 (v. 40); `delissimo.pdf` is the raw menu PDF; `poppels.txt` is `scripts/capture.ts` output from 2026-10-06 (v. 41); `carotte.txt` and `bbbangers.txt` are from 2026-10-06 (v. 41)
 
 ## Common commands
 - `npm start` — run on http://localhost:3000 (`PORT=…` to change)

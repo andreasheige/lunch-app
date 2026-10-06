@@ -100,7 +100,7 @@ const KINDS: [DishKind, RegExp, Diet?][] = [
   ],
   ['shellfish', /räk|scampi|skaldjur|mussl|kräft|hummer/i, 'fish'],
   ['chicken', /kyckling|chicken|wings|vingar|buffalo|coq au vin|\bank(a|bröst)/i, 'meat'],
-  ['sausage', /korv|sausage|hot ?dog|chorizo/i, 'meat'],
+  ['sausage', /korv|sausage|banger|hot ?dog|chorizo/i, 'meat'],
   ['mince', /köttbull|färs|järpar|pannbiff|hackebiff|wallenbergare/i, 'meat'],
   ['steak', /biff|entrecote|oxfilé|nötstek|högrev|flankstek|steak|schnitzel|lamm|kalv|hjort|älg|secreto/i, 'meat'],
   ['pork', /fläsk|bacon|karré|kassler|revben|ribs|pulled pork/i, 'meat'],
