@@ -9,12 +9,14 @@ Shows today's lunch menus for restaurants near the Knowit office (Göteborg). St
 - `src/server/worker.ts` — Cloudflare Worker (`wrangler.jsonc`): live `/lunch.json` edge-cached 30 min (keyed by deployed version, so deploys need no purge), rest from `dist/`
 - `src/server/report.ts` — `POST /report`: in-page form → GitHub issue (honeypot, Turnstile, per-IP rate limit); Worker secrets `TURNSTILE_SECRET`, `GITHUB_TOKEN`
 - `server.ts` — local dev: serves `public/` and a live `GET /lunch.json`
-- `scripts/build.ts` — static build to `dist/` (public/ + fetched `lunch.json` snapshot)
-- `.github/workflows/deploy.yml` — tests, builds and `wrangler deploy`s to Cloudflare on push to main
-- `test/fixtures/*.txt` — each parsed site's page flattened with `htmlToLines`, captured 2026-09-28 (v. 40); `delissimo.pdf` is the raw menu PDF; `carotte.txt` is from 2026-10-06 (v. 41)
+- `scripts/capture.ts` — reads Poppels' Canva menu text with a headed Playwright Chromium (headless is blocked by Cloudflare) into `captured.json`; CI runs it under `xvfb-run` before the build
+- `scripts/build.ts` — static build to `dist/` (public/ + fetched `lunch.json` snapshot + `captured.json`, which the Worker reads via `ASSETS`)
+- `.github/workflows/deploy.yml` — tests, captures, builds and `wrangler deploy`s to Cloudflare on push to main and weekdays 08:00 UTC
+- `test/fixtures/*.txt` — each parsed site's page flattened with `htmlToLines`, captured 2026-09-28 (v. 40); `delissimo.pdf` is the raw menu PDF; `poppels.txt` is `scripts/capture.ts` output from 2026-10-06 (v. 41); `carotte.txt` is from 2026-10-06 (v. 41)
 
 ## Common commands
 - `npm start` — run on http://localhost:3000 (`PORT=…` to change)
+- `node scripts/capture.ts` — capture Poppels locally (opens a Chrome window; `npx playwright install chromium` once)
 - `npm run build` — build `dist/` (prints one line per restaurant)
 - `node --test --test-reporter=dot` — quiet test run
 - `npm run -s lint` — Biome lint + format check (`npm run format` applies fixes)

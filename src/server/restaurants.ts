@@ -162,9 +162,24 @@ function parseMagasinFem(lines: string[], day: Weekday): ParsedMenu {
 
 // The lunch menu is a Canva design embedded in the page. Canva blocks server requests
 // (Cloudflare challenge), so we only pass the embed URL on for the browser to show.
-function parsePoppels(_lines: string[], _day: Weekday, html: string): ParsedMenu {
+// The menu is a Canva design embedded in the page. Canva blocks plain fetches, so the build reads
+// its text with a real browser (scripts/capture.ts) and lunch.ts passes those lines here: "MÅNDAG"
+// headings, each followed by DISH NAME / sides pairs; the week is the bare number under the big "LU" /
+// "NCH" heading. Without captured lines the card falls back to the Canva embed.
+function parsePoppels(lines: string[], day: Weekday, html: string): ParsedMenu {
   const embed = html.match(/https:\/\/www\.canva\.com\/design\/[\w-]+\/view\?embed/)?.[0] ?? null;
-  return { week: null, dishes: [], embed };
+  const weekLine = lines.find((l) => /^\d{1,2}$/.test(l));
+  const week = weekLine ? Number(weekLine) : null;
+  const isUpper = (s: string): boolean => s === s.toLocaleUpperCase('sv');
+  const dishes: Dish[] = [];
+  const start = lines.indexOf(day.toLocaleUpperCase('sv'));
+  for (let i = start + 1; start >= 0 && i + 1 < lines.length; i += 2) {
+    const name = lines[i] ?? '';
+    const description = lines[i + 1] ?? '';
+    if (!isUpper(name) || /\d/.test(name) || isUpper(description)) break;
+    dishes.push({ category: null, name: sentenceCase(name), description });
+  }
+  return dishes.length ? { week, dishes } : { week: null, dishes, embed };
 }
 
 // The weekly menu is a Canva PDF linked from the home page (see pdf.ts). Day sections hold

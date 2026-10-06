@@ -2,7 +2,7 @@
   "name": "lunch-app",
   "version": "0.1.0",
   "private": true,
-  "description": "Dagens lunch n\u00e4ra Knowit-kontoret i G\u00f6teborg",
+  "description": "Dagens lunch nära Knowit-kontoret i Göteborg",
   "type": "module",
   "engines": {
     "node": ">=22.18"
@@ -19,6 +19,7 @@
     "@biomejs/biome": "2.5.15",
     "@cloudflare/workers-types": "5.20261001.1",
     "@types/node": "24.19.0",
+    "playwright": "1.63.0",
     "typescript": "7.0.2"
   }
 }
