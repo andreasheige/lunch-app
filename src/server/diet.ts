@@ -1,6 +1,6 @@
 // Veg / fish / meat per dish: from the restaurant's own category label where it says, else guessed by
-// Workers AI (worker.ts sends the unlabelled dishes with DIET_PROMPT).
-import type { Diet, Dish, LunchResponse } from '../shared/types.ts';
+// Workers AI (worker.ts sends the unlabelled dishes with DIET_PROMPT). Plus the allergens a dish's text mentions.
+import type { Allergen, Diet, Dish, LunchResponse } from '../shared/types.ts';
 
 /** AI-guessed diets for dishes without a telling label, by dishKey. */
 export type Classified = Record<string, Diet>;
@@ -51,16 +51,40 @@ export function parseModelDiets(answer: unknown, count: number): (Diet | null)[]
   }
 }
 
+// Words in Swedish menu text that mean the allergen is in the dish. Only ever used to say a dish *mentions*
+// one: menus leave plenty out, so a dish without a match isn't free from it. Lookbehinds skip the look-alikes:
+// nötkött/nötstek (beef), kokosmjölk/-grädde, ostronsås (oyster sauce, not cheese), risnudlar.
+const MENTIONS: [Allergen, RegExp][] = [
+  ['nuts', /(jord|cashew|hassel|val|pekan|pinje|para|macadamia)nöt|\bnötter\b|mandel|pistage/i],
+  [
+    'gluten',
+    /vete|mjöl(?!k)|bröd|(?<!ris)nudlar|pasta|spaghetti|tagliatelle|lasagne|panko|paner|krutong|bulgur|couscous|brioche|pizza|tempura|seitan|dinkel|\bråg|burgare|tortilla|pita|naan/i,
+  ],
+  [
+    'lactose',
+    /(?<!kokos|soja|havre)grädd|(?<!kokos|havre|soja)mjölk|(?<!nöts?)smör|ost\b|ostar|parmesan|mozzarella|halloumi|grana padano|crème|creme|yoghurt|raita|gräddfil|bechamel/i,
+  ],
+  ['shellfish', /räk|kräft|hummer|krabb|mussl|skaldjur|scampi|ostron|bläckfisk/i],
+  ['egg', /ägg|majo|aioli|hollandaise|bearnaise|béarnaise/i],
+];
+
+export function mentions(d: Dish): Allergen[] {
+  const text = [d.category, d.name, d.description].filter(Boolean).join(' ');
+  return MENTIONS.filter(([, re]) => re.test(text)).map(([a]) => a);
+}
+
 export function addDiets(data: LunchResponse, classified: Classified): LunchResponse {
   return {
     ...data,
     restaurants: data.restaurants.map((r) => ({
       ...r,
       dishes: r.dishes.map((d): Dish => {
+        const found = mentions(d);
+        const dish = found.length ? { ...d, mentions: found } : d;
         const fromMenu = dietFromCategory(d.category);
-        if (fromMenu) return { ...d, diet: fromMenu };
+        if (fromMenu) return { ...dish, diet: fromMenu };
         const guess = classified[dishKey(d)];
-        return guess ? { ...d, diet: guess, dietByAi: true } : d;
+        return guess ? { ...dish, diet: guess, dietByAi: true } : dish;
       }),
     })),
   };

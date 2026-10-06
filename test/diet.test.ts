@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { addDiets, dietFromCategory, dishKey, parseModelDiets, unlabelledDishes } from '../src/server/diet.ts';
+import {
+  addDiets,
+  dietFromCategory,
+  dishKey,
+  mentions,
+  parseModelDiets,
+  unlabelledDishes,
+} from '../src/server/diet.ts';
 import type { LunchResponse, RestaurantMenu } from '../src/shared/types.ts';
 
 test('dietFromCategory reads the labels the sites use and leaves the rest to the model', () => {
@@ -54,4 +61,25 @@ test('parseModelDiets maps ids to known diets and drops everything else per dish
   assert.deepEqual(parseModelDiets({ 1: '<img src=x>', 2: 'fish', 9: 'veg' }, 2), [null, 'fish']);
   assert.deepEqual(parseModelDiets('not json', 2), [null, null]);
   assert.deepEqual(parseModelDiets(null, 1), [null]);
+});
+
+test('mentions finds allergens named in real menu lines', () => {
+  const m = (name: string, description?: string) => mentions({ category: null, name, description });
+  assert.deepEqual(m('Kung pao tofu', 'Friterad tofu i sötsur sojasås med rosa jordnötter, jasminris & vitkål'), [
+    'nuts',
+  ]);
+  assert.deepEqual(m('Krispig halloumi', 'Rostade rotfrukter, timjanssky, äppelsallad'), ['lactose']);
+  assert.deepEqual(m('Halv special', 'Grillkorv, potatismos, räksallad, stekt brioche'), ['gluten', 'shellfish']);
+  assert.deepEqual(m('Pankobakad kolja med citronsås och potatispurè'), ['gluten']);
+  assert.deepEqual(m('Biff yakiniku', 'Ris, krispig vitkål, chilimajo, sesam- och ingefärsmarinerad gurka'), ['egg']);
+  assert.deepEqual(m('Smörbakad blomkål', 'Stekt potatis, dragonsås, saltgurka, svartvinbärsgelé'), ['lactose']);
+});
+
+test('mentions skips the look-alikes', () => {
+  const m = (name: string) => mentions({ category: null, name });
+  assert.deepEqual(m('Nötstek med skysås'), []);
+  assert.deepEqual(m('Wokad kyckling med kokosmjölk och risnudlar'), []);
+  assert.deepEqual(m('Strimlad kyckling i ostronsås'), ['shellfish']);
+  assert.deepEqual(m('Jordnötssmör-glaserad tofu'), ['nuts']);
+  assert.deepEqual(m('Rostad potatis'), []);
 });
