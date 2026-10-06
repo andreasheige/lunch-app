@@ -243,6 +243,29 @@ function parseCarotte(lines: string[], day: Weekday): ParsedMenu {
   return { week: menuWeek(lines), dishes };
 }
 
+// A fixed menu apart from "VECKANS BANGER": the "Korv" section holds price / NAME / toppings groups (some with
+// a "Side: …" line) up to "Dryck". Served every weekday; the page has no week number.
+const BANGERS_PRICE = /^(?:från )?\d+\s*(?:\/\s*\d+)?$/;
+
+function parseBangers(lines: string[]): ParsedMenu {
+  const dishes: Dish[] = [];
+  const start = lines.indexOf('Korv');
+  const end = start >= 0 ? lines.indexOf('Dryck', start) : -1;
+  for (let i = start + 1; end >= 0 && i + 2 < end; i++) {
+    const price = lines[i] ?? '';
+    if (!BANGERS_PRICE.test(price)) continue;
+    const side = /^Side:/.test(lines[i + 3] ?? '') ? ` · ${lines[i + 3]}` : '';
+    const [, name = '', isNew] = (lines[i + 1] ?? '').match(/^(.+?)(\s*-\s*NYHET)?$/i) ?? [];
+    dishes.push({
+      category: isNew ? 'Nyhet' : null,
+      name: sentenceCase(name),
+      description: `${lines[i + 2]}${side} · ${price.replace(/\s*\/\s*/, '/')} kr`,
+    });
+    i += side ? 3 : 2;
+  }
+  return { week: null, dishes };
+}
+
 export const RESTAURANTS: Restaurant[] = [
   {
     id: 'poppels',
@@ -334,6 +357,16 @@ export const RESTAURANTS: Restaurant[] = [
     hours: '11.15–13.15',
     price: '149 kr inkl. salladsbuffé & kaffe/te · Liten portion 139 kr · Soppa 115 kr',
     parse: parseCarotte,
+  },
+  {
+    id: 'bbbangers',
+    name: 'Bang Bang Bangers',
+    url: 'https://bbbangers.se/',
+    address: 'Lilla Bommen 2',
+    distance: 450,
+    hours: '11.00–13.30',
+    price: 'Korv 85–130 kr · vegansk korv finns',
+    parse: parseBangers,
   },
 ];
 
