@@ -3,6 +3,9 @@ name: Deploy to Cloudflare
 on:
   push:
     branches: [main]
+  schedule:
+    # Weekdays 10:00 CEST / 09:00 CET, so Poppels' captured menu follows the week (see scripts/capture.ts).
+    - cron: '0 8 * * 1-5'
   workflow_dispatch:
 
 permissions:
@@ -24,6 +27,10 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      # Poppels' Canva menu sits behind a Cloudflare bot check only a headed browser passes; a failed
+      # capture leaves its card on the Canva embed instead of failing the deploy.
+      - run: npx playwright install --with-deps chromium && xvfb-run -a node scripts/capture.ts
+        continue-on-error: true
       - run: npm run build
       - run: npx --yes wrangler@4 deploy
         env:

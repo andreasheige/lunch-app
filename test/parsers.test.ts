@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { test } from 'node:test';
 import { decodeEntities, htmlToLines } from '../src/server/html.ts';
-import { isoWeek, pdfMenuWeek, stockholmDate } from '../src/server/lunch.ts';
+import { isoWeek, parseCaptured, pdfMenuWeek, stockholmDate } from '../src/server/lunch.ts';
 import { readPdf } from '../src/server/pdf.ts';
 import { RESTAURANTS, type Restaurant } from '../src/server/restaurants.ts';
 import type { Weekday } from '../src/shared/types.ts';
@@ -131,6 +131,32 @@ test('Poppels: picks the Canva embed URL out of the page, nothing else', () => {
   assert.equal(parser('poppels')([], 'Måndag', '<iframe src="https://evil.example/x"></iframe>').embed, null);
 });
 
+// poppels.txt is the Canva menu's text as scripts/capture.ts reads it, captured 2026-10-06 (vecka 41).
+test('Poppels: captured Canva text gives the day’s two dishes and the week, no embed', () => {
+  const html = '<iframe src="https://www.canva.com/design/DAFJA8wNZsw/view?embed"></iframe>';
+  const menu = parser('poppels')(fixture('poppels'), 'Måndag', html);
+  assert.equal(menu.week, 41);
+  assert.equal(menu.embed, undefined);
+  assert.deepEqual(menu.dishes, [
+    { category: null, name: 'Friterad kyckling', description: 'Ris, lime- och chilisås, pak choi, rostad lök' },
+    { category: null, name: 'Friterad rotselleri', description: 'Ris, lime- och chilisås, pak choi, rostad lök' },
+  ]);
+});
+
+test('Poppels: Friday stops before the Canva viewer controls', () => {
+  const { dishes } = parser('poppels')(fixture('poppels'), 'Fredag');
+  assert.deepEqual(
+    dishes.map((d) => d.description),
+    ['Grillkorv, potatismos, räksallad, stekt brioche', 'Vegkorv, potatismos, rotfruktsallad, stekt brioche'],
+  );
+});
+
+test('Poppels: without captured text it falls back to the embed and reports no week', () => {
+  const html = '<iframe src="https://www.canva.com/design/DAFJA8wNZsw/view?embed"></iframe>';
+  const menu = parser('poppels')(['Lunch', '12', 'Måndag–fredag 11.30–14.00'], 'Måndag', html);
+  assert.deepEqual(menu, { week: null, dishes: [], embed: 'https://www.canva.com/design/DAFJA8wNZsw/view?embed' });
+});
+
 test('Magasin 5: Monday splits dish from sides and skips the price line', () => {
   const { dishes } = parser('magasinfem')(fixture('magasinfem'), 'Måndag');
   assert.deepEqual(
@@ -232,4 +258,11 @@ test('Carotte: Thursday stops at the dessert heading, Friday before the price li
     );
   assert.equal(day('Torsdag').length, 3);
   assert.match(day('Fredag')[2].name, /^Halloumiburgare/);
+});
+
+test('parseCaptured keeps string-array entries and treats anything else as nothing captured', () => {
+  assert.deepEqual(parseCaptured('{"poppels":["MÅNDAG","X"],"bad":[1],"worse":"x"}'), { poppels: ['MÅNDAG', 'X'] });
+  assert.deepEqual(parseCaptured(null), {});
+  assert.deepEqual(parseCaptured('not json'), {});
+  assert.deepEqual(parseCaptured('[1]'), {});
 });

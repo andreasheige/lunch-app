@@ -68,11 +68,34 @@ async function menuSource(r: Restaurant, html: string): Promise<{ lines: string[
   return { lines, week: created ? pdfMenuWeek(created) : null };
 }
 
-async function loadRestaurant(r: Restaurant, day: Weekday, week: number): Promise<RestaurantMenu> {
+/** Menu text lines read with a real browser at build time (scripts/capture.ts), by restaurant id. */
+export type Captured = Record<string, string[]>;
+
+// captured.json as written by scripts/capture.ts; anything unreadable counts as nothing captured.
+export function parseCaptured(json: string | null): Captured {
+  try {
+    const data: unknown = JSON.parse(json ?? '{}');
+    if (typeof data !== 'object' || data === null) return {};
+    return Object.fromEntries(
+      Object.entries(data).filter(
+        (e): e is [string, string[]] => Array.isArray(e[1]) && e[1].every((l) => typeof l === 'string'),
+      ),
+    );
+  } catch {
+    return {};
+  }
+}
+
+async function loadRestaurant(
+  r: Restaurant,
+  day: Weekday,
+  week: number,
+  captured: string[] | undefined,
+): Promise<RestaurantMenu> {
   const { parse, pdf, ...info } = r;
   try {
     const html = await (await fetchPage(r.url)).text();
-    const source = await menuSource(r, html);
+    const source = captured ? { lines: captured, week: null } : await menuSource(r, html);
     const parsed = parse(source.lines, day, html);
     const { dishes, embed = null } = parsed;
     const menuWeek = parsed.week ?? source.week;
@@ -98,7 +121,7 @@ async function loadRestaurant(r: Restaurant, day: Weekday, week: number): Promis
 
 let cache: { key: string | null; at: number; data: LunchResponse | null } = { key: null, at: 0, data: null };
 
-export async function getTodaysLunch(now = new Date()): Promise<LunchResponse> {
+export async function getTodaysLunch(captured: Captured = {}, now = new Date()): Promise<LunchResponse> {
   const date = stockholmDate(now);
   const day = WEEKDAYS[date.getUTCDay() - 1] ?? null;
   const week = isoWeek(date);
@@ -106,7 +129,9 @@ export async function getTodaysLunch(now = new Date()): Promise<LunchResponse> {
 
   if (cache.data && cache.key === key && now.getTime() - cache.at < CACHE_MS) return cache.data;
 
-  const restaurants = day ? await Promise.all(RESTAURANTS.map((r) => loadRestaurant(r, day, week))) : [];
+  const restaurants = day
+    ? await Promise.all(RESTAURANTS.map((r) => loadRestaurant(r, day, week, captured[r.id])))
+    : [];
   const data: LunchResponse = { date: key, day, week, fetchedAt: stockholmTimestamp(now), restaurants };
   cache = { key, at: now.getTime(), data };
   return data;

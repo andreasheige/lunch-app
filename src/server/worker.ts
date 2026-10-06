@@ -1,5 +1,5 @@
 // Cloudflare Worker: live /lunch.json (edge-cached 30 min), POST /report → GitHub issue; everything else is served from dist/ assets.
-import { getTodaysLunch } from './lunch.ts';
+import { getTodaysLunch, parseCaptured } from './lunch.ts';
 import { handleReport, type ReportEnv } from './report.ts';
 
 interface Env extends ReportEnv {
@@ -21,7 +21,9 @@ export default {
     const cached = await cache.match(key);
     if (cached) return cached;
 
-    const data = await getTodaysLunch();
+    // Menus the build read with a real browser (captured.json, see scripts/capture.ts); 404 when none were.
+    const capturedRes = await env.ASSETS.fetch(new Request(`${new URL(request.url).origin}/captured.json`));
+    const data = await getTodaysLunch(parseCaptured(capturedRes.ok ? await capturedRes.text() : null));
     const res = new Response(JSON.stringify(data), {
       headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': `public, max-age=${MAX_AGE}` },
     });

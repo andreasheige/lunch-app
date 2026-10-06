@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import http from 'node:http';
 import path from 'node:path';
-import { getTodaysLunch } from './src/server/lunch.ts';
+import { getTodaysLunch, parseCaptured } from './src/server/lunch.ts';
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC_DIR = path.join(import.meta.dirname, 'public');
@@ -16,7 +16,8 @@ const server = http.createServer(async (req, res) => {
   const { pathname } = new URL(req.url ?? '/', 'http://localhost');
 
   if (pathname === '/lunch.json') {
-    const data = await getTodaysLunch();
+    const captured = await fs.readFile(path.join(import.meta.dirname, 'captured.json'), 'utf8').catch(() => null);
+    const data = await getTodaysLunch(parseCaptured(captured));
     res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
     return res.end(JSON.stringify(data));
   }
