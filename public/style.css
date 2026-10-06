@@ -806,6 +806,165 @@ footer p {
   font-size: 0.8rem;
 }
 
+/* Site nav */
+
+.site-nav {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  width: min(1240px, 100%);
+  margin: 0 auto;
+  padding: 16px 16px 0;
+}
+
+.site-nav a {
+  padding: 6px 12px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition:
+    background 0.2s var(--ease),
+    color 0.2s var(--ease);
+}
+
+.site-nav a:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.site-nav a[aria-current="page"] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+@media (min-width: 720px) {
+  .site-nav {
+    padding-inline: 32px;
+  }
+}
+
+/* Nyheter: a single reading column with a timeline down the left. */
+
+main.blog {
+  display: block;
+}
+
+main.blog > * {
+  max-width: 760px;
+}
+
+.blog-month {
+  margin: 36px 0 12px;
+  color: var(--faint);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.blog-month:first-child {
+  margin-top: 0;
+}
+
+.post {
+  position: relative;
+  margin: 0;
+  padding: 4px 0 28px 28px;
+  border-left: 1px solid var(--border-strong);
+}
+
+.post::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: -6px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.post.fix::before {
+  box-shadow: inset 0 0 0 2px var(--open);
+}
+
+.post-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.post-tag {
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.post-tag.feat {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.post-tag.fix {
+  background: var(--open-soft);
+  color: var(--open);
+}
+
+.post-title {
+  margin: 8px 0 6px;
+  font-size: clamp(1.2rem, 2.4vw, 1.5rem);
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.post-body {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.post-issue {
+  display: inline-block;
+  margin-top: 10px;
+  color: var(--accent);
+  font-size: 0.88rem;
+  text-decoration: none;
+}
+
+.post-issue:hover {
+  text-decoration: underline;
+}
+
+.post.skeleton {
+  display: grid;
+  gap: 10px;
+}
+
+.post.skeleton span {
+  height: 14px;
+  border-radius: 6px;
+  background: var(--surface-hover);
+}
+
+.post.skeleton span:nth-child(2) {
+  width: 70%;
+  height: 22px;
+}
+
+.footer-link {
+  color: var(--muted);
+}
+
 /* "Välj åt mig" */
 
 .picker-open {

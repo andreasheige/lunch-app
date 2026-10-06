@@ -78,6 +78,30 @@ export interface LunchResponse {
   restaurants: RestaurantMenu[];
 }
 
+// A feat/fix commit as build.ts reads it from git log (dist/commits.json).
+export interface ReleaseCommit {
+  sha: string;
+  /** ISO 8601 commit date. */
+  date: string;
+  type: 'feat' | 'fix';
+  subject: string;
+  body: string;
+  /** GitHub issue from "(#22)" / "closes #18" in the subject. */
+  issue: number | null;
+}
+
+// GET /releases.json: one post per commit, newest first.
+export interface ReleaseNote {
+  sha: string;
+  date: string;
+  type: 'feat' | 'fix';
+  title: string;
+  body: string;
+  issue: number | null;
+  /** Not rewritten into Swedish yet; title is the commit subject. */
+  pending: boolean;
+}
+
 export type ReportKind = 'bug' | 'feat-req';
 
 // POST /report body. `website` is the honeypot field.

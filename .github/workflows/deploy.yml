@@ -20,6 +20,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: build.ts reads git log for the release notes.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 24
