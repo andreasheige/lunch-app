@@ -210,7 +210,7 @@ function render(data) {
       'slide-kicker',
       `${allTime ? 'Hela tiden' : `Vecka ${weeks}`} · ${SHORT_FMT.format(utcDate(data.from))} – ${SHORT_FMT.format(utcDate(data.to))}`,
     ),
-    el('h2', 'slide-title', 'Kontorets lunchbetyg'),
+    el('h2', 'slide-title', 'Lunchbetyg'),
   );
   if (!data.totals.votes) {
     slide.replaceChildren(

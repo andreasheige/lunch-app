@@ -30,8 +30,8 @@ export function parseCommitLog(log: string): ReleaseCommit[] {
     });
 }
 
-export const RELEASE_PROMPT = `Du skriver releasenoteringar för en lunchsajt som visar dagens lunchmenyer nära ett kontor
-i Göteborg. Användarna är kollegor, inte utvecklare. Användaren skickar ett commit-meddelande. Skriv en kort, vänlig
+export const RELEASE_PROMPT = `Du skriver releasenoteringar för en lunchsajt som visar dagens lunchmenyer för
+restauranger i centrala Göteborg. Användarna är lunchgäster, inte utvecklare. Användaren skickar ett commit-meddelande. Skriv en kort, vänlig
 nyhet på svenska: en rubrik (högst 8 ord) och en brödtext på 1–3 meningar om vad som är nytt eller fixat för den som
 använder sajten. Inga tekniska termer, filnamn eller kodord. Svara med JSON {"title": "...", "body": "..."}.`;
 
