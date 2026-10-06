@@ -737,7 +737,7 @@ footer p {
   color: var(--muted);
   font-size: 0.9rem;
 }
-#report-form input:not([type="radio"]),
+#report-form input:not([type="radio"], [type="checkbox"]),
 #report-form textarea {
   padding: 10px 12px;
   border: 1px solid var(--border);
@@ -766,6 +766,34 @@ footer p {
   align-items: center;
   gap: 6px;
   color: var(--text);
+}
+.notify {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.notify-toggle {
+  color: var(--text);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.optional {
+  color: var(--faint);
+}
+.notify-fields {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+#report-form .consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+#report-form .consent input {
+  margin-top: 3px;
 }
 .hp {
   position: absolute;

@@ -10,9 +10,10 @@ import type {
 } from '../shared/types.ts';
 import { addDiets, type Classified, DIET_PROMPT, parseModelDiets, unlabelledDishes } from './diet.ts';
 import { getTodaysLunch, parseCaptured } from './lunch.ts';
+import { type ContactRow, FROM, notifyEmail } from './notify.ts';
 import { parseRating, rangeStart, ratingKey } from './ratings.ts';
 import { parseNote, RELEASE_PROMPT, toNotes } from './releases.ts';
-import { handleReport, type ReportEnv } from './report.ts';
+import { githubHeaders, handleReport, type ReportEnv } from './report.ts';
 import { RESTAURANTS } from './restaurants.ts';
 
 interface Env extends ReportEnv {
@@ -20,6 +21,7 @@ interface Env extends ReportEnv {
   ASSETS: Fetcher;
   DB: D1Database;
   RATE_LIMITER: { limit(options: { key: string }): Promise<{ success: boolean }> };
+  EMAIL: SendEmail;
   CF_VERSION_METADATA: WorkerVersionMetadata;
 }
 
@@ -222,7 +224,42 @@ async function stats(request: Request, env: Env, ctx: ExecutionContext): Promise
   return json(data, 200, STATS_MAX_AGE);
 }
 
+const NOTIFY_BATCH = 20;
+
+// Cron (wrangler.jsonc triggers): for reporters who asked to hear back, checks their issue on GitHub; once it's
+// closed, sends the email and deletes the contact. Contacts whose issue never closes go after 180 days.
+async function notifyReporters(env: Env): Promise<void> {
+  await env.DB.prepare("DELETE FROM report_contacts WHERE created_at < datetime('now', '-180 days')").run();
+  const { results } = await env.DB.prepare(
+    `SELECT issue, kind, title, name, email FROM report_contacts ORDER BY issue LIMIT ${NOTIFY_BATCH}`,
+  ).all<ContactRow>();
+  for (const row of results) {
+    try {
+      const res = await fetch(`https://api.github.com/repos/andreasheige/lunch-app/issues/${row.issue}`, {
+        headers: githubHeaders(env.GITHUB_TOKEN),
+      });
+      if (res.status === 404 || res.status === 410) {
+        await env.DB.prepare('DELETE FROM report_contacts WHERE issue = ?').bind(row.issue).run();
+        continue;
+      }
+      if (!res.ok) continue;
+      const issue: { state?: string; state_reason?: string | null } = await res.json();
+      if (issue.state !== 'closed') continue;
+      const mail = notifyEmail(row, issue.state_reason ?? null);
+      await env.EMAIL.send({ from: FROM, to: row.email, replyTo: FROM, ...mail });
+      await env.DB.prepare('DELETE FROM report_contacts WHERE issue = ?').bind(row.issue).run();
+    } catch (err) {
+      // Kept for the next run; surfaces in Workers Logs.
+      console.error('notify: failed for issue', row.issue, err instanceof Error ? err.message : err);
+    }
+  }
+}
+
 export default {
+  async scheduled(_event, env, ctx): Promise<void> {
+    ctx.waitUntil(notifyReporters(env));
+  },
+
   async fetch(request, env, ctx): Promise<Response> {
     const { pathname } = new URL(request.url);
     if (pathname === '/report') return handleReport(request, env);
