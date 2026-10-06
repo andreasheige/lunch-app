@@ -322,6 +322,12 @@ main.masonry {
   letter-spacing: -0.01em;
 }
 
+.diet {
+  margin-right: 6px;
+  font-size: 0.95em;
+  cursor: help;
+}
+
 .desc {
   color: var(--muted);
   font-size: 0.88rem;

@@ -2,10 +2,15 @@
 
 export type Weekday = 'Måndag' | 'Tisdag' | 'Onsdag' | 'Torsdag' | 'Fredag';
 
+export type Diet = 'veg' | 'fish' | 'meat';
+
 export interface Dish {
   category: string | null;
   name: string;
   description?: string | undefined;
+  diet?: Diet | undefined;
+  /** `diet` was guessed by Workers AI, not given by the restaurant. */
+  dietByAi?: boolean | undefined;
 }
 
 // Static facts about a restaurant, as listed in restaurants.ts.
