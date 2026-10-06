@@ -806,6 +806,166 @@ footer p {
   font-size: 0.8rem;
 }
 
+/* "Välj åt mig" */
+
+.picker-open {
+  margin-top: 20px;
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 8px 24px var(--glow-a);
+  transition: transform 0.2s var(--ease);
+}
+
+.picker-open:hover {
+  transform: translateY(-1px);
+}
+
+.picker-open[hidden] {
+  display: none;
+}
+
+#picker-dialog {
+  position: fixed;
+  width: min(460px, calc(100% - 32px));
+  padding: 28px 24px 24px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+}
+
+#picker-dialog::backdrop {
+  background: rgb(0 0 0 / 0.55);
+  backdrop-filter: blur(4px);
+}
+
+.picker-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  padding: 4px 8px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.picker-step {
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.picker-heading {
+  margin: 6px 0 18px;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.picker-answers {
+  display: grid;
+  gap: 8px;
+}
+
+.picker-answer {
+  padding: 12px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.2s var(--ease),
+    border-color 0.2s var(--ease);
+}
+
+.picker-answer:hover,
+.picker-answer:focus-visible {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  outline: none;
+}
+
+.picker-dish {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.picker-desc {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.picker-reason {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  line-height: 1.45;
+}
+
+.picker-meta {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.picker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.picker-primary,
+.picker-secondary {
+  padding: 9px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.picker-primary {
+  border-color: transparent;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.picker-primary:focus-visible,
+.picker-secondary:focus-visible,
+.picker-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The card "Vi går hit!" scrolled to. */
+.card.picked {
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 40px var(--glow-a);
+  transition: box-shadow 0.4s var(--ease);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

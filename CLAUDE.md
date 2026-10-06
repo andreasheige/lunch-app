@@ -9,6 +9,7 @@ Shows today's lunch menus for restaurants near the Knowit office (Göteborg). St
 - `src/server/lunch.ts` — fetches pages, picks today's weekday (Europe/Stockholm), caches 30 min
 - `src/server/worker.ts` — Cloudflare Worker (`wrangler.jsonc`): live `/lunch.json` edge-cached 30 min (keyed by deployed version, so deploys need no purge), rest from `dist/`
 - `src/server/report.ts` — `POST /report`: in-page form → GitHub issue (honeypot, Turnstile, per-IP rate limit); Worker secrets `TURNSTILE_SECRET`, `GITHUB_TOKEN`
+- `public/picker.js` — "Välj åt mig": 3 random questions from a pool score dishes/restaurants (plus distance, open now, the diet filter and the per-browser visit history in localStorage); pure functions, tested in `test/picker.test.js`
 - `server.ts` — local dev: serves `public/` and a live `GET /lunch.json`
 - `scripts/capture.ts` — reads Poppels' Canva menu text with a headed Playwright Chromium (headless is blocked by Cloudflare) into `captured.json`; CI runs it under `xvfb-run` before the build
 - `scripts/build.ts` — static build to `dist/` (public/ + fetched `lunch.json` snapshot + `captured.json`, which the Worker reads via `ASSETS`)
