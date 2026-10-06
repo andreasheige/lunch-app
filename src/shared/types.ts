@@ -4,6 +4,31 @@ export type Weekday = 'Måndag' | 'Tisdag' | 'Onsdag' | 'Torsdag' | 'Fredag';
 
 export type Diet = 'veg' | 'fish' | 'meat';
 export type Allergen = 'nuts' | 'gluten' | 'lactose' | 'shellfish' | 'egg';
+export type DishKind =
+  | 'burger'
+  | 'pizza'
+  | 'taco'
+  | 'wrap'
+  | 'soup'
+  | 'curry'
+  | 'noodles'
+  | 'pasta'
+  | 'sushi'
+  | 'sandwich'
+  | 'dumpling'
+  | 'pie'
+  | 'pancake'
+  | 'falafel'
+  | 'salad'
+  | 'wok'
+  | 'fish'
+  | 'shellfish'
+  | 'chicken'
+  | 'sausage'
+  | 'steak'
+  | 'pork'
+  | 'mince'
+  | 'mushroom';
 
 export interface Dish {
   category: string | null;
@@ -12,6 +37,8 @@ export interface Dish {
   diet?: Diet | undefined;
   /** `diet` was guessed by Workers AI, not given by the restaurant. */
   dietByAi?: boolean | undefined;
+  /** What sort of dish it is, from its name, for the icon. Never contradicts `diet`. */
+  kind?: DishKind | undefined;
   /** Allergens the menu text mentions. Never a free-from claim: no mention doesn't mean it's absent. */
   mentions?: Allergen[] | undefined;
 }

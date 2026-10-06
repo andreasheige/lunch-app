@@ -4,6 +4,32 @@ const TIME_FMT = new Intl.DateTimeFormat('sv-SE', { hour: '2-digit', minute: '2-
 const WALK_M_PER_MIN = 80;
 const ALLERGENS = { nuts: 'nötter', gluten: 'gluten', lactose: 'laktos', shellfish: 'skaldjur', egg: 'ägg' };
 const FILTER_KEY = 'lunch-filter';
+const KINDS = {
+  burger: { icon: '🍔', label: 'Burgare' },
+  pizza: { icon: '🍕', label: 'Pizza' },
+  taco: { icon: '🌮', label: 'Taco' },
+  wrap: { icon: '🌯', label: 'Wrap' },
+  soup: { icon: '🍲', label: 'Soppa/gryta' },
+  curry: { icon: '🍛', label: 'Curry' },
+  noodles: { icon: '🍜', label: 'Nudlar' },
+  pasta: { icon: '🍝', label: 'Pasta' },
+  sushi: { icon: '🍣', label: 'Sushi' },
+  sandwich: { icon: '🥪', label: 'Smörgås' },
+  dumpling: { icon: '🥟', label: 'Dumplings' },
+  pie: { icon: '🥧', label: 'Paj' },
+  pancake: { icon: '🥞', label: 'Pannkaka' },
+  falafel: { icon: '🧆', label: 'Falafel' },
+  salad: { icon: '🥗', label: 'Sallad' },
+  wok: { icon: '🥘', label: 'Wok' },
+  fish: { icon: '🐟', label: 'Fisk' },
+  shellfish: { icon: '🍤', label: 'Skaldjur' },
+  chicken: { icon: '🍗', label: 'Kyckling' },
+  sausage: { icon: '🌭', label: 'Korv' },
+  steak: { icon: '🥩', label: 'Kött' },
+  pork: { icon: '🥓', label: 'Fläsk' },
+  mince: { icon: '🍖', label: 'Färs' },
+  mushroom: { icon: '🍄', label: 'Svamp' },
+};
 const DIETS = {
   veg: { icon: '🌱', label: 'Vegetariskt' },
   fish: { icon: '🐟', label: 'Fisk' },
@@ -37,6 +63,23 @@ function status(r, isToday) {
   if (left <= 0) return { state: 'closed', text: 'Lunchen är slut' };
   if (left <= 20) return { state: 'closing', text: `Stänger om ${left} min` };
   return { state: 'open', text: `Öppet · till ${closeTime}` };
+}
+
+function icon(emoji, label) {
+  const node = el('span', 'diet', emoji);
+  node.title = label;
+  node.setAttribute('role', 'img');
+  node.setAttribute('aria-label', label);
+  return node;
+}
+
+// What the dish is (🍔, 🍲 …) when its name says, else its diet; 🌱 always shows for vegetarian dishes.
+function dishIcons(d) {
+  const diet = DIETS[d.diet];
+  const dietIcon = diet && icon(diet.icon, d.dietByAi ? `${diet.label} (AI-bedömning)` : diet.label);
+  const kind = KINDS[d.kind];
+  if (!kind) return dietIcon ? [dietIcon] : [];
+  return [icon(kind.icon, kind.label), ...(d.diet === 'veg' ? [dietIcon] : [])];
 }
 
 function renderCard(r, index, isToday) {
@@ -74,15 +117,7 @@ function renderCard(r, index, isToday) {
       const item = el('li');
       if (d.category) item.append(el('span', 'category', d.category));
       const dish = el('span', 'dish', d.name);
-      const diet = DIETS[d.diet];
-      if (diet) {
-        const label = d.dietByAi ? `${diet.label} (AI-bedömning)` : diet.label;
-        const icon = el('span', 'diet', diet.icon);
-        icon.title = label;
-        icon.setAttribute('role', 'img');
-        icon.setAttribute('aria-label', label);
-        dish.prepend(icon);
-      }
+      dish.prepend(...dishIcons(d));
       item.append(dish);
       if (d.description) item.append(el('span', 'desc', d.description));
       item.dataset.diet = d.diet ?? '';

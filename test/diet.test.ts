@@ -4,6 +4,7 @@ import {
   addDiets,
   dietFromCategory,
   dishKey,
+  dishKind,
   mentions,
   parseModelDiets,
   unlabelledDishes,
@@ -40,8 +41,8 @@ test('addDiets prefers the restaurant label and flags model guesses', () => {
   const data = { restaurants: [r] } as LunchResponse;
   const classified = { [dishKey({ category: null, name: 'Lax' })]: 'meat', 'Svamp yakiniku\nRis': 'veg' } as const;
   assert.deepEqual(addDiets(data, classified).restaurants[0]?.dishes, [
-    { category: 'Fisk', name: 'Lax', diet: 'fish' },
-    { category: null, name: 'Svamp yakiniku', description: 'Ris', diet: 'veg', dietByAi: true },
+    { category: 'Fisk', name: 'Lax', diet: 'fish', kind: 'fish' },
+    { category: null, name: 'Svamp yakiniku', description: 'Ris', diet: 'veg', dietByAi: true, kind: 'mushroom' },
     { category: null, name: 'Okänd' },
   ]);
 });
@@ -82,4 +83,36 @@ test('mentions skips the look-alikes', () => {
   assert.deepEqual(m('Strimlad kyckling i ostronsås'), ['shellfish']);
   assert.deepEqual(m('Jordnötssmör-glaserad tofu'), ['nuts']);
   assert.deepEqual(m('Rostad potatis'), []);
+});
+
+test('dishKind: what the dish is beats what is in it, from real menu names', () => {
+  const kind = (name: string, diet?: 'veg' | 'fish' | 'meat', category: string | null = null) =>
+    dishKind({ category, name }, diet);
+  const cases: [string, string | null, ('veg' | 'fish' | 'meat' | undefined)?, string?][] = [
+    ['Halloumiburgare med parmesanslungad potatis, chilimajonnäs', 'burger', 'veg'],
+    ['Pulled pork-burgare med parmesanslungad potatis', 'burger', 'meat'],
+    ['Crispy Halloumi Taco', 'taco', 'veg'],
+    ['Chicken Kebab Bowl', 'chicken', 'meat', 'Green Kitchen'],
+    ['Falafel Bowl', 'falafel', 'veg', 'Green Kitchen'],
+    ['Chicken Karahi', 'curry', 'meat'],
+    ['“Chicken Basil, Lime & Curry” Wokad kyckling med grönsaker', 'curry', 'meat'],
+    ['Phad thai', 'noodles', 'meat'],
+    ['Tagliatelle med lax, skaldjurssås, tomat och spenat', 'pasta', 'fish'],
+    ['Indisk linssoppa, serveras med kökets val av bröd', 'soup'],
+    ['Pizza - salame', 'pizza', 'meat'],
+    ['Raggmunk Alt. Löksås & potatis', 'pancake', 'meat'],
+    ['Skaldjursrullad flundrafilé med dill- & limesås', 'fish', 'fish'],
+    ['Pankobakad kolja med citronsås och potatispurè', 'fish', 'fish'],
+    ['Tropisk kyckling med ananas kokosgrädde', 'chicken', 'meat'],
+    ['Nattbakad fläsksida med brynt smör-potatispuré', 'pork', 'meat'],
+    ['Nötstek med skysås & potatis gratäng.', 'steak', 'meat'],
+    ['Coq au vin med potatispuré, bourguignonsås', 'chicken', 'meat'],
+    ['Vegetarisk köttbullar med kokt potatis och gräddsås', null, 'veg'],
+    ['Texas Anammafärs', null, 'veg'],
+    ['Långbakad spetskål med brynt smör-potatispuré', null, 'veg'],
+    ['Stekta skogschampinjoner i örtig tomatsås', 'pasta', 'meat', 'Pasta parma'],
+    ['Potatis, blandsallad, bakade betor, ruccola', 'salad', undefined, 'Veckans sallad'],
+  ];
+  for (const [name, expected, diet, category] of cases)
+    assert.equal(kind(name, diet, category ?? null), expected, name);
 });
