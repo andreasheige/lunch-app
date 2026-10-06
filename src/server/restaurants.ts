@@ -201,6 +201,33 @@ function parseDelissimo(lines: string[], day: Weekday): ParsedMenu {
   return { week: null, dishes };
 }
 
+// Day sections under "Dagens lunch v.41" hold "Kött: …" / "Fisk: …" / "Veg: …" lines; anything else
+// ("Torsdagsdessert", the next day) ends the section. The weekly salad and soup above them are served all week.
+const CAROTTE_DISH = /^(Kött|Fisk|Veg): (.+)$/;
+
+function parseCarotte(lines: string[], day: Weekday): ParsedMenu {
+  const dishes: Dish[] = [];
+  const header = lines.findIndex((l) => /^Dagens lunch v\./.test(l));
+  const start = header >= 0 ? lines.indexOf(day, header) : -1;
+  for (let i = start + 1; start >= 0 && i < lines.length; i++) {
+    const m = (lines[i] ?? '').match(CAROTTE_DISH);
+    if (!m) break;
+    dishes.push({ category: m[1] ?? '', name: m[2] ?? '' });
+  }
+  const salad = lines.indexOf('Veckans sallad', header);
+  if (header >= 0 && salad >= 0 && lines[salad + 1]) {
+    const choice = lines[salad + 2] ?? '';
+    dishes.push({
+      category: 'Veckans sallad',
+      name: lines[salad + 1] ?? '',
+      description: /^Välj mellan/.test(choice) ? choice : undefined,
+    });
+  }
+  const soup = lines.indexOf('Dagens soppa', header);
+  if (header >= 0 && soup >= 0 && lines[soup + 1]) dishes.push({ category: 'Soppa', name: lines[soup + 1] ?? '' });
+  return { week: menuWeek(lines), dishes };
+}
+
 export const RESTAURANTS: Restaurant[] = [
   {
     id: 'poppels',
@@ -282,6 +309,16 @@ export const RESTAURANTS: Restaurant[] = [
     price: '149 kr inkl. salladsbuffé, bröd & kaffe',
     pdf: (html: string) => html.match(/href="([^"]*\/Platinan\.pdf)"/i)?.[1] ?? null,
     parse: parseDelissimo,
+  },
+  {
+    id: 'carotte',
+    name: 'Carotte Läppstiftet',
+    url: 'https://carotte.se/restauranger/lappstiftet/dagens-lunch/',
+    address: 'Lilla Bommen 1',
+    distance: 450,
+    hours: '11.15–13.15',
+    price: '149 kr inkl. salladsbuffé & kaffe/te · Liten portion 139 kr · Soppa 115 kr',
+    parse: parseCarotte,
   },
 ];
 

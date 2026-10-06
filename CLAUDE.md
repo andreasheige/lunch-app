@@ -11,7 +11,7 @@ Shows today's lunch menus for restaurants near the Knowit office (Göteborg). St
 - `server.ts` — local dev: serves `public/` and a live `GET /lunch.json`
 - `scripts/build.ts` — static build to `dist/` (public/ + fetched `lunch.json` snapshot)
 - `.github/workflows/deploy.yml` — tests, builds and `wrangler deploy`s to Cloudflare on push to main
-- `test/fixtures/*.txt` — each parsed site's page flattened with `htmlToLines`, captured 2026-09-28 (v. 40); `delissimo.pdf` is the raw menu PDF
+- `test/fixtures/*.txt` — each parsed site's page flattened with `htmlToLines`, captured 2026-09-28 (v. 40); `delissimo.pdf` is the raw menu PDF; `carotte.txt` is from 2026-10-06 (v. 41)
 
 ## Common commands
 - `npm start` — run on http://localhost:3000 (`PORT=…` to change)
