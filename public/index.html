@@ -15,6 +15,7 @@
     <p class="eyebrow"><span class="dot" aria-hidden="true"></span><span id="now">Nära kontoret</span></p>
     <h1>Dagens <em>lunch.</em></h1>
     <p id="today" class="today"></p>
+    <button type="button" id="picker-open" class="picker-open" hidden><span aria-hidden="true">🎲</span> Välj åt mig</button>
   </header>
   <section class="filters" aria-label="Filter">
     <div class="filter-bar">
@@ -60,6 +61,12 @@
       · <button type="button" data-report="feat-req">Önska funktion</button>
     </p>
   </footer>
+  <dialog id="picker-dialog" aria-labelledby="picker-heading">
+    <button type="button" id="picker-close" class="picker-close" aria-label="Stäng">×</button>
+    <p id="picker-step" class="picker-step"></p>
+    <h2 id="picker-heading" class="picker-heading">Välj åt mig</h2>
+    <div id="picker-body" class="picker-body"></div>
+  </dialog>
   <dialog id="report-dialog" aria-labelledby="report-heading">
     <form id="report-form" method="dialog" novalidate>
       <h2 id="report-heading">Rapportera fel</h2>

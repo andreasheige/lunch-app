@@ -1,3 +1,5 @@
+import { drawQuestions, rank, reasonText } from './picker.js';
+
 const TZ = 'Europe/Stockholm';
 const DATE_FMT = new Intl.DateTimeFormat('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ });
 const TIME_FMT = new Intl.DateTimeFormat('sv-SE', { hour: '2-digit', minute: '2-digit', timeZone: TZ });
@@ -84,6 +86,7 @@ function dishIcons(d) {
 
 function renderCard(r, index, isToday) {
   const card = el('article', 'card');
+  card.dataset.id = r.id;
   card.style.setProperty('--i', index);
 
   const top = el('div', 'card-top');
@@ -290,6 +293,8 @@ async function main() {
     const fem = sorted.findIndex((r) => r.id === 'magasinfem');
     if (indya >= 0 && fem >= 0) [sorted[indya], sorted[fem]] = [sorted[fem], sorted[indya]];
     container.append(...sorted.map((r, i) => renderCard(r, i, isToday)));
+    lunch = { data, isToday };
+    document.getElementById('picker-open').hidden = false;
     applyFilter(filter);
     packCards(container);
   } catch {
@@ -299,8 +304,149 @@ async function main() {
   }
 }
 
+let lunch = null;
 const filter = setupFilter();
 main();
+
+const HISTORY_KEY = 'lunch-history';
+const LAST_QUESTIONS_KEY = 'lunch-picker-last';
+
+// Per-browser memory like the filter; unavailable storage just means no history.
+function readStored(key, fallback) {
+  try {
+    return JSON.parse(localStorage.getItem(key) ?? 'null') ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeStored(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {}
+}
+
+function setupPicker() {
+  const dialog = document.getElementById('picker-dialog');
+  const step = document.getElementById('picker-step');
+  const heading = document.getElementById('picker-heading');
+  const body = document.getElementById('picker-body');
+  let questions = [];
+  let answers = [];
+  let ranked = [];
+  let shown = 0;
+
+  const button = (label, className, onClick) => {
+    const b = el('button', className, label);
+    b.type = 'button';
+    b.addEventListener('click', onClick);
+    return b;
+  };
+
+  const ask = () => {
+    const q = questions[answers.length];
+    step.textContent = `Fråga ${answers.length + 1} av ${questions.length}`;
+    heading.textContent = q.text;
+    const list = el('div', 'picker-answers');
+    for (const a of q.answers) {
+      list.append(
+        button(a.label, 'picker-answer', () => {
+          answers.push(a);
+          if (answers.length < questions.length) ask();
+          else suggest();
+        }),
+      );
+    }
+    body.replaceChildren(list);
+    list.querySelector('button').focus();
+  };
+
+  const suggest = () => {
+    const { data, isToday } = lunch;
+    ranked = rank(data, answers, {
+      history: readStored(HISTORY_KEY, []),
+      visible: (d) => !filter.diets.length || !d.diet || filter.diets.includes(d.diet),
+      isOpen: (r) => status(r, isToday)?.state !== 'closed',
+    });
+    shown = 0;
+    show();
+  };
+
+  const show = () => {
+    const pick = ranked[shown];
+    step.textContent = shown ? 'Annat förslag' : 'Mitt förslag';
+    if (!pick) {
+      heading.textContent = ranked.length ? 'Slut på förslag' : 'Inget öppet just nu';
+      body.replaceChildren(
+        el(
+          'p',
+          'picker-reason',
+          ranked.length
+            ? 'Det var alla ställen som passar idag.'
+            : 'Lunchen är slut överallt – det får bli matlåda. 🥪',
+        ),
+        el('div', 'picker-actions'),
+      );
+      body.lastChild.append(button('Börja om', 'picker-secondary', start));
+      return;
+    }
+    const { restaurant: r, dish: d } = pick;
+    heading.textContent = r.name;
+    const dish = el('p', 'picker-dish', d.name);
+    dish.prepend(...dishIcons(d));
+    const walk = Math.max(1, Math.round(r.distance / WALK_M_PER_MIN));
+    const actions = el('div', 'picker-actions');
+    actions.append(
+      button('Vi går hit!', 'picker-primary', () => go(r)),
+      button('Annat förslag', 'picker-secondary', () => {
+        shown++;
+        show();
+      }),
+      button('Börja om', 'picker-secondary', start),
+    );
+    body.replaceChildren(
+      dish,
+      ...(d.description ? [el('p', 'picker-desc', d.description)] : []),
+      el('p', 'picker-reason', reasonText(pick.why)),
+      el('p', 'picker-meta', `${walk} min gång · ${r.hours}`),
+      actions,
+    );
+    actions.firstChild.focus();
+  };
+
+  // Logs the visit (so it counts as recent next time) and shows the restaurant's card.
+  const go = (r) => {
+    const history = readStored(HISTORY_KEY, []).filter((h) => !(h.id === r.id && h.date === lunch.data.date));
+    writeStored(HISTORY_KEY, [...history, { id: r.id, date: lunch.data.date }].slice(-60));
+    dialog.close();
+    const card = document.querySelector(`.card[data-id="${CSS.escape(r.id)}"]`);
+    card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card?.classList.add('picked');
+    setTimeout(() => card?.classList.remove('picked'), 2400);
+  };
+
+  const start = () => {
+    questions = drawQuestions(readStored(LAST_QUESTIONS_KEY, []), filter.diets.length > 0);
+    writeStored(
+      LAST_QUESTIONS_KEY,
+      questions.map((q) => q.id),
+    );
+    answers = [];
+    ask();
+  };
+
+  document.getElementById('picker-open').addEventListener('click', () => {
+    if (!lunch) return;
+    start();
+    dialog.showModal();
+  });
+  document.getElementById('picker-close').addEventListener('click', () => dialog.close());
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog) dialog.close();
+  });
+}
+
+setupPicker();
 
 const TURNSTILE_SITE_KEY = '0x4AAAAAAFKi3fMo2SvxOuOp';
 const REPORT_HEADINGS = { bug: 'Rapportera fel', 'feat-req': 'Önska funktion' };
