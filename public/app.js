@@ -569,6 +569,13 @@ function setupReport() {
     radio.addEventListener('change', () => setKind(radio.value));
   });
   document.getElementById('report-cancel').addEventListener('click', () => dialog.close());
+  // An email address means "mejla mig": the consent box must be ticked, and ticking it needs an address.
+  const syncNotify = () => {
+    form.elements.notify.required = form.elements.email.value.trim() !== '';
+    form.elements.email.required = form.elements.notify.checked;
+  };
+  form.elements.email.addEventListener('input', syncNotify);
+  form.elements.notify.addEventListener('change', syncNotify);
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -590,6 +597,7 @@ function setupReport() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? 'Något gick fel. Försök igen.');
       form.reset();
+      syncNotify();
       setKind(fields.kind);
       statusEl.textContent = 'Tack! Rapporten är skickad.';
       // Leave the thank-you visible briefly, then close.

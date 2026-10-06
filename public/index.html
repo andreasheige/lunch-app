@@ -82,6 +82,14 @@
       </fieldset>
       <label>Rubrik <input name="title" required maxlength="120" autocomplete="off"></label>
       <label>Beskrivning <textarea name="text" required maxlength="4000" rows="5"></textarea></label>
+      <details class="notify">
+        <summary class="notify-toggle">Vill du få ett mejl när det är klart? <span class="optional">(valfritt)</span></summary>
+        <div class="notify-fields">
+          <label>Namn <input name="name" maxlength="80" autocomplete="name"></label>
+          <label>E-post <input name="email" type="email" maxlength="254" autocomplete="email"></label>
+          <label class="consent"><input type="checkbox" name="notify"> Mejla mig när ärendet är stängt. Namn och adress visas inte på GitHub och raderas när mejlet har skickats.</label>
+        </div>
+      </details>
       <label class="hp" aria-hidden="true">Webbplats <input name="website" tabindex="-1" autocomplete="off"></label>
       <div id="report-turnstile"></div>
       <p id="report-status" class="report-status" role="status"></p>
@@ -89,7 +97,7 @@
         <button type="button" value="cancel" id="report-cancel">Avbryt</button>
         <button type="submit" id="report-submit">Skicka</button>
       </div>
-      <p class="report-note">Rapporten blir ett publikt ärende på GitHub. Skriv inga personuppgifter.</p>
+      <p class="report-note">Rubrik och beskrivning blir ett publikt ärende på GitHub – skriv inga personuppgifter där.</p>
     </form>
   </dialog>
 </body>
