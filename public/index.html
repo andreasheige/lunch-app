@@ -9,48 +9,49 @@
   <link rel="stylesheet" href="style.css">
   <script src="app.js" type="module"></script>
 </head>
-<body>
+<body data-title="title.lunch">
   <div class="glow" aria-hidden="true"></div>
-  <nav class="site-nav" aria-label="Sajtnavigering">
-    <a href="/" aria-current="page">Lunch</a>
-    <a href="/statistik">Statistik</a>
-    <a href="/nyheter">Nyheter</a>
+  <nav class="site-nav" aria-label="Sajtnavigering" data-i18n-label="nav.label">
+    <a href="/" aria-current="page" data-i18n="nav.lunch">Lunch</a>
+    <a href="/statistik" data-i18n="nav.stats">Statistik</a>
+    <a href="/nyheter" data-i18n="nav.news">Nyheter</a>
+    <button type="button" id="lang-toggle" class="lang-toggle" data-i18n="lang.short" data-i18n-label="lang.switch" aria-label="In English">EN</button>
   </nav>
   <header class="hero">
-    <p class="eyebrow"><span class="dot" aria-hidden="true"></span><span id="now">Nära kontoret</span></p>
-    <h1>Dagens <em>lunch.</em></h1>
+    <p class="eyebrow"><span class="dot" aria-hidden="true"></span><span id="now" data-i18n="hero.near">Nära kontoret</span></p>
+    <h1><span data-i18n="hero.title">Dagens</span> <em data-i18n="hero.title-em">lunch.</em></h1>
     <p id="today" class="today"></p>
-    <button type="button" id="picker-open" class="picker-open" hidden><span aria-hidden="true">🎲</span> Välj åt mig</button>
+    <button type="button" id="picker-open" class="picker-open" hidden><span aria-hidden="true">🎲</span> <span data-i18n="picker.open">Välj åt mig</span></button>
   </header>
-  <section class="filters" aria-label="Filter">
+  <section class="filters" aria-label="Filter" data-i18n-label="filters.label">
     <div class="filter-bar">
       <fieldset class="segmented">
-        <legend class="visually-hidden">Visa kost</legend>
-        <button type="button" class="seg" data-diet="veg" aria-pressed="false"><span aria-hidden="true">🌱</span> Vegetariskt</button>
-        <button type="button" class="seg" data-diet="fish" aria-pressed="false"><span aria-hidden="true">🐟</span> Fisk</button>
-        <button type="button" class="seg" data-diet="meat" aria-pressed="false"><span aria-hidden="true">🥩</span> Kött</button>
+        <legend class="visually-hidden" data-i18n="diet.legend">Visa kost</legend>
+        <button type="button" class="seg" data-diet="veg" aria-pressed="false"><span aria-hidden="true">🌱</span> <span data-i18n="diet.veg">Vegetariskt</span></button>
+        <button type="button" class="seg" data-diet="fish" aria-pressed="false"><span aria-hidden="true">🐟</span> <span data-i18n="diet.fish">Fisk</span></button>
+        <button type="button" class="seg" data-diet="meat" aria-pressed="false"><span aria-hidden="true">🥩</span> <span data-i18n="diet.meat">Kött</span></button>
       </fieldset>
       <details class="allergen-menu">
         <summary>
-          <span aria-hidden="true">⚠️</span> Allergier <span id="allergen-count" class="count" hidden></span>
+          <span aria-hidden="true">⚠️</span> <span data-i18n="allergens">Allergier</span> <span id="allergen-count" class="count" hidden></span>
           <svg class="caret" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </summary>
         <div class="allergen-panel">
           <fieldset class="allergen-chips">
-            <legend>Markera rätter som nämner</legend>
-            <button type="button" class="chip" data-allergen="nuts" aria-pressed="false"><span aria-hidden="true">🥜</span> Nötter</button>
-            <button type="button" class="chip" data-allergen="gluten" aria-pressed="false"><span aria-hidden="true">🌾</span> Gluten</button>
-            <button type="button" class="chip" data-allergen="lactose" aria-pressed="false"><span aria-hidden="true">🥛</span> Laktos</button>
-            <button type="button" class="chip" data-allergen="shellfish" aria-pressed="false"><span aria-hidden="true">🦐</span> Skaldjur</button>
-            <button type="button" class="chip" data-allergen="egg" aria-pressed="false"><span aria-hidden="true">🥚</span> Ägg</button>
+            <legend data-i18n="allergens.legend">Markera rätter som nämner</legend>
+            <button type="button" class="chip" data-allergen="nuts" aria-pressed="false"><span aria-hidden="true">🥜</span> <span data-i18n="allergen.nuts">Nötter</span></button>
+            <button type="button" class="chip" data-allergen="gluten" aria-pressed="false"><span aria-hidden="true">🌾</span> <span data-i18n="allergen.gluten">Gluten</span></button>
+            <button type="button" class="chip" data-allergen="lactose" aria-pressed="false"><span aria-hidden="true">🥛</span> <span data-i18n="allergen.lactose">Laktos</span></button>
+            <button type="button" class="chip" data-allergen="shellfish" aria-pressed="false"><span aria-hidden="true">🦐</span> <span data-i18n="allergen.shellfish">Skaldjur</span></button>
+            <button type="button" class="chip" data-allergen="egg" aria-pressed="false"><span aria-hidden="true">🥚</span> <span data-i18n="allergen.egg">Ägg</span></button>
           </fieldset>
-          <p class="filter-note">
+          <p class="filter-note" data-i18n="allergens.note">
             Bygger bara på vad menytexten nämner. Omarkerade rätter kan ändå innehålla allergenen – fråga alltid restaurangen.
           </p>
         </div>
       </details>
       <p id="filter-summary" class="filter-summary" aria-live="polite"></p>
-      <button type="button" id="filter-clear" class="filter-clear" hidden>Rensa</button>
+      <button type="button" id="filter-clear" class="filter-clear" hidden data-i18n="filter.clear">Rensa</button>
     </div>
   </section>
   <main id="restaurants" aria-live="polite" aria-busy="true">
@@ -59,45 +60,45 @@
     <article class="card skeleton" aria-hidden="true"><span></span><span></span><span></span><span></span></article>
   </main>
   <footer>
-    <p>Menyerna läses från restaurangernas egna sidor. Fråga alltid personalen om allergier.</p>
+    <p data-i18n="footer.source">Menyerna läses från restaurangernas egna sidor. Fråga alltid personalen om allergier.</p>
     <p id="updated"></p>
     <p class="report">
-      <button type="button" data-report="bug">Rapportera fel</button>
-      · <button type="button" data-report="feat-req">Önska funktion</button>
+      <button type="button" data-report="bug" data-i18n="report.bug">Rapportera fel</button>
+      · <button type="button" data-report="feat-req" data-i18n="report.feat">Önska funktion</button>
     </p>
   </footer>
   <dialog id="picker-dialog" aria-labelledby="picker-heading">
-    <button type="button" id="picker-close" class="picker-close" aria-label="Stäng">×</button>
+    <button type="button" id="picker-close" class="picker-close" aria-label="Stäng" data-i18n-label="close">×</button>
     <p id="picker-step" class="picker-step"></p>
-    <h2 id="picker-heading" class="picker-heading">Välj åt mig</h2>
+    <h2 id="picker-heading" class="picker-heading" data-i18n="picker.open">Välj åt mig</h2>
     <div id="picker-body" class="picker-body"></div>
   </dialog>
   <dialog id="report-dialog" aria-labelledby="report-heading">
     <form id="report-form" method="dialog" novalidate>
-      <h2 id="report-heading">Rapportera fel</h2>
+      <h2 id="report-heading" data-i18n="report.bug">Rapportera fel</h2>
       <fieldset class="kind">
-        <legend>Typ</legend>
-        <label><input type="radio" name="kind" value="bug" checked> Fel</label>
-        <label><input type="radio" name="kind" value="feat-req"> Önskemål</label>
+        <legend data-i18n="report.kind">Typ</legend>
+        <label><input type="radio" name="kind" value="bug" checked> <span data-i18n="report.kind-bug">Fel</span></label>
+        <label><input type="radio" name="kind" value="feat-req"> <span data-i18n="report.kind-feat">Önskemål</span></label>
       </fieldset>
-      <label>Rubrik <input name="title" required maxlength="120" autocomplete="off"></label>
-      <label>Beskrivning <textarea name="text" required maxlength="4000" rows="5"></textarea></label>
+      <label><span data-i18n="report.title">Rubrik</span> <input name="title" required maxlength="120" autocomplete="off"></label>
+      <label><span data-i18n="report.text">Beskrivning</span> <textarea name="text" required maxlength="4000" rows="5"></textarea></label>
       <details class="notify">
-        <summary class="notify-toggle">Vill du få ett mejl när det är klart? <span class="optional">(valfritt)</span></summary>
+        <summary class="notify-toggle"><span data-i18n="report.notify">Vill du få ett mejl när det är klart?</span> <span class="optional" data-i18n="report.optional">(valfritt)</span></summary>
         <div class="notify-fields">
-          <label>Namn <input name="name" maxlength="80" autocomplete="name"></label>
-          <label>E-post <input name="email" type="email" maxlength="254" autocomplete="email"></label>
-          <label class="consent"><input type="checkbox" name="notify"> Mejla mig när ärendet är stängt. Namn och adress visas inte på GitHub och raderas när mejlet har skickats.</label>
+          <label><span data-i18n="report.name">Namn</span> <input name="name" maxlength="80" autocomplete="name"></label>
+          <label><span data-i18n="report.email">E-post</span> <input name="email" type="email" maxlength="254" autocomplete="email"></label>
+          <label class="consent"><input type="checkbox" name="notify"> <span data-i18n="report.consent">Mejla mig när ärendet är stängt. Namn och adress visas inte på GitHub och raderas när mejlet har skickats.</span></label>
         </div>
       </details>
       <label class="hp" aria-hidden="true">Webbplats <input name="website" tabindex="-1" autocomplete="off"></label>
       <div id="report-turnstile"></div>
       <p id="report-status" class="report-status" role="status"></p>
       <div class="report-actions">
-        <button type="button" value="cancel" id="report-cancel">Avbryt</button>
-        <button type="submit" id="report-submit">Skicka</button>
+        <button type="button" value="cancel" id="report-cancel" data-i18n="report.cancel">Avbryt</button>
+        <button type="submit" id="report-submit" data-i18n="report.send">Skicka</button>
       </div>
-      <p class="report-note">Rubrik och beskrivning blir ett publikt ärende på GitHub – skriv inga personuppgifter där.</p>
+      <p class="report-note" data-i18n="report.public">Rubrik och beskrivning blir ett publikt ärende på GitHub – skriv inga personuppgifter där.</p>
     </form>
   </dialog>
 </body>

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { parseCommitLog, parseNote, toNotes } from '../src/server/releases.ts';
+import { NOTE_LANGS, noteLang, parseCommitLog, parseNote, toNotes } from '../src/server/releases.ts';
 
 const record = (sha: string, subject: string, body = '') =>
   `${sha}\x1f2026-10-06T13:44:00+02:00\x1f${subject}\x1f${body}\x1e`;
@@ -60,5 +60,16 @@ test('toNotes uses the stored Swedish text and falls back to the subject while p
       ['Låt sajten välja', false],
       ['typo', true],
     ],
+  );
+});
+
+test('noteLang picks English only when asked, so the table name never comes from the request', () => {
+  assert.equal(noteLang('en'), 'en');
+  assert.equal(noteLang('sv'), 'sv');
+  assert.equal(noteLang('release_notes; DROP TABLE ratings'), 'sv');
+  assert.equal(noteLang(null), 'sv');
+  assert.deepEqual(
+    Object.values(NOTE_LANGS).map((l) => l.table),
+    ['release_notes', 'release_notes_en'],
   );
 });
