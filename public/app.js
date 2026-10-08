@@ -232,6 +232,30 @@ function renderHeaderStatus(isLunchDay) {
   document.body.classList.toggle('live', live);
 }
 
+// The header clock and the cards' open/closing badges follow the time: redrawn on each new minute, and at once
+// when the tab is shown again (background tabs' timers are throttled).
+function keepTime(isToday, isLunchDay) {
+  const update = () => {
+    renderHeaderStatus(isLunchDay);
+    for (const badge of document.querySelectorAll('#restaurants .card .status')) {
+      const r = lunch.data.restaurants.find((x) => x.id === badge.closest('.card').dataset.id);
+      const s = r && status(r, isToday);
+      if (!s) continue;
+      badge.className = `status ${s.state}`;
+      badge.textContent = s.text;
+    }
+  };
+  const next = () => setTimeout(tick, 60_000 - (Date.now() % 60_000) + 50);
+  const tick = () => {
+    update();
+    next();
+  };
+  next();
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) update();
+  });
+}
+
 // Matches main.masonry in style.css: 4px grid rows, plus the 16px gap below each card.
 const ROW_PX = 4;
 const GAP_PX = 16;
@@ -388,6 +412,7 @@ async function main() {
     const rateDate = isToday && data.day ? data.date : null;
     renderCards(container, sorted, isToday, rateDate);
     lunch = { data, isToday };
+    keepTime(isToday, isToday && Boolean(data.day));
     document.getElementById('picker-open').hidden = false;
     if (!en) {
       translating.then((late) => {
