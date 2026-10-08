@@ -1,5 +1,6 @@
-// Cloudflare Worker: live /lunch.json (edge-cached 30 min), /releases.json, ratings (POST /rate, /ratings.json,
-// /stats.json), POST /report → GitHub issue; everything else is served from dist/ assets.
+// Cloudflare Worker: live /lunch.json (edge-cached 30 min) and its English /translations.json, /releases.json,
+// ratings (POST /rate, /ratings.json, /stats.json), POST /report → GitHub issue; everything else is served from
+// dist/ assets.
 import type {
   LunchResponse,
   RatingSummary,
@@ -12,9 +13,10 @@ import { addDiets, type Classified, DIET_PROMPT, parseModelDiets, unlabelledDish
 import { getTodaysLunch, parseCaptured } from './lunch.ts';
 import { type ContactRow, FROM, notifyEmail } from './notify.ts';
 import { parseRating, rangeStart, ratingKey } from './ratings.ts';
-import { parseNote, RELEASE_PROMPT, toNotes } from './releases.ts';
+import { NOTE_LANGS, type NoteLang, noteLang, parseNote, toNotes } from './releases.ts';
 import { githubHeaders, handleReport, type ReportEnv } from './report.ts';
 import { RESTAURANTS } from './restaurants.ts';
+import { menuStrings, parseTranslations, TRANSLATE_PROMPT, type Translations } from './translate.ts';
 
 interface Env extends ReportEnv {
   AI: Ai;
@@ -29,34 +31,46 @@ const MAX_AGE = 30 * 60;
 const DIET_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const DIET_MAX_AGE = 24 * 60 * 60;
 
+// The model's JSON answer to `prompt` for these texts (sent as {"1": text, …}), edge-cached a day under
+// `${origin}/${path}/<hash of model + input>`, so only the first request of the day per exact list waits for it.
+// Cached answers are parsed again like fresh ones by the caller.
+async function cachedAiJson(
+  ai: Ai,
+  origin: string,
+  path: string,
+  prompt: string,
+  texts: string[],
+  maxTokens: number,
+): Promise<unknown> {
+  const input = JSON.stringify(Object.fromEntries(texts.map((t, i) => [i + 1, t])));
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${DIET_MODEL}\n${input}`));
+  const id = [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  const key = new Request(`${origin}/${path}/${id}`);
+  const cached: unknown = await (await caches.default.match(key))?.json();
+  if (cached !== undefined) return cached;
+  const out = await ai.run(DIET_MODEL, {
+    messages: [
+      { role: 'system', content: prompt },
+      { role: 'user', content: input },
+    ],
+    response_format: { type: 'json_object' },
+    temperature: 0,
+    max_tokens: maxTokens,
+  });
+  const answer = typeof out === 'object' && out !== null && 'response' in out ? out.response : null;
+  await caches.default.put(
+    key,
+    new Response(JSON.stringify(answer), { headers: { 'cache-control': `public, max-age=${DIET_MAX_AGE}` } }),
+  );
+  return answer;
+}
+
 // Workers AI guesses for dishes without a telling label; any failure just leaves them without an icon.
-// The model's answer is edge-cached a day per exact dish list, so only the first menu fetch of the day
-// waits for it; cached answers go through parseModelDiets again like fresh ones.
 async function classify(ai: Ai, lunch: LunchResponse, origin: string): Promise<Classified> {
   const dishes = unlabelledDishes(lunch);
   if (!dishes.size) return {};
   try {
-    const input = JSON.stringify(Object.fromEntries([...dishes.values()].map((t, i) => [i + 1, t])));
-    const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${DIET_MODEL}\n${input}`));
-    const id = [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('');
-    const key = new Request(`${origin}/diets/${id}`);
-    let answer: unknown = await (await caches.default.match(key))?.json();
-    if (answer === undefined) {
-      const out = await ai.run(DIET_MODEL, {
-        messages: [
-          { role: 'system', content: DIET_PROMPT },
-          { role: 'user', content: input },
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0,
-        max_tokens: 1024,
-      });
-      answer = typeof out === 'object' && out !== null && 'response' in out ? out.response : null;
-      const res = new Response(JSON.stringify(answer), {
-        headers: { 'cache-control': `public, max-age=${DIET_MAX_AGE}` },
-      });
-      await caches.default.put(key, res);
-    }
+    const answer = await cachedAiJson(ai, origin, 'diets', DIET_PROMPT, [...dishes.values()], 1024);
     const diets = parseModelDiets(answer, dishes.size);
     const keys = [...dishes.keys()];
     return Object.fromEntries(keys.flatMap((k, i) => (diets[i] ? [[k, diets[i]]] : [])));
@@ -65,16 +79,41 @@ async function classify(ai: Ai, lunch: LunchResponse, origin: string): Promise<C
   }
 }
 
+const TRANSLATE_CHUNK = 40;
+
+// English for these Swedish texts, in chunks small enough that the answer fits max_tokens; a failed chunk
+// just leaves its texts Swedish.
+async function translate(ai: Ai, texts: string[], origin: string): Promise<Translations> {
+  const chunks = Array.from({ length: Math.ceil(texts.length / TRANSLATE_CHUNK) }, (_, i) =>
+    texts.slice(i * TRANSLATE_CHUNK, (i + 1) * TRANSLATE_CHUNK),
+  );
+  const maps = await Promise.all(
+    chunks.map(async (chunk) => {
+      try {
+        return parseTranslations(await cachedAiJson(ai, origin, 'translations', TRANSLATE_PROMPT, chunk, 3072), chunk);
+      } catch {
+        return {};
+      }
+    }),
+  );
+  return Object.assign({}, ...maps);
+}
+
 const RELEASE_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const RELEASE_BATCH = 8;
 
-// Commits from the build (commits.json) with their Swedish text from D1; up to RELEASE_BATCH commits without
-// one are rewritten by Workers AI and stored, so each commit costs one call ever. `complete` is false while
-// some still show their commit subject, so the response isn't cached until all are done.
-async function releaseNotes(env: Env, origin: string): Promise<{ notes: ReleaseNote[]; complete: boolean }> {
+// Commits from the build (commits.json) with their text in `lang` from D1; up to RELEASE_BATCH commits without
+// one are rewritten by Workers AI and stored, so each commit costs one call per language ever. `complete` is
+// false while some still show their commit subject, so the response isn't cached until all are done.
+async function releaseNotes(
+  env: Env,
+  origin: string,
+  lang: NoteLang,
+): Promise<{ notes: ReleaseNote[]; complete: boolean }> {
+  const { table, prompt } = NOTE_LANGS[lang];
   const res = await env.ASSETS.fetch(new Request(`${origin}/commits.json`));
   const commits: ReleaseCommit[] = res.ok ? await res.json() : [];
-  const { results } = await env.DB.prepare('SELECT sha, title, body FROM release_notes').all<{
+  const { results } = await env.DB.prepare(`SELECT sha, title, body FROM ${table}`).all<{
     sha: string;
     title: string;
     body: string;
@@ -86,7 +125,7 @@ async function releaseNotes(env: Env, origin: string): Promise<{ notes: ReleaseN
       try {
         const out = await env.AI.run(RELEASE_MODEL, {
           messages: [
-            { role: 'system', content: RELEASE_PROMPT },
+            { role: 'system', content: prompt },
             { role: 'user', content: `${c.type}: ${c.subject}\n\n${c.body}` },
           ],
           response_format: { type: 'json_object' },
@@ -95,7 +134,7 @@ async function releaseNotes(env: Env, origin: string): Promise<{ notes: ReleaseN
         });
         const note = parseNote(typeof out === 'object' && out !== null && 'response' in out ? out.response : null);
         if (!note) return;
-        await env.DB.prepare('INSERT OR IGNORE INTO release_notes (sha, title, body) VALUES (?, ?, ?)')
+        await env.DB.prepare(`INSERT OR IGNORE INTO ${table} (sha, title, body) VALUES (?, ?, ?)`)
           .bind(c.sha, note.title, note.body)
           .run();
         texts.set(c.sha, note);
@@ -221,7 +260,36 @@ async function stats(request: Request, env: Env, ctx: ExecutionContext): Promise
         restaurant: name(d.restaurant),
       }))[0] ?? null,
   };
-  return json(data, 200, STATS_MAX_AGE);
+  if (url.searchParams.get('lang') !== 'en') return json(data, 200, STATS_MAX_AGE);
+  // Dish names are as the menu said them, in Swedish; restaurant names stay as they are.
+  const en = await translate(
+    env.AI,
+    [...new Set([...data.dishes.map((d) => d.dish), ...(data.divisive ? [data.divisive.dish] : [])])],
+    url.origin,
+  );
+  const tr = (s: string) => en[s] ?? s;
+  return json(
+    {
+      ...data,
+      dishes: data.dishes.map((d) => ({ ...d, dish: tr(d.dish) })),
+      divisive: data.divisive && { ...data.divisive, dish: tr(data.divisive.dish) },
+    } satisfies StatsResponse,
+    200,
+    STATS_MAX_AGE,
+  );
+}
+
+// GET /translations.json: English for today's menu texts, by their Swedish original. Only English visitors ask,
+// so Swedish page loads never wait on the model.
+async function translations(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  const origin = new URL(request.url).origin;
+  const key = new Request(`${origin}/translations.json?v=${env.CF_VERSION_METADATA.id}`);
+  const cached = await caches.default.match(key);
+  if (cached) return cached;
+  const lunch: LunchResponse = await (await lunchResponse(request, env, ctx)).json();
+  const res = json(await translate(env.AI, menuStrings(lunch), origin), 200, MAX_AGE);
+  ctx.waitUntil(caches.default.put(key, res.clone()));
+  return res;
 }
 
 const NOTIFY_BATCH = 20;
@@ -264,10 +332,12 @@ export default {
     const { pathname } = new URL(request.url);
     if (pathname === '/report') return handleReport(request, env);
     if (pathname === '/releases.json') {
-      const key = new Request(`${new URL(request.url).origin}/releases.json?v=${env.CF_VERSION_METADATA.id}`);
+      const url = new URL(request.url);
+      const lang = noteLang(url.searchParams.get('lang'));
+      const key = new Request(`${url.origin}/releases.json?v=${env.CF_VERSION_METADATA.id}&lang=${lang}`);
       const cached = await caches.default.match(key);
       if (cached) return cached;
-      const { notes, complete } = await releaseNotes(env, new URL(request.url).origin);
+      const { notes, complete } = await releaseNotes(env, url.origin, lang);
       const res = new Response(JSON.stringify(notes), {
         headers: {
           'content-type': 'application/json; charset=utf-8',
@@ -280,6 +350,7 @@ export default {
     if (pathname === '/rate') return handleRate(request, env, ctx);
     if (pathname === '/ratings.json') return todaysRatings(request, env, ctx);
     if (pathname === '/stats.json') return stats(request, env, ctx);
+    if (pathname === '/translations.json') return translations(request, env, ctx);
     if (pathname !== '/lunch.json') return env.ASSETS.fetch(request);
     return lunchResponse(request, env, ctx);
   },

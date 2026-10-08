@@ -85,3 +85,24 @@ test('reasonText joins up to three reasons into a sentence', () => {
   assert.equal(reasonText(['a', 'b', 'c', 'd']), 'A, b och c.');
   assert.match(reasonText([]), /slumpen/);
 });
+
+test('every question and answer has English text, and reasons too where there are any', () => {
+  for (const q of QUESTIONS) {
+    assert.ok(q.textEn, q.id);
+    for (const a of q.answers) {
+      assert.ok(a.labelEn, `${q.id}: ${a.label}`);
+      assert.equal(Boolean(a.whyEn), Boolean(a.why), `${q.id}: ${a.label}`);
+    }
+  }
+});
+
+test('rank and reasonText speak English when asked', () => {
+  const [best] = rank(data, [answer('diet', '🌱 Grönt'), answer('distance', 'Så nära som möjligt')], {
+    random: noChance,
+    lang: 'en',
+  });
+  assert.equal(best.restaurant.id, 'mid-veg');
+  assert.deepEqual(best.why, ['you wanted veggie', "it's close"]);
+  assert.equal(reasonText(best.why, 'en'), "You wanted veggie and it's close.");
+  assert.equal(reasonText([], 'en'), 'No clear favourite today – so chance decided.');
+});

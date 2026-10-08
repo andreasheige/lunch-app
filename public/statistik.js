@@ -2,13 +2,13 @@
 // the last two weeks or all time. Charts are plain HTML; every value is labelled or in a table, the tooltip
 // only repeats it.
 import { el } from './dom.js';
+import { LANG, LOCALE, num, t } from './i18n.js';
 
-const DAY_FMT = new Intl.DateTimeFormat('sv-SE', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
-const SHORT_FMT = new Intl.DateTimeFormat('sv-SE', { day: 'numeric', month: 'short', timeZone: 'UTC' });
-const WEEKDAY_FMT = new Intl.DateTimeFormat('sv-SE', { weekday: 'long', timeZone: 'UTC' });
+const DAY_FMT = new Intl.DateTimeFormat(LOCALE, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+const SHORT_FMT = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short', timeZone: 'UTC' });
+const WEEKDAY_FMT = new Intl.DateTimeFormat(LOCALE, { weekday: 'long', timeZone: 'UTC' });
 
-const num = (n, digits = 1) => n.toFixed(digits).replace('.', ',');
-const votesText = (n) => `${n} ${n === 1 ? 'röst' : 'röster'}`;
+const votesText = (n) => t('votes', n);
 const utcDate = (iso) => new Date(`${iso}T00:00:00Z`);
 
 function isoWeek(iso) {
@@ -89,7 +89,7 @@ function ranking(restaurants) {
   return [
     list,
     tableView(
-      ['Restaurang', 'Snitt', 'Röster'],
+      [t('stats.restaurant'), t('stats.avg'), t('stats.votes')],
       restaurants.map((r) => [r.name, num(r.avg), r.votes]),
     ),
   ];
@@ -115,9 +115,9 @@ function perDay(days, from, to, allTime) {
     col.style.height = `${((day?.votes ?? 0) / max) * 100}%`;
     if (!day) col.classList.add('empty');
     withTooltip(slot, [
-      day ? votesText(day.votes) : 'Inga röster',
+      day ? votesText(day.votes) : t('stats.no-votes'),
       DAY_FMT.format(utcDate(date)),
-      ...(day ? [`snitt ${num(day.avg)} ★`] : []),
+      ...(day ? [t('stats.day-avg', num(day.avg))] : []),
     ]);
     if (date === busiest && day) slot.append(el('span', 'col-value', String(day.votes)));
     slot.append(col);
@@ -131,7 +131,7 @@ function perDay(days, from, to, allTime) {
   return [
     chart,
     tableView(
-      ['Dag', 'Röster', 'Snitt'],
+      [t('stats.day'), t('stats.votes'), t('stats.avg')],
       days.map((d) => [DAY_FMT.format(utcDate(d.date)), d.votes, num(d.avg)]),
     ),
   ];
@@ -139,7 +139,7 @@ function perDay(days, from, to, allTime) {
 
 function tableView(head, rows) {
   const details = el('details', 'table-view');
-  details.append(el('summary', 'table-view-toggle', 'Visa som tabell'));
+  details.append(el('summary', 'table-view-toggle', t('stats.as-table')));
   const table = el('table');
   const tr = el('tr');
   for (const h of head) tr.append(el('th', null, h));
@@ -167,6 +167,9 @@ function topDishes(dishes) {
   return list;
 }
 
+// "onsdag 7 okt." / "Wednesday 7 Oct"
+const dayName = (iso) => `${WEEKDAY_FMT.format(utcDate(iso))} ${SHORT_FMT.format(utcDate(iso))}`;
+
 function funFacts(data) {
   const facts = el('ul', 'facts');
   const add = (emoji, title, text) => {
@@ -178,24 +181,14 @@ function funFacts(data) {
     facts.append(li);
   };
   const [winner] = data.restaurants;
-  if (winner) add('🏆', 'Vinnaren', `${winner.name} med snittbetyg ${num(winner.avg)} av 5.`);
+  if (winner) add('🏆', t('stats.winner'), t('stats.winner-text', winner.name, num(winner.avg)));
   if (data.divisive) {
-    add('⚔️', 'Mest omdebatterad', `${data.divisive.dish} (${data.divisive.restaurant}) – betygen spretar mest.`);
+    add('⚔️', t('stats.divisive'), t('stats.divisive-text', data.divisive.dish, data.divisive.restaurant));
   }
   const busiest = [...data.days].sort((a, b) => b.votes - a.votes)[0];
-  if (busiest)
-    add(
-      '🔥',
-      'Flitigaste dagen',
-      `${WEEKDAY_FMT.format(utcDate(busiest.date))} ${SHORT_FMT.format(utcDate(busiest.date))} med ${votesText(busiest.votes)}.`,
-    );
+  if (busiest) add('🔥', t('stats.busiest'), t('stats.busiest-text', dayName(busiest.date), busiest.votes));
   const happiest = [...data.days].filter((d) => d.votes >= 3).sort((a, b) => b.avg - a.avg)[0];
-  if (happiest)
-    add(
-      '😋',
-      'Godaste dagen',
-      `${WEEKDAY_FMT.format(utcDate(happiest.date))} ${SHORT_FMT.format(utcDate(happiest.date))}, snitt ${num(happiest.avg)}.`,
-    );
+  if (happiest) add('😋', t('stats.happiest'), t('stats.happiest-text', dayName(happiest.date), num(happiest.avg)));
   return facts;
 }
 
@@ -208,34 +201,31 @@ function render(data) {
     el(
       'p',
       'slide-kicker',
-      `${allTime ? 'Hela tiden' : `Vecka ${weeks}`} · ${SHORT_FMT.format(utcDate(data.from))} – ${SHORT_FMT.format(utcDate(data.to))}`,
+      `${allTime ? t('stats.all') : t('stats.week', weeks)} · ${SHORT_FMT.format(utcDate(data.from))} – ${SHORT_FMT.format(utcDate(data.to))}`,
     ),
-    el('h2', 'slide-title', 'Lunchbetyg'),
+    el('h2', 'slide-title', t('stats.eyebrow')),
   );
   if (!data.totals.votes) {
-    slide.replaceChildren(
-      head,
-      el('p', 'notice', 'Inga betyg än för perioden – betygsätt dagens rätter med stjärnorna på startsidan. ⭐'),
-    );
+    slide.replaceChildren(head, el('p', 'notice', t('stats.empty')));
     return;
   }
   const kpis = el('div', 'kpis');
   kpis.append(
-    kpi('Snittbetyg', `${num(data.totals.avg)} ★`, 'av 5'),
-    kpi('Röster', String(data.totals.votes)),
-    kpi('Röstare', String(data.totals.voters), 'webbläsare'),
-    kpi('Rätter betygsatta', String(data.totals.dishes)),
+    kpi(t('stats.kpi-avg'), `${num(data.totals.avg)} ★`, t('stats.of-5')),
+    kpi(t('stats.votes'), String(data.totals.votes)),
+    kpi(t('stats.voters'), String(data.totals.voters), t('stats.browsers')),
+    kpi(t('stats.dishes-rated'), String(data.totals.dishes)),
   );
   const grid = el('div', 'viz-grid');
   grid.append(
-    card('Restauranger', 'Snittbetyg, 0–5 · minst tre röster först', ...ranking(data.restaurants)),
-    card('Topp 5 rätter', 'Högst snitt, rätter med minst två röster först', topDishes(data.dishes)),
+    card(t('stats.restaurants'), t('stats.restaurants-sub'), ...ranking(data.restaurants)),
+    card(t('stats.top'), t('stats.top-sub'), topDishes(data.dishes)),
     card(
-      'Röster per dag',
-      allTime ? 'Dagar med röster' : 'Vardagar',
+      t('stats.per-day'),
+      allTime ? t('stats.days-with-votes') : t('stats.weekdays'),
       ...perDay(data.days, data.from, data.to, allTime),
     ),
-    card('Fun facts', null, funFacts(data)),
+    card(t('stats.facts'), null, funFacts(data)),
   );
   slide.replaceChildren(head, kpis, grid);
 }
@@ -244,11 +234,11 @@ async function load(range) {
   const slide = document.getElementById('slide');
   slide.setAttribute('aria-busy', 'true');
   try {
-    const res = await fetch(`stats.json?range=${range}`);
+    const res = await fetch(`stats.json?range=${range}&lang=${LANG}`);
     if (!res.ok) throw new Error(res.status);
     render(await res.json());
   } catch {
-    slide.replaceChildren(el('p', 'notice', 'Kunde inte hämta statistiken just nu. Försök igen om en stund.'));
+    slide.replaceChildren(el('p', 'notice', t('stats.failed')));
   } finally {
     slide.setAttribute('aria-busy', 'false');
   }

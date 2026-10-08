@@ -1,12 +1,13 @@
 import { el } from './dom.js';
+import { LANG, LOCALE, t } from './i18n.js';
 
-const DATE_FMT = new Intl.DateTimeFormat('sv-SE', {
+const DATE_FMT = new Intl.DateTimeFormat(LOCALE, {
   day: 'numeric',
   month: 'long',
   year: 'numeric',
   timeZone: 'Europe/Stockholm',
 });
-const MONTH_FMT = new Intl.DateTimeFormat('sv-SE', { month: 'long', year: 'numeric', timeZone: 'Europe/Stockholm' });
+const MONTH_FMT = new Intl.DateTimeFormat(LOCALE, { month: 'long', year: 'numeric', timeZone: 'Europe/Stockholm' });
 const ISSUES = 'https://github.com/andreasheige/lunch-app/issues/';
 
 function renderPost(note) {
@@ -14,11 +15,11 @@ function renderPost(note) {
   const meta = el('p', 'post-meta');
   const time = el('time', null, DATE_FMT.format(new Date(note.date)));
   time.dateTime = note.date;
-  meta.append(el('span', `post-tag ${note.type}`, note.type === 'feat' ? 'Nytt' : 'Fixat'), time);
+  meta.append(el('span', `post-tag ${note.type}`, note.type === 'feat' ? t('news.feat') : t('news.fix')), time);
   post.append(meta, el('h2', 'post-title', note.title));
   if (note.body) post.append(el('p', 'post-body', note.body));
   if (note.issue) {
-    const link = el('a', 'post-issue', `Önskemål #${note.issue} ↗`);
+    const link = el('a', 'post-issue', t('news.issue', note.issue));
     link.href = `${ISSUES}${note.issue}`;
     link.target = '_blank';
     link.rel = 'noopener';
@@ -30,12 +31,12 @@ function renderPost(note) {
 async function main() {
   const container = document.getElementById('notes');
   try {
-    const res = await fetch('releases.json');
+    const res = await fetch(`releases.json?lang=${LANG}`);
     if (!res.ok) throw new Error(res.status);
     const notes = await res.json();
     container.replaceChildren();
     if (!notes.length) {
-      container.append(el('p', 'notice', 'Inga nyheter än.'));
+      container.append(el('p', 'notice', t('news.empty')));
       return;
     }
     let month = '';
@@ -48,10 +49,10 @@ async function main() {
       container.append(renderPost(note));
     }
     if (notes.some((n) => n.pending)) {
-      container.append(el('p', 'notice', 'Några nyheter skrivs fortfarande om till svenska – ladda om om en stund.'));
+      container.append(el('p', 'notice', t('news.pending')));
     }
   } catch {
-    container.replaceChildren(el('p', 'notice', 'Kunde inte hämta nyheterna just nu. Försök igen om en stund.'));
+    container.replaceChildren(el('p', 'notice', t('news.failed')));
   } finally {
     container.setAttribute('aria-busy', 'false');
   }

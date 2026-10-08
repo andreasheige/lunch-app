@@ -1,42 +1,43 @@
 import { el } from './dom.js';
+import { LANG, LOCALE, num, t } from './i18n.js';
 import { drawQuestions, rank, reasonText } from './picker.js';
 
 const TZ = 'Europe/Stockholm';
-const DATE_FMT = new Intl.DateTimeFormat('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ });
-const TIME_FMT = new Intl.DateTimeFormat('sv-SE', { hour: '2-digit', minute: '2-digit', timeZone: TZ });
+const DATE_FMT = new Intl.DateTimeFormat(LOCALE, { weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ });
+const TIME_FMT = new Intl.DateTimeFormat(LOCALE, { hour: '2-digit', minute: '2-digit', timeZone: TZ });
 const WALK_M_PER_MIN = 80;
-const ALLERGENS = { nuts: 'nötter', gluten: 'gluten', lactose: 'laktos', shellfish: 'skaldjur', egg: 'ägg' };
+const ALLERGENS = ['nuts', 'gluten', 'lactose', 'shellfish', 'egg'];
 const FILTER_KEY = 'lunch-filter';
 const KINDS = {
-  burger: { icon: '🍔', label: 'Burgare' },
-  pizza: { icon: '🍕', label: 'Pizza' },
-  taco: { icon: '🌮', label: 'Taco' },
-  wrap: { icon: '🌯', label: 'Wrap' },
-  soup: { icon: '🍲', label: 'Soppa/gryta' },
-  curry: { icon: '🍛', label: 'Curry' },
-  noodles: { icon: '🍜', label: 'Nudlar' },
-  pasta: { icon: '🍝', label: 'Pasta' },
-  sushi: { icon: '🍣', label: 'Sushi' },
-  sandwich: { icon: '🥪', label: 'Smörgås' },
-  dumpling: { icon: '🥟', label: 'Dumplings' },
-  pie: { icon: '🥧', label: 'Paj' },
-  pancake: { icon: '🥞', label: 'Pannkaka' },
-  falafel: { icon: '🧆', label: 'Falafel' },
-  salad: { icon: '🥗', label: 'Sallad' },
-  wok: { icon: '🥘', label: 'Wok' },
-  fish: { icon: '🐟', label: 'Fisk' },
-  shellfish: { icon: '🍤', label: 'Skaldjur' },
-  chicken: { icon: '🍗', label: 'Kyckling' },
-  sausage: { icon: '🌭', label: 'Korv' },
-  steak: { icon: '🥩', label: 'Kött' },
-  pork: { icon: '🥓', label: 'Fläsk' },
-  mince: { icon: '🍖', label: 'Färs' },
-  mushroom: { icon: '🍄', label: 'Svamp' },
+  burger: { icon: '🍔', label: t('kind.burger') },
+  pizza: { icon: '🍕', label: t('kind.pizza') },
+  taco: { icon: '🌮', label: t('kind.taco') },
+  wrap: { icon: '🌯', label: t('kind.wrap') },
+  soup: { icon: '🍲', label: t('kind.soup') },
+  curry: { icon: '🍛', label: t('kind.curry') },
+  noodles: { icon: '🍜', label: t('kind.noodles') },
+  pasta: { icon: '🍝', label: t('kind.pasta') },
+  sushi: { icon: '🍣', label: t('kind.sushi') },
+  sandwich: { icon: '🥪', label: t('kind.sandwich') },
+  dumpling: { icon: '🥟', label: t('kind.dumpling') },
+  pie: { icon: '🥧', label: t('kind.pie') },
+  pancake: { icon: '🥞', label: t('kind.pancake') },
+  falafel: { icon: '🧆', label: t('kind.falafel') },
+  salad: { icon: '🥗', label: t('kind.salad') },
+  wok: { icon: '🥘', label: t('kind.wok') },
+  fish: { icon: '🐟', label: t('kind.fish') },
+  shellfish: { icon: '🍤', label: t('kind.shellfish') },
+  chicken: { icon: '🍗', label: t('kind.chicken') },
+  sausage: { icon: '🌭', label: t('kind.sausage') },
+  steak: { icon: '🥩', label: t('kind.steak') },
+  pork: { icon: '🥓', label: t('kind.pork') },
+  mince: { icon: '🍖', label: t('kind.mince') },
+  mushroom: { icon: '🍄', label: t('kind.mushroom') },
 };
 const DIETS = {
-  veg: { icon: '🌱', label: 'Vegetariskt' },
-  fish: { icon: '🐟', label: 'Fisk' },
-  meat: { icon: '🥩', label: 'Kött' },
+  veg: { icon: '🌱', label: t('diet.veg') },
+  fish: { icon: '🐟', label: t('diet.fish') },
+  meat: { icon: '🥩', label: t('diet.meat') },
 };
 
 function minutesNow() {
@@ -54,11 +55,11 @@ function status(r, isToday) {
   const [openTime, closeTime] = r.hours.split(/\s*[–-]\s*/);
   if (!isToday || !closeTime) return null;
   const now = minutesNow();
-  if (now < toMinutes(openTime)) return { state: 'soon', text: `Öppnar ${openTime}` };
+  if (now < toMinutes(openTime)) return { state: 'soon', text: t('status.soon', openTime) };
   const left = toMinutes(closeTime) - now;
-  if (left <= 0) return { state: 'closed', text: 'Lunchen är slut' };
-  if (left <= 20) return { state: 'closing', text: `Stänger om ${left} min` };
-  return { state: 'open', text: `Öppet · till ${closeTime}` };
+  if (left <= 0) return { state: 'closed', text: t('status.closed') };
+  if (left <= 20) return { state: 'closing', text: t('status.closing', left) };
+  return { state: 'open', text: t('status.open', closeTime) };
 }
 
 function icon(emoji, label) {
@@ -72,7 +73,7 @@ function icon(emoji, label) {
 // What the dish is (🍔, 🍲 …) when its name says, else its diet; 🌱 always shows for vegetarian dishes.
 function dishIcons(d) {
   const diet = DIETS[d.diet];
-  const dietIcon = diet && icon(diet.icon, d.dietByAi ? `${diet.label} (AI-bedömning)` : diet.label);
+  const dietIcon = diet && icon(diet.icon, d.dietByAi ? t('ai-guess', diet.label) : diet.label);
   const kind = KINDS[d.kind];
   if (!kind) return dietIcon ? [dietIcon] : [];
   return [icon(kind.icon, kind.label), ...(d.diet === 'veg' ? [dietIcon] : [])];
@@ -91,8 +92,7 @@ function voterId() {
   return id;
 }
 
-const summaryText = (s) =>
-  s?.count ? `${s.avg.toFixed(1).replace('.', ',')} ★ · ${s.count} ${s.count === 1 ? 'röst' : 'röster'}` : '';
+const summaryText = (s) => (s?.count ? `${num(s.avg)} ★ · ${t('votes', s.count)}` : '');
 
 // Five star buttons and today's average; a click votes (or changes your vote) for this dish.
 function ratingRow(r, d, date) {
@@ -101,7 +101,7 @@ function ratingRow(r, d, date) {
   row.dataset.key = key;
   const stars = el('div', 'stars');
   stars.setAttribute('role', 'group');
-  stars.setAttribute('aria-label', `Betygsätt ${d.name}`);
+  stars.setAttribute('aria-label', t('rate.label', tr(d.name)));
   const voteKey = `${date}|${key}`;
   // data-show is what's lit: the hovered star while pointing, else your vote.
   const setValue = (n) => {
@@ -114,7 +114,7 @@ function ratingRow(r, d, date) {
     const b = el('button', 'star', '★');
     b.type = 'button';
     b.dataset.stars = String(i);
-    b.setAttribute('aria-label', `${i} av 5 stjärnor`);
+    b.setAttribute('aria-label', t('rate.star', i));
     b.addEventListener('pointerenter', () => {
       stars.dataset.show = String(i);
     });
@@ -135,7 +135,7 @@ function ratingRow(r, d, date) {
       } catch {
         setValue(before);
         writeStored(VOTES_KEY, { ...readStored(VOTES_KEY, {}), [voteKey]: before || undefined });
-        summary.textContent = 'Kunde inte spara betyget';
+        summary.textContent = t('rate.failed');
       }
     });
     stars.append(b);
@@ -174,18 +174,18 @@ function renderCard(r, index, isToday, rateDate) {
 
   const meta = el('p', 'meta');
   const walk = Math.max(1, Math.round(r.distance / WALK_M_PER_MIN));
-  meta.append(el('span', 'walk', `${walk} min gång`), el('span', null, `${r.distance} m`), el('span', null, r.hours));
+  meta.append(el('span', 'walk', t('card.walk', walk)), el('span', null, `${r.distance} m`), el('span', null, r.hours));
   card.append(meta);
-  if (r.price) card.append(el('p', 'price', r.price));
+  if (r.price) card.append(el('p', 'price', tr(r.price)));
 
-  if (r.stale) card.append(el('p', 'badge warn', `Menyn gäller vecka ${r.menuWeek} – kan vara inaktuell`));
+  if (r.stale) card.append(el('p', 'badge warn', t('card.stale', r.menuWeek)));
 
   if (r.error) {
-    card.append(el('p', 'empty', r.error));
+    card.append(el('p', 'empty', tr(r.error)));
   } else if (r.embed) {
     const frame = el('iframe', 'embed');
     frame.src = r.embed;
-    frame.title = `Lunchmeny för ${r.name}`;
+    frame.title = t('card.embed', r.name);
     frame.loading = 'lazy';
     frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups');
     card.append(frame);
@@ -193,11 +193,11 @@ function renderCard(r, index, isToday, rateDate) {
     const list = el('ul', 'dishes');
     for (const d of r.dishes) {
       const item = el('li');
-      if (d.category) item.append(el('span', 'category', d.category));
-      const dish = el('span', 'dish', d.name);
+      if (d.category) item.append(el('span', 'category', tr(d.category)));
+      const dish = el('span', 'dish', tr(d.name));
       dish.prepend(...dishIcons(d));
       item.append(dish);
-      if (d.description) item.append(el('span', 'desc', d.description));
+      if (d.description) item.append(el('span', 'desc', tr(d.description)));
       item.dataset.diet = d.diet ?? '';
       item.dataset.mentions = (d.mentions ?? []).join(' ');
       const mentions = el('span', 'mentions');
@@ -207,13 +207,13 @@ function renderCard(r, index, isToday, rateDate) {
       list.append(item);
     }
     card.append(list);
-    const filtered = el('p', 'empty filtered', 'Inget som matchar filtret.');
+    const filtered = el('p', 'empty filtered', t('filter.none'));
     filtered.hidden = true;
     card.append(filtered);
   }
 
   const link = el('a', 'source');
-  link.append(el('span', null, 'Restaurangens sida'), el('span', 'arrow', '↗'));
+  link.append(el('span', null, t('card.source')), el('span', 'arrow', '↗'));
   link.href = r.url;
   link.target = '_blank';
   link.rel = 'noopener';
@@ -225,10 +225,10 @@ function renderHeaderStatus(isLunchDay) {
   const now = document.getElementById('now');
   const m = minutesNow();
   const live = isLunchDay && m >= 11 * 60 && m < 14 * 60;
-  if (!isLunchDay) now.textContent = 'Nära kontoret';
-  else if (m < 11 * 60) now.textContent = `Lunchen börjar 11.00 · klockan är ${TIME_FMT.format(new Date())}`;
-  else if (live) now.textContent = 'Lunch serveras nu';
-  else now.textContent = 'Lunchen är över för idag';
+  if (!isLunchDay) now.textContent = t('hero.near');
+  else if (m < 11 * 60) now.textContent = t('now.starts', TIME_FMT.format(new Date()));
+  else if (live) now.textContent = t('now.live');
+  else now.textContent = t('now.over');
   document.body.classList.toggle('live', live);
 }
 
@@ -251,7 +251,7 @@ function loadFilter() {
     const saved = JSON.parse(localStorage.getItem(FILTER_KEY) ?? '{}');
     return {
       diets: (saved.diets ?? []).filter((d) => d in DIETS),
-      allergens: (saved.allergens ?? []).filter((a) => a in ALLERGENS),
+      allergens: (saved.allergens ?? []).filter((a) => ALLERGENS.includes(a)),
     };
   } catch {
     return { diets: [], allergens: [] };
@@ -276,13 +276,15 @@ function applyFilter(filter) {
       const active = filter.diets.length > 0;
       li.hidden = active && diet !== '' && !filter.diets.includes(diet);
       li.classList.toggle('unsure', active && diet === '');
-      if (li.classList.contains('unsure')) li.title = 'Okänt om rätten passar filtret';
+      if (li.classList.contains('unsure')) li.title = t('filter.unsure');
       else li.removeAttribute('title');
       if (!li.hidden) visible++;
       const hits = li.dataset.mentions.split(' ').filter((a) => filter.allergens.includes(a));
       const note = li.querySelector('.mentions');
       note.hidden = hits.length === 0;
-      note.textContent = hits.length ? `Nämner: ${hits.map((a) => ALLERGENS[a]).join(', ')}` : '';
+      note.textContent = hits.length
+        ? t('mentions', hits.map((a) => t(`allergen.${a}`).toLocaleLowerCase(LOCALE)).join(', '))
+        : '';
     }
     card.querySelector('.filtered').hidden = visible > 0;
   }
@@ -294,7 +296,7 @@ function applyFilter(filter) {
   const all = document.querySelectorAll('#restaurants .dishes li');
   const shown = [...all].filter((li) => !li.hidden).length;
   document.getElementById('filter-summary').textContent =
-    filter.diets.length && all.length ? `Visar ${shown} av ${all.length} rätter` : '';
+    filter.diets.length && all.length ? t('filter.summary', shown, all.length) : '';
 }
 
 function setupFilter() {
@@ -337,30 +339,45 @@ function setupFilter() {
   return filter;
 }
 
+// (Re)draws the cards after any notices, with the current filter and today's ratings.
+function renderCards(container, sorted, isToday, rateDate) {
+  for (const card of container.querySelectorAll('.card')) card.remove();
+  container.append(...sorted.map((r, i) => renderCard(r, i, isToday, rateDate)));
+  if (rateDate) fillRatings();
+  applyFilter(filter);
+  packCards(container);
+}
+
 async function main() {
   const container = document.getElementById('restaurants');
   document.getElementById('today').textContent = DATE_FMT.format(new Date());
   try {
+    const translating = fetchTranslations();
     const res = await fetch('lunch.json', { cache: 'no-store' });
     if (!res.ok) throw new Error(res.status);
     const data = await res.json();
+    // The first English visit of the day waits on the model; show the menus after a short wait regardless and
+    // swap the texts in when they come.
+    const en = await Promise.race([translating, new Promise((resolve) => setTimeout(resolve, TRANSLATION_WAIT_MS))]);
+    if (en) translations = en;
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date());
     const isToday = data.date === today;
     const fetchedAt = new Date(data.fetchedAt);
 
-    document.getElementById('today').textContent = `${DATE_FMT.format(new Date(data.date))} · vecka ${data.week}`;
-    document.getElementById('updated').textContent =
-      `Uppdaterad ${DATE_FMT.format(fetchedAt)} kl. ${TIME_FMT.format(fetchedAt)}`;
+    document.getElementById('today').textContent = t('today', DATE_FMT.format(new Date(data.date)), data.week);
+    document.getElementById('updated').textContent = t(
+      'updated',
+      DATE_FMT.format(fetchedAt),
+      TIME_FMT.format(fetchedAt),
+    );
     renderHeaderStatus(isToday && Boolean(data.day));
 
     container.replaceChildren();
     if (!isToday) {
-      container.append(
-        el('p', 'notice', `Menyerna har inte uppdaterats idag – visar ${DATE_FMT.format(new Date(data.date))}.`),
-      );
+      container.append(el('p', 'notice', t('notice.old', DATE_FMT.format(new Date(data.date)))));
     }
     if (!data.day) {
-      container.append(el('p', 'notice', 'Ingen lunch idag – det är helg. Välkommen tillbaka på måndag!'));
+      container.append(el('p', 'notice', t('notice.weekend')));
       return;
     }
     const sorted = [...data.restaurants].sort((a, b) => a.distance - b.distance);
@@ -369,16 +386,35 @@ async function main() {
     const fem = sorted.findIndex((r) => r.id === 'magasinfem');
     if (indya >= 0 && fem >= 0) [sorted[indya], sorted[fem]] = [sorted[fem], sorted[indya]];
     const rateDate = isToday && data.day ? data.date : null;
-    container.append(...sorted.map((r, i) => renderCard(r, i, isToday, rateDate)));
-    if (rateDate) fillRatings();
+    renderCards(container, sorted, isToday, rateDate);
     lunch = { data, isToday };
     document.getElementById('picker-open').hidden = false;
-    applyFilter(filter);
-    packCards(container);
+    if (!en) {
+      translating.then((late) => {
+        translations = late;
+        renderCards(container, sorted, isToday, rateDate);
+      });
+    }
   } catch {
-    container.replaceChildren(el('p', 'notice', 'Kunde inte hämta menyerna just nu. Försök igen om en stund.'));
+    container.replaceChildren(el('p', 'notice', t('notice.failed')));
   } finally {
     container.setAttribute('aria-busy', 'false');
+  }
+}
+
+// English for the menu texts (sv → en), in English only; the data itself stays Swedish, since ratings and the
+// picker key on it. A missing translation shows the Swedish.
+let translations = {};
+const TRANSLATION_WAIT_MS = 3000;
+const tr = (text) => (text ? (translations[text] ?? text) : text);
+
+async function fetchTranslations() {
+  if (LANG === 'sv') return {};
+  try {
+    const res = await fetch('translations.json');
+    return res.ok ? await res.json() : {};
+  } catch {
+    return {};
   }
 }
 
@@ -423,12 +459,12 @@ function setupPicker() {
 
   const ask = () => {
     const q = questions[answers.length];
-    step.textContent = `Fråga ${answers.length + 1} av ${questions.length}`;
-    heading.textContent = q.text;
+    step.textContent = t('picker.step', answers.length + 1, questions.length);
+    heading.textContent = LANG === 'en' ? q.textEn : q.text;
     const list = el('div', 'picker-answers');
     for (const a of q.answers) {
       list.append(
-        button(a.label, 'picker-answer', () => {
+        button(LANG === 'en' ? a.labelEn : a.label, 'picker-answer', () => {
           answers.push(a);
           if (answers.length < questions.length) ask();
           else suggest();
@@ -445,6 +481,7 @@ function setupPicker() {
       history: readStored(HISTORY_KEY, []),
       visible: (d) => !filter.diets.length || !d.diet || filter.diets.includes(d.diet),
       isOpen: (r) => status(r, isToday)?.state !== 'closed',
+      lang: LANG,
     });
     shown = 0;
     show();
@@ -452,41 +489,35 @@ function setupPicker() {
 
   const show = () => {
     const pick = ranked[shown];
-    step.textContent = shown ? 'Annat förslag' : 'Mitt förslag';
+    step.textContent = shown ? t('picker.other') : t('picker.mine');
     if (!pick) {
-      heading.textContent = ranked.length ? 'Slut på förslag' : 'Inget öppet just nu';
+      heading.textContent = ranked.length ? t('picker.out') : t('picker.nothing');
       body.replaceChildren(
-        el(
-          'p',
-          'picker-reason',
-          ranked.length
-            ? 'Det var alla ställen som passar idag.'
-            : 'Lunchen är slut överallt – det får bli matlåda. 🥪',
-        ),
+        el('p', 'picker-reason', ranked.length ? t('picker.all-shown') : t('picker.lunchbox')),
         el('div', 'picker-actions'),
       );
-      body.lastChild.append(button('Börja om', 'picker-secondary', start));
+      body.lastChild.append(button(t('picker.restart'), 'picker-secondary', start));
       return;
     }
     const { restaurant: r, dish: d } = pick;
     heading.textContent = r.name;
-    const dish = el('p', 'picker-dish', d.name);
+    const dish = el('p', 'picker-dish', tr(d.name));
     dish.prepend(...dishIcons(d));
     const walk = Math.max(1, Math.round(r.distance / WALK_M_PER_MIN));
     const actions = el('div', 'picker-actions');
     actions.append(
-      button('Vi går hit!', 'picker-primary', () => go(r)),
-      button('Annat förslag', 'picker-secondary', () => {
+      button(t('picker.go'), 'picker-primary', () => go(r)),
+      button(t('picker.other'), 'picker-secondary', () => {
         shown++;
         show();
       }),
-      button('Börja om', 'picker-secondary', start),
+      button(t('picker.restart'), 'picker-secondary', start),
     );
     body.replaceChildren(
       dish,
-      ...(d.description ? [el('p', 'picker-desc', d.description)] : []),
-      el('p', 'picker-reason', reasonText(pick.why)),
-      el('p', 'picker-meta', `${walk} min gång · ${r.hours}`),
+      ...(d.description ? [el('p', 'picker-desc', tr(d.description))] : []),
+      el('p', 'picker-reason', reasonText(pick.why, LANG)),
+      el('p', 'picker-meta', t('picker.meta', walk, r.hours)),
       actions,
     );
     actions.firstChild.focus();
@@ -527,8 +558,14 @@ function setupPicker() {
 setupPicker();
 
 const TURNSTILE_SITE_KEY = '0x4AAAAAAFKi3fMo2SvxOuOp';
-const REPORT_HEADINGS = { bug: 'Rapportera fel', 'feat-req': 'Önska funktion' };
+const REPORT_HEADINGS = { bug: t('report.bug'), 'feat-req': t('report.feat') };
 let turnstileWidget = null;
+
+// The server's errors are Swedish; in English, say the same thing by status.
+const serverError = (status, message) =>
+  LANG === 'sv' && message
+    ? message
+    : t({ 429: 'report.too-many', 403: 'report.verify-failed', 413: 'report.too-long' }[status] ?? 'report.error');
 
 // Loads Turnstile on first use, so visitors who never open the form don't fetch it.
 function loadTurnstile() {
@@ -559,9 +596,9 @@ function setupReport() {
       dialog.showModal();
       try {
         const turnstile = await loadTurnstile();
-        turnstileWidget ??= turnstile.render('#report-turnstile', { sitekey: TURNSTILE_SITE_KEY, language: 'sv' });
+        turnstileWidget ??= turnstile.render('#report-turnstile', { sitekey: TURNSTILE_SITE_KEY, language: LANG });
       } catch {
-        statusEl.textContent = 'Kunde inte ladda verifieringen. Kontrollera nätverket och försök igen.';
+        statusEl.textContent = t('report.turnstile-failed');
       }
     });
   }
@@ -582,11 +619,11 @@ function setupReport() {
     if (!form.reportValidity()) return;
     const token = window.turnstile?.getResponse(turnstileWidget);
     if (!token) {
-      statusEl.textContent = 'Vänta tills verifieringen är klar.';
+      statusEl.textContent = t('report.wait');
       return;
     }
     submit.disabled = true;
-    statusEl.textContent = 'Skickar…';
+    statusEl.textContent = t('report.sending');
     const fields = Object.fromEntries(new FormData(form));
     try {
       const res = await fetch('report', {
@@ -595,15 +632,15 @@ function setupReport() {
         body: JSON.stringify({ ...fields, token }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? 'Något gick fel. Försök igen.');
+      if (!res.ok) throw new Error(serverError(res.status, data.error));
       form.reset();
       syncNotify();
       setKind(fields.kind);
-      statusEl.textContent = 'Tack! Rapporten är skickad.';
+      statusEl.textContent = t('report.thanks');
       // Leave the thank-you visible briefly, then close.
       setTimeout(() => dialog.close(), 1500);
     } catch (err) {
-      statusEl.textContent = err instanceof TypeError ? 'Kunde inte nå servern. Försök igen.' : err.message;
+      statusEl.textContent = err instanceof TypeError ? t('report.offline') : err.message;
     } finally {
       submit.disabled = false;
       window.turnstile?.reset(turnstileWidget);

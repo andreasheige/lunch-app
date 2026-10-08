@@ -9,35 +9,36 @@
   <link rel="stylesheet" href="style.css">
   <script src="statistik.js" type="module"></script>
 </head>
-<body>
+<body data-title="title.stats">
   <div class="glow" aria-hidden="true"></div>
-  <nav class="site-nav" aria-label="Sajtnavigering">
-    <a href="/">Lunch</a>
-    <a href="/statistik" aria-current="page">Statistik</a>
-    <a href="/nyheter">Nyheter</a>
+  <nav class="site-nav" aria-label="Sajtnavigering" data-i18n-label="nav.label">
+    <a href="/" data-i18n="nav.lunch">Lunch</a>
+    <a href="/statistik" aria-current="page" data-i18n="nav.stats">Statistik</a>
+    <a href="/nyheter" data-i18n="nav.news">Nyheter</a>
+    <button type="button" id="lang-toggle" class="lang-toggle" data-i18n="lang.short" data-i18n-label="lang.switch" aria-label="In English">EN</button>
   </nav>
   <header class="hero">
-    <p class="eyebrow"><span class="dot" aria-hidden="true"></span>Lunchbetyg</p>
-    <h1>Statistik<em>.</em></h1>
-    <p class="today">Vad tycker lunchgästerna? Betygsätt dagens rätter med stjärnorna på startsidan.</p>
+    <p class="eyebrow"><span class="dot" aria-hidden="true"></span><span data-i18n="stats.eyebrow">Lunchbetyg</span></p>
+    <h1><span data-i18n="stats.title">Statistik</span><em>.</em></h1>
+    <p class="today" data-i18n="stats.intro">Vad tycker lunchgästerna? Betygsätt dagens rätter med stjärnorna på startsidan.</p>
   </header>
   <main class="stats">
     <div class="stats-controls">
       <fieldset class="segmented">
-        <legend class="visually-hidden">Period</legend>
-        <button type="button" class="seg" data-range="14" aria-pressed="true">Senaste 2 veckorna</button>
-        <button type="button" class="seg" data-range="all" aria-pressed="false">Hela tiden</button>
+        <legend class="visually-hidden" data-i18n="stats.period">Period</legend>
+        <button type="button" class="seg" data-range="14" aria-pressed="true" data-i18n="stats.14">Senaste 2 veckorna</button>
+        <button type="button" class="seg" data-range="all" aria-pressed="false" data-i18n="stats.all">Hela tiden</button>
       </fieldset>
-      <button type="button" id="present" class="present"><span aria-hidden="true">⛶</span> Presentera</button>
+      <button type="button" id="present" class="present"><span aria-hidden="true">⛶</span> <span data-i18n="stats.present">Presentera</span></button>
     </div>
     <section id="slide" class="slide" aria-live="polite" aria-busy="true">
-      <p class="notice">Hämtar statistik…</p>
+      <p class="notice" data-i18n="stats.loading">Hämtar statistik…</p>
     </section>
     <div id="viz-tooltip" class="viz-tooltip" role="tooltip" hidden></div>
   </main>
   <footer>
-    <p>Betygen är anonyma: varje webbläsare får ett slumpat id, och en ny röst på samma rätt samma dag ersätter den gamla.</p>
-    <p><a class="footer-link" href="/">← Tillbaka till dagens lunch</a></p>
+    <p data-i18n="stats.footer">Betygen är anonyma: varje webbläsare får ett slumpat id, och en ny röst på samma rätt samma dag ersätter den gamla.</p>
+    <p><a class="footer-link" href="/" data-i18n="back">← Tillbaka till dagens lunch</a></p>
   </footer>
 </body>
 </html>

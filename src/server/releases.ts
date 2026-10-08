@@ -35,6 +35,23 @@ restauranger i centrala Göteborg. Användarna är lunchgäster, inte utvecklare
 nyhet på svenska: en rubrik (högst 8 ord) och en brödtext på 1–3 meningar om vad som är nytt eller fixat för den som
 använder sajten. Inga tekniska termer, filnamn eller kodord. Svara med JSON {"title": "...", "body": "..."}.`;
 
+export const RELEASE_PROMPT_EN = `You write release notes for a lunch site that shows today's lunch menus for restaurants
+in central Gothenburg. The readers are lunch guests, not developers. The user sends a commit message. Write a short,
+friendly news post in English: a title (at most 8 words) and a body of 1–3 sentences about what is new or fixed for
+people using the site. No technical terms, file names or code words. The site's own Swedish names are English here:
+"Välj åt mig" is "Pick for me", "Nyheter" is "News", "Statistik" is "Statistics". Reply with JSON
+{"title": "...", "body": "..."}.`;
+
+export type NoteLang = 'sv' | 'en';
+
+// Where each language's texts live and how they're written; the table name never comes from the request.
+export const NOTE_LANGS: Record<NoteLang, { table: string; prompt: string }> = {
+  sv: { table: 'release_notes', prompt: RELEASE_PROMPT },
+  en: { table: 'release_notes_en', prompt: RELEASE_PROMPT_EN },
+};
+
+export const noteLang = (value: string | null): NoteLang => (value === 'en' ? 'en' : 'sv');
+
 // The model's {"title", "body"} answer (JSON text, or already parsed); null unless both are non-empty strings.
 // Lengths are capped and the page renders them as text, so a steered model can't put markup on the page.
 export function parseNote(answer: unknown): { title: string; body: string } | null {
