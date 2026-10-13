@@ -266,17 +266,6 @@ function keepTime(isToday) {
   });
 }
 
-// Matches main.masonry in style.css: 4px grid rows; each place's own padding is the space below it.
-const ROW_PX = 4;
-
-function packPlaces(container) {
-  container.classList.add('masonry');
-  const observer = new ResizeObserver((entries) => {
-    for (const { target } of entries) target.style.gridRowEnd = `span ${Math.ceil(target.offsetHeight / ROW_PX)}`;
-  });
-  for (const child of container.children) observer.observe(child);
-}
-
 // Saved per browser; storage can be unavailable (private mode), so failures just mean no memory.
 function loadFilter() {
   try {
@@ -399,7 +388,6 @@ function renderPlaces(container, sorted, isToday, rateDate) {
   container.append(...sorted.map((r) => renderPlace(r, isToday, rateDate)));
   if (rateDate) fillRatings();
   applyFilter(filter);
-  packPlaces(container);
 }
 
 async function main() {

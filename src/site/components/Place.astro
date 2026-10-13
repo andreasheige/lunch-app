@@ -1,0 +1,50 @@
+---
+// One place as app.js's renderPlace draws it (same classes and order; keep the two in step), in Swedish and
+// without the time-dependent status. app.js replaces it with the live version.
+import type { Dish, RestaurantMenu } from '../../shared/types.ts';
+
+interface Props {
+  r: RestaurantMenu;
+}
+const { r } = Astro.props;
+const walk = Math.max(1, Math.round(r.distance / 80));
+const TAGS = { veg: 'Veg', fish: 'Fisk', meat: 'Kött' };
+const DIETS = { veg: 'Vegetariskt', fish: 'Fisk', meat: 'Kött' };
+const REPEATS_DIET = /^(kött|fisk|veg|vegetarisk[at]?|vegetariska|grönt)$/i;
+const showCategory = (d: Dish) => d.category && !REPEATS_DIET.test(d.category.trim());
+---
+<article class="place" data-id={r.id}>
+  <div class="place-head">
+    <p class="walk" title={`${walk} min gång`}><span class="walk-min">{walk}</span><span class="walk-unit">min gång</span></p>
+    <div class="place-title">
+      <h2>{r.name}</h2>
+      <p class="place-meta"><span class="hours">{r.hours}</span> · {r.distance} m</p>
+    </div>
+  </div>
+  {r.price && <p class="price">{r.price}</p>}
+  {r.stale && <p class="badge warn">Menyn gäller vecka {r.menuWeek} – kan vara inaktuell</p>}
+  {r.error ? (
+    <p class="empty">{r.error}</p>
+  ) : r.embed ? (
+    <iframe class="embed" src={r.embed} title={`Lunchmeny för ${r.name}`} loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>
+  ) : (
+    <ul class="dishes">
+      {r.dishes.map((d) => (
+        <li data-diet={d.diet ?? ''} data-mentions={(d.mentions ?? []).join(' ')}>
+          {showCategory(d) && <span class="category">{d.category}</span>}
+          <p class="dish">
+            {d.diet && (
+              <span class={`tag ${d.diet}`} title={d.dietByAi ? `${DIETS[d.diet]} (AI-bedömning)` : undefined}>{TAGS[d.diet]}</span>
+            )}
+            <span class="dish-name">{d.name}</span>
+          </p>
+          {d.description && <span class="desc">{d.description}</span>}
+          <span class="mentions" hidden></span>
+          <div class="rating-slot" aria-hidden="true"></div>
+        </li>
+      ))}
+    </ul>
+  )}
+  {!r.error && !r.embed && <p class="empty filtered" hidden>Inget som matchar filtret.</p>}
+  <a class="source" href={r.url} target="_blank" rel="noopener">Restaurangens sida ↗</a>
+</article>

@@ -235,8 +235,9 @@ footer {
   font-weight: 600;
 }
 
-.lunch-status:empty {
-  display: none;
+/* Room for the sentence app.js writes, so the menus don't move down when it appears. */
+#lunch-status {
+  min-height: 1.5em;
 }
 
 /* Toolbar: sticks to the top while scrolling. Filter button (narrow screens), summary, "Välj åt mig". */
@@ -546,17 +547,12 @@ dialog {
   }
 }
 
-/* The menus: one ruled section per place, packed into columns (main.masonry, see app.js). */
+/* The menus: one ruled section per place, in as many 300px+ columns as fit (CSS columns, so nothing moves
+   once the script has drawn them). */
 
 main {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  columns: 300px;
   column-gap: 40px;
-  align-items: start;
-}
-
-main.masonry {
-  grid-auto-rows: 4px;
 }
 
 .place {
@@ -564,18 +560,12 @@ main.masonry {
   flex-direction: column;
   gap: 12px;
   padding: 20px 0 36px;
-}
-
-.place + .place,
-.notice + .place {
   border-top: 1px solid var(--line);
+  break-inside: avoid;
 }
 
-/* In columns every place gets the rule, so the tops line up. */
-@media (min-width: 680px) {
-  main.masonry .place {
-    border-top: 1px solid var(--line);
-  }
+.notice {
+  column-span: all;
 }
 
 .place-head {
@@ -755,7 +745,6 @@ main.masonry {
 
 .notice {
   padding: 16px 0;
-  grid-column: 1 / -1;
 }
 
 .source {
@@ -771,6 +760,11 @@ main.masonry {
 }
 
 /* Ratings: one summary line per dish; "Betygsätt" opens five star buttons. */
+
+/* The built HTML holds a rating-slot per dish where app.js puts the rating line, so nothing shifts. */
+.rating-slot {
+  min-height: 34px;
+}
 
 .rating {
   display: grid;

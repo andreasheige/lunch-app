@@ -2,6 +2,6 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": { "lib": ["es2024"], "types": ["node"] },
-  "include": ["server.ts", "scripts", "src/server", "src/shared"],
+  "include": ["server.ts", "scripts", "src/server", "src/shared", "src/site/**/*.ts"],
   "exclude": ["src/server/worker.ts"]
 }
