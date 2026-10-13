@@ -55,37 +55,60 @@ function voterId() {
   return id;
 }
 
-const summaryText = (s) => (s?.count ? `${num(s.avg)} ★ · ${t('votes', s.count)}` : '');
+// "★ 4,5 · 2 röster", plus your own vote; "Inga röster än" before anyone has voted.
+function summaryText(s, mine) {
+  const base = s?.count ? `★ ${num(s.avg)} · ${t('votes', s.count)}` : t('rate.none');
+  return mine ? `${base} · ${t('rate.yours', mine)}` : base;
+}
 
-// Five star buttons and today's average; a click votes (or changes your vote) for this dish.
+// One line per dish: today's average and a "Betygsätt" button that opens five star buttons. A click votes (or
+// changes your vote) for this dish.
 function ratingRow(r, d, date) {
   const row = el('div', 'rating');
   const key = `${r.id}\n${d.name}`;
   row.dataset.key = key;
+  const voteKey = `${date}|${key}`;
+  const line = el('p', 'rating-line');
+  const summary = el('span', 'rating-summary');
+  const toggle = el('button', 'rating-toggle');
+  toggle.type = 'button';
+  toggle.setAttribute('aria-expanded', 'false');
+  line.append(summary, toggle);
   const stars = el('div', 'stars');
   stars.setAttribute('role', 'group');
   stars.setAttribute('aria-label', t('rate.label', tr(d.name)));
-  const voteKey = `${date}|${key}`;
-  // data-show is what's lit: the hovered star while pointing, else your vote.
-  const setValue = (n) => {
-    stars.dataset.value = String(n);
-    stars.dataset.show = String(n);
-    for (const b of stars.children) b.setAttribute('aria-pressed', String(Number(b.dataset.stars) === n));
+  stars.hidden = true;
+  let stats = null;
+  const mine = () => readStored(VOTES_KEY, {})[voteKey] ?? 0;
+  const sync = () => {
+    const vote = mine();
+    summary.textContent = summaryText(stats, vote);
+    summary.classList.toggle('has-votes', Boolean(stats?.count));
+    toggle.textContent = stars.hidden ? t(vote ? 'rate.change' : 'rate.open') : t('rate.done');
+    toggle.setAttribute('aria-expanded', String(!stars.hidden));
+    for (const b of stars.children) {
+      const n = Number(b.dataset.stars);
+      b.textContent = n <= vote ? '★' : '☆';
+      b.setAttribute('aria-pressed', String(n === vote));
+    }
   };
-  const summary = el('span', 'rating-summary');
+  toggle.addEventListener('click', () => {
+    stars.hidden = !stars.hidden;
+    sync();
+    if (!stars.hidden) stars.querySelector('[aria-pressed="true"]')?.focus();
+  });
   for (let i = 1; i <= 5; i++) {
-    const b = el('button', 'star', '★');
+    const b = el('button', 'star', '☆');
     b.type = 'button';
     b.dataset.stars = String(i);
     b.setAttribute('aria-label', t('rate.star', i));
-    b.addEventListener('pointerenter', () => {
-      stars.dataset.show = String(i);
-    });
     b.addEventListener('click', async () => {
       const votes = readStored(VOTES_KEY, {});
       const before = votes[voteKey] ?? 0;
-      setValue(i);
       writeStored(VOTES_KEY, { ...votes, [voteKey]: i });
+      stars.hidden = true;
+      sync();
+      toggle.focus();
       try {
         const res = await fetch('rate', {
           method: 'POST',
@@ -94,20 +117,22 @@ function ratingRow(r, d, date) {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        summary.textContent = summaryText(data);
+        stats = data;
+        sync();
       } catch {
-        setValue(before);
         writeStored(VOTES_KEY, { ...readStored(VOTES_KEY, {}), [voteKey]: before || undefined });
+        sync();
         summary.textContent = t('rate.failed');
       }
     });
     stars.append(b);
   }
-  stars.addEventListener('pointerleave', () => {
-    stars.dataset.show = stars.dataset.value;
-  });
-  setValue(readStored(VOTES_KEY, {})[voteKey] ?? 0);
-  row.append(stars, summary);
+  row.update = (s) => {
+    stats = s ?? null;
+    sync();
+  };
+  sync();
+  row.append(line, stars);
   return row;
 }
 
@@ -116,49 +141,51 @@ async function fillRatings() {
     const res = await fetch('ratings.json', { cache: 'no-store' });
     if (!res.ok) return;
     const ratings = await res.json();
-    for (const row of document.querySelectorAll('.rating')) {
-      row.querySelector('.rating-summary').textContent = summaryText(ratings[row.dataset.key]);
-    }
+    for (const row of document.querySelectorAll('.rating')) row.update(ratings[row.dataset.key]);
   } catch {}
 }
 
-function renderCard(r, index, isToday, rateDate) {
-  const card = el('article', 'card');
-  card.dataset.id = r.id;
-  card.style.setProperty('--i', index);
+const walkMinutes = (r) => Math.max(1, Math.round(r.distance / WALK_M_PER_MIN));
+// A category that only repeats the diet label ("Kött", "Veg") is left out.
+const REPEATS_DIET = /^(kött|fisk|veg|vegetarisk[at]?|vegetariska|grönt)$/i;
 
-  const top = el('div', 'card-top');
-  top.append(el('span', 'idx', String(index + 1).padStart(2, '0')));
+function renderPlace(r, isToday, rateDate) {
+  const place = el('article', 'place');
+  place.dataset.id = r.id;
+
+  const head = el('div', 'place-head');
+  const walk = el('p', 'walk');
+  walk.append(el('span', 'walk-min', String(walkMinutes(r))), el('span', 'walk-unit', t('card.walk-unit')));
+  walk.title = t('card.walk', walkMinutes(r));
+  const title = el('div', 'place-title');
+  title.append(el('h2', null, r.name));
+  const meta = el('p', 'place-meta');
   const s = status(r, isToday);
-  if (s) top.append(el('span', `status ${s.state}`, s.text));
-  card.append(top);
+  if (s) meta.append(el('span', `status ${s.state}`, s.text), ' · ');
+  meta.append(el('span', 'hours', r.hours), ` · ${r.distance} m`);
+  title.append(meta);
+  head.append(walk, title);
+  place.append(head);
+  if (r.price) place.append(el('p', 'price', tr(r.price)));
 
-  card.append(el('h2', null, r.name));
-
-  const meta = el('p', 'meta');
-  const walk = Math.max(1, Math.round(r.distance / WALK_M_PER_MIN));
-  meta.append(el('span', 'walk', t('card.walk', walk)), el('span', null, `${r.distance} m`), el('span', null, r.hours));
-  card.append(meta);
-  if (r.price) card.append(el('p', 'price', tr(r.price)));
-
-  if (r.stale) card.append(el('p', 'badge warn', t('card.stale', r.menuWeek)));
+  if (r.stale) place.append(el('p', 'badge warn', t('card.stale', r.menuWeek)));
 
   if (r.error) {
-    card.append(el('p', 'empty', tr(r.error)));
+    place.append(el('p', 'empty', tr(r.error)));
   } else if (r.embed) {
     const frame = el('iframe', 'embed');
     frame.src = r.embed;
     frame.title = t('card.embed', r.name);
     frame.loading = 'lazy';
     frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups');
-    card.append(frame);
+    place.append(frame);
   } else {
     const list = el('ul', 'dishes');
     for (const d of r.dishes) {
       const item = el('li');
-      if (d.category) item.append(el('span', 'category', tr(d.category)));
-      const dish = el('span', 'dish', tr(d.name));
-      dish.prepend(...dietTag(d));
+      if (d.category && !REPEATS_DIET.test(d.category.trim())) item.append(el('span', 'category', tr(d.category)));
+      const dish = el('p', 'dish');
+      dish.append(...dietTag(d), el('span', 'dish-name', tr(d.name)));
       item.append(dish);
       if (d.description) item.append(el('span', 'desc', tr(d.description)));
       item.dataset.diet = d.diet ?? '';
@@ -169,39 +196,59 @@ function renderCard(r, index, isToday, rateDate) {
       if (rateDate) item.append(ratingRow(r, d, rateDate));
       list.append(item);
     }
-    card.append(list);
+    place.append(list);
     const filtered = el('p', 'empty filtered', t('filter.none'));
     filtered.hidden = true;
-    card.append(filtered);
+    place.append(filtered);
   }
 
-  const link = el('a', 'source');
-  link.append(el('span', null, t('card.source')), el('span', 'arrow', '↗'));
+  const link = el('a', 'source', `${t('card.source')} ↗`);
   link.href = r.url;
   link.target = '_blank';
   link.rel = 'noopener';
-  card.append(link);
-  return card;
+  place.append(link);
+  return place;
 }
 
-function renderHeaderStatus(isLunchDay) {
-  const now = document.getElementById('now');
-  const m = minutesNow();
-  const live = isLunchDay && m >= 11 * 60 && m < 14 * 60;
-  if (!isLunchDay) now.textContent = t('hero.near');
-  else if (m < 11 * 60) now.textContent = t('now.starts', TIME_FMT.format(new Date()));
-  else if (live) now.textContent = t('now.live');
-  else now.textContent = t('now.over');
-  document.body.classList.toggle('live', live);
+const fmtMinutes = (m) => `${Math.floor(m / 60)}.${String(m % 60).padStart(2, '0')}`;
+
+// One sentence on where lunch stands, and a second row when the first places close within half an hour.
+function renderHeaderStatus() {
+  const line = document.getElementById('lunch-status');
+  const soonLine = document.getElementById('lunch-soon');
+  soonLine.hidden = true;
+  if (!lunch?.isToday || !lunch.data.day) {
+    line.textContent = '';
+    return;
+  }
+  const now = minutesNow();
+  const spans = lunch.data.restaurants
+    .map((r) => r.hours.split(/\s*[–-]\s*/).map((x) => (x ? toMinutes(x) : Number.NaN)))
+    .filter(([open, close]) => !Number.isNaN(open) && !Number.isNaN(close));
+  const serving = spans.filter(([open, close]) => now >= open && now < close);
+  if (serving.length) {
+    const latest = Math.max(...serving.map(([, close]) => close));
+    line.textContent = t('now.on', fmtMinutes(latest));
+    const soon = serving.filter(([, close]) => close - now <= 30 && close < latest);
+    if (soon.length) {
+      const by = Math.max(...soon.map(([, close]) => close));
+      soonLine.textContent = t('now.soon', soon.length, serving.length, fmtMinutes(by));
+      soonLine.hidden = false;
+    }
+  } else if (spans.length && now < Math.min(...spans.map(([open]) => open))) {
+    line.textContent = t('now.starts', fmtMinutes(Math.min(...spans.map(([open]) => open))));
+  } else {
+    line.textContent = t('now.over');
+  }
 }
 
-// The header clock and the cards' open/closing badges follow the time: redrawn on each new minute, and at once
+// The header sentence and the open/closing statuses follow the time: redrawn on each new minute, and at once
 // when the tab is shown again (background tabs' timers are throttled).
-function keepTime(isToday, isLunchDay) {
+function keepTime(isToday) {
   const update = () => {
-    renderHeaderStatus(isLunchDay);
-    for (const badge of document.querySelectorAll('#restaurants .card .status')) {
-      const r = lunch.data.restaurants.find((x) => x.id === badge.closest('.card').dataset.id);
+    renderHeaderStatus();
+    for (const badge of document.querySelectorAll('#restaurants .place .status')) {
+      const r = lunch.data.restaurants.find((x) => x.id === badge.closest('.place').dataset.id);
       const s = r && status(r, isToday);
       if (!s) continue;
       badge.className = `status ${s.state}`;
@@ -219,15 +266,13 @@ function keepTime(isToday, isLunchDay) {
   });
 }
 
-// Matches main.masonry in style.css: 4px grid rows, plus the 16px gap below each card.
+// Matches main.masonry in style.css: 4px grid rows; each place's own padding is the space below it.
 const ROW_PX = 4;
-const GAP_PX = 16;
 
-function packCards(container) {
+function packPlaces(container) {
   container.classList.add('masonry');
   const observer = new ResizeObserver((entries) => {
-    for (const { target } of entries)
-      target.style.gridRowEnd = `span ${Math.ceil((target.offsetHeight + GAP_PX) / ROW_PX)}`;
+    for (const { target } of entries) target.style.gridRowEnd = `span ${Math.ceil(target.offsetHeight / ROW_PX)}`;
   });
   for (const child of container.children) observer.observe(child);
 }
@@ -251,11 +296,14 @@ function saveFilter(filter) {
   } catch {}
 }
 
+const allergenNames = (ids) => ids.map((a) => t(`allergen.${a}`).toLocaleLowerCase(LOCALE)).join(', ');
+
 // Diet filter: matching dishes stay, dishes without a diet stay dimmed, the rest hide.
 // Allergens only add a "Nämner: …" note; nothing is hidden or called free-from because of them.
 function applyFilter(filter) {
-  for (const card of document.querySelectorAll('#restaurants .card')) {
-    const items = card.querySelectorAll('.dishes li');
+  const places = document.querySelectorAll('#restaurants .place');
+  for (const place of places) {
+    const items = place.querySelectorAll('.dishes li');
     if (!items.length) continue;
     let visible = 0;
     for (const li of items) {
@@ -269,25 +317,55 @@ function applyFilter(filter) {
       const hits = li.dataset.mentions.split(' ').filter((a) => filter.allergens.includes(a));
       const note = li.querySelector('.mentions');
       note.hidden = hits.length === 0;
-      note.textContent = hits.length
-        ? t('mentions', hits.map((a) => t(`allergen.${a}`).toLocaleLowerCase(LOCALE)).join(', '))
-        : '';
+      note.textContent = hits.length ? t('mentions', allergenNames(hits)) : '';
     }
-    card.querySelector('.filtered').hidden = visible > 0;
+    place.querySelector('.filtered').hidden = visible > 0;
   }
-  const count = document.getElementById('allergen-count');
-  count.hidden = filter.allergens.length === 0;
-  count.textContent = String(filter.allergens.length);
-  const active = filter.diets.length > 0 || filter.allergens.length > 0;
-  document.getElementById('filter-clear').hidden = !active;
-  const all = document.querySelectorAll('#restaurants .dishes li');
-  const shown = [...all].filter((li) => !li.hidden).length;
-  document.getElementById('filter-summary').textContent =
-    filter.diets.length && all.length ? t('filter.summary', shown, all.length) : '';
+  const all = [...document.querySelectorAll('#restaurants .dishes li')];
+  const shown = all.filter((li) => !li.hidden).length;
+  for (const count of document.querySelectorAll('[data-count]')) {
+    count.textContent = all.length ? String(all.filter((li) => li.dataset.diet === count.dataset.count).length) : '';
+  }
+  const n = filter.diets.length + filter.allergens.length;
+  const badge = document.getElementById('filter-count');
+  badge.hidden = n === 0;
+  badge.textContent = String(n);
+  document.getElementById('filter-clear').disabled = n === 0;
+  document.getElementById('filter-done').textContent = t('filter.show', shown);
+  const parts = [
+    ...filter.diets.map((d) => t(`diet.${d}`)),
+    ...(filter.allergens.length ? [t('filter.flagging', allergenNames(filter.allergens))] : []),
+  ];
+  document.getElementById('filter-summary').textContent = !all.length
+    ? ''
+    : parts.length
+      ? `${parts.join(' · ')} · ${t('filter.count', shown)}`
+      : t('filter.all', all.length, places.length);
 }
 
+// On a wide screen the filters sit in a rail beside the menus; narrower, the same panel moves into a bottom
+// sheet behind the "Filter" button.
 function setupFilter() {
   const filter = loadFilter();
+  const panel = document.getElementById('filter-panel');
+  const rail = document.getElementById('filter-rail');
+  const dialog = document.getElementById('filter-dialog');
+  const wide = matchMedia('(min-width: 1024px)');
+  const place = () => {
+    if (wide.matches) {
+      if (dialog.open) dialog.close();
+      rail.append(panel);
+    } else dialog.append(panel);
+  };
+  wide.addEventListener('change', place);
+  place();
+  document.getElementById('filter-open').addEventListener('click', () => dialog.showModal());
+  document.getElementById('filter-close').addEventListener('click', () => dialog.close());
+  document.getElementById('filter-done').addEventListener('click', () => dialog.close());
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog) dialog.close();
+  });
+
   const buttons = document.querySelectorAll('[data-diet], [data-allergen]');
   const listOf = (button) =>
     button.dataset.diet ? ['diets', button.dataset.diet] : ['allergens', button.dataset.allergen];
@@ -311,33 +389,23 @@ function setupFilter() {
     filter.allergens = [];
     sync();
   });
-  // The allergen menu closes on a click outside it or Escape, like other dropdowns.
-  const menu = document.querySelector('.allergen-menu');
-  document.addEventListener('click', (event) => {
-    if (menu.open && !menu.contains(event.target)) menu.open = false;
-  });
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && menu.open) {
-      menu.open = false;
-      menu.querySelector('summary').focus();
-    }
-  });
   sync();
   return filter;
 }
 
-// (Re)draws the cards after any notices, with the current filter and today's ratings.
-function renderCards(container, sorted, isToday, rateDate) {
-  for (const card of container.querySelectorAll('.card')) card.remove();
-  container.append(...sorted.map((r, i) => renderCard(r, i, isToday, rateDate)));
+// (Re)draws the places after any notices, with the current filter and today's ratings.
+function renderPlaces(container, sorted, isToday, rateDate) {
+  for (const place of container.querySelectorAll('.place')) place.remove();
+  container.append(...sorted.map((r) => renderPlace(r, isToday, rateDate)));
   if (rateDate) fillRatings();
   applyFilter(filter);
-  packCards(container);
+  packPlaces(container);
 }
 
 async function main() {
   const container = document.getElementById('restaurants');
-  document.getElementById('today').textContent = DATE_FMT.format(new Date());
+  const heading = document.getElementById('today');
+  heading.textContent = DATE_FMT.format(new Date());
   try {
     const translating = fetchTranslations();
     const res = await fetch('lunch.json', { cache: 'no-store' });
@@ -351,13 +419,15 @@ async function main() {
     const isToday = data.date === today;
     const fetchedAt = new Date(data.fetchedAt);
 
-    document.getElementById('today').textContent = t('today', DATE_FMT.format(new Date(data.date)), data.week);
+    heading.textContent = DATE_FMT.format(new Date(data.date));
+    document.getElementById('week').textContent = t('week', data.week);
     document.getElementById('updated').textContent = t(
       'updated',
       DATE_FMT.format(fetchedAt),
       TIME_FMT.format(fetchedAt),
     );
-    renderHeaderStatus(isToday && Boolean(data.day));
+    lunch = { data, isToday };
+    renderHeaderStatus();
 
     container.replaceChildren();
     if (!isToday) {
@@ -367,20 +437,22 @@ async function main() {
       container.append(el('p', 'notice', t('notice.weekend')));
       return;
     }
+    // Nearest first; places whose lunch is over move to the end.
+    const over = (r) => (status(r, isToday)?.state === 'closed' ? 1 : 0);
     const sorted = [...data.restaurants].sort((a, b) => a.distance - b.distance);
     // Magasin 5 is shown in Indya's place and vice versa; their distances stay as they are.
     const indya = sorted.findIndex((r) => r.id === 'indya');
     const fem = sorted.findIndex((r) => r.id === 'magasinfem');
     if (indya >= 0 && fem >= 0) [sorted[indya], sorted[fem]] = [sorted[fem], sorted[indya]];
+    sorted.sort((a, b) => over(a) - over(b));
     const rateDate = isToday && data.day ? data.date : null;
-    renderCards(container, sorted, isToday, rateDate);
-    lunch = { data, isToday };
-    keepTime(isToday, isToday && Boolean(data.day));
+    renderPlaces(container, sorted, isToday, rateDate);
+    keepTime(isToday);
     document.getElementById('picker-open').hidden = false;
     if (!en) {
       translating.then((late) => {
         translations = late;
-        renderCards(container, sorted, isToday, rateDate);
+        renderPlaces(container, sorted, isToday, rateDate);
       });
     }
   } catch {
@@ -516,7 +588,7 @@ function setupPicker() {
     const history = readStored(HISTORY_KEY, []).filter((h) => !(h.id === r.id && h.date === lunch.data.date));
     writeStored(HISTORY_KEY, [...history, { id: r.id, date: lunch.data.date }].slice(-60));
     dialog.close();
-    const card = document.querySelector(`.card[data-id="${CSS.escape(r.id)}"]`);
+    const card = document.querySelector(`.place[data-id="${CSS.escape(r.id)}"]`);
     card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     card?.classList.add('picked');
     setTimeout(() => card?.classList.remove('picked'), 2400);

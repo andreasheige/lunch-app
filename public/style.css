@@ -90,80 +90,15 @@ body {
   overflow-x: hidden;
 }
 
-.hero,
-.filters,
-main,
-footer {
-  width: min(1240px, 100%);
-  margin: 0 auto;
-  padding-inline: 16px;
+button {
+  font: inherit;
+  color: inherit;
 }
 
-@media (min-width: 720px) {
-  .hero,
-  .filters,
-  main,
-  footer {
-    padding-inline: 32px;
-  }
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
-
-/* Hero */
-
-.hero {
-  padding-block: clamp(40px, 7vw, 80px) clamp(28px, 4vw, 44px);
-}
-
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0;
-  padding: 6px 14px 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--muted);
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--faint);
-}
-
-.live .dot {
-  background: var(--open);
-}
-
-h1 {
-  margin: 20px 0 0;
-  font-size: clamp(3rem, 9vw, 7rem);
-  font-weight: 800;
-  line-height: 0.92;
-  letter-spacing: -0.055em;
-}
-
-h1 em {
-  font-style: normal;
-}
-
-.today {
-  margin: 16px 0 0;
-  color: var(--muted);
-  font-size: clamp(1.05rem, 2vw, 1.3rem);
-  font-weight: 500;
-  letter-spacing: -0.01em;
-}
-
-.today::first-letter {
-  text-transform: uppercase;
-}
-
-/* Filters */
 
 .visually-hidden {
   position: absolute;
@@ -174,101 +109,177 @@ h1 em {
   white-space: nowrap;
 }
 
-/* Sticks under the top edge while scrolling, frosted so cards read through it. */
-.filters {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  margin-top: -8px;
-  margin-bottom: 20px;
-  padding-block: 10px;
-  background: color-mix(in srgb, var(--bg) 82%, transparent);
+/* Page width: content inset 16px on phones, 32px from 720px, at most 1176px wide. Rules and the sticky
+   toolbar span exactly the content. */
+:root {
+  --gutter: 16px;
 }
 
-.filter-bar {
+@media (min-width: 720px) {
+  :root {
+    --gutter: 32px;
+  }
+}
+
+.site-nav,
+.page-head,
+.toolbar,
+.layout,
+main.stats,
+main.blog,
+footer {
+  width: min(1176px, 100% - 2 * var(--gutter));
+  margin-inline: auto;
+}
+
+/* Site nav: the Lunchit wordmark, the page links and the language switch. */
+
+.site-nav {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 10px 12px;
+  gap: 4px;
+  min-height: 56px;
+  border-bottom: 1px solid var(--border);
 }
 
-.segmented {
-  display: inline-flex;
-  margin: 0;
-  padding: 4px;
+.wordmark {
+  margin-right: auto;
+  color: var(--text);
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+
+.site-nav a:not(.wordmark) {
+  padding: 16px 8px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  text-decoration: none;
+}
+
+.site-nav a:not(.wordmark):hover {
+  color: var(--text);
+}
+
+.site-nav a[aria-current="page"] {
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--text);
+}
+
+/* SV/EN switch: names the other language, set apart from the page links. */
+.lang-toggle {
+  min-width: 40px;
+  height: 32px;
+  margin-left: 6px;
+  padding: 0 8px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   background: var(--surface);
-}
-
-.seg,
-.chip,
-.allergen-menu summary,
-.filter-clear {
-  font: inherit;
-  font-size: 0.88rem;
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   cursor: pointer;
 }
 
-.seg {
-  padding: 7px 14px;
-  border: 0;
-  border-radius: var(--radius);
-  background: transparent;
-  color: var(--muted);
-  white-space: nowrap;
-  transition:
-    background 0.2s var(--ease),
-    color 0.2s var(--ease);
+@media (min-width: 720px) {
+  .site-nav a:not(.wordmark) {
+    padding-inline: 12px;
+  }
 }
 
-.seg:hover {
-  color: var(--text);
-}
+/* Page header: the date, the week and one sentence on where lunch stands. */
 
-.seg[aria-pressed="true"] {
-  background: var(--accent-soft);
-  color: var(--text);
-  box-shadow: inset 0 0 0 1px var(--accent);
-}
-
-.allergen-menu {
-  position: relative;
-}
-
-.allergen-menu summary {
-  display: inline-flex;
-  align-items: center;
+.page-head {
+  display: grid;
   gap: 6px;
-  min-height: 45px;
-  padding: 0 16px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--muted);
-  list-style: none;
-  user-select: none;
-  transition:
-    background 0.2s var(--ease),
-    color 0.2s var(--ease);
+  padding-block: 24px 16px;
 }
 
-.allergen-menu summary::-webkit-details-marker {
+.date-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.page-head h1 {
+  margin: 0;
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.page-head h1::first-letter {
+  text-transform: uppercase;
+}
+
+.week {
+  flex: none;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.lunch-status {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.lunch-soon {
+  margin: 0;
+  color: var(--closing);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.lunch-status:empty {
   display: none;
 }
 
-.allergen-menu summary:hover,
-.allergen-menu[open] summary {
-  background: var(--surface-hover);
-  color: var(--text);
+/* Toolbar: sticks to the top while scrolling. Filter button (narrow screens), summary, "Välj åt mig". */
+
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-block: 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
 }
 
-.caret {
-  transition: transform 0.2s var(--ease);
+.filter-open,
+.picker-open {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: var(--radius);
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.allergen-menu[open] .caret {
-  transform: rotate(180deg);
+.filter-open {
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+}
+
+.picker-open {
+  margin-left: auto;
+  border: 0;
+  background: var(--text);
+  color: var(--bg);
+}
+
+.picker-open[hidden] {
+  display: none;
 }
 
 .count {
@@ -277,9 +288,9 @@ h1 em {
   min-width: 20px;
   height: 20px;
   padding-inline: 6px;
-  border-radius: var(--radius);
+  border-radius: 10px;
   background: var(--accent);
-  color: var(--bg);
+  color: var(--on-accent);
   font-size: 0.72rem;
   font-weight: 700;
 }
@@ -288,237 +299,382 @@ h1 em {
   display: none;
 }
 
-.allergen-panel {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  z-index: 20;
-  display: grid;
-  gap: 12px;
-  width: min(360px, calc(100vw - 32px));
-  padding: 16px;
-  border: 1px solid var(--border-strong);
-  border-radius: 16px;
-  background: var(--bg);
-  box-shadow: 0 18px 40px rgb(0 0 0 / 0.35);
+.filter-summary {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.35;
 }
 
-.allergen-chips {
-  display: flex;
-  flex-wrap: wrap;
+/* Filter panel: in the rail beside the menus on wide screens, in the bottom sheet otherwise (app.js moves it). */
+
+.layout {
+  display: block;
+}
+
+.filter-rail {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .layout {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 40px;
+  }
+
+  .filter-rail {
+    display: block;
+  }
+
+  .filter-rail .filter-panel {
+    position: sticky;
+    top: 88px;
+    padding-block: 24px;
+  }
+
+  .filter-open {
+    display: none;
+  }
+
+  .filter-rail .filter-done {
+    display: none;
+  }
+}
+
+.filter-panel {
+  display: grid;
+  gap: 24px;
+}
+
+.filter-panel fieldset {
+  display: grid;
   gap: 8px;
   margin: 0;
   padding: 0;
   border: 0;
 }
 
-.allergen-chips legend {
-  margin-bottom: 10px;
+.filter-panel legend {
+  margin-bottom: 8px;
   padding: 0;
-  color: var(--faint);
-  font-size: 0.7rem;
-  font-weight: 700;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.chip {
-  padding: 6px 12px;
+.diet-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 0 14px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   background: var(--surface);
-  color: var(--muted);
-  transition:
-    background 0.2s var(--ease),
-    color 0.2s var(--ease),
-    border-color 0.2s var(--ease);
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.chip:hover {
-  background: var(--surface-hover);
-  color: var(--text);
+.diet-count {
+  color: var(--muted);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.diet-option[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.diet-option[aria-pressed="true"] .diet-count {
+  color: inherit;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
 }
 
 .chip[aria-pressed="true"] {
-  border-color: var(--closing);
-  background: var(--closing-soft);
-  color: var(--text);
-}
-
-.seg:focus-visible,
-.chip:focus-visible,
-.allergen-menu summary:focus-visible,
-.filter-clear:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  border-color: var(--warn);
+  background: var(--warn-bg);
+  color: var(--warn);
+  font-weight: 600;
 }
 
 .filter-note {
-  margin: 0;
+  margin: 4px 0 0;
   color: var(--muted);
   font-size: 0.8rem;
   line-height: 1.45;
 }
 
-.filter-summary {
+.filter-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.filter-clear,
+.filter-done {
+  min-height: 48px;
+  border-radius: var(--radius);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.filter-clear {
+  flex: 1;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+}
+
+.filter-clear:disabled {
+  color: var(--faint);
+  cursor: default;
+}
+
+.filter-done {
+  flex: 2;
+  border: 0;
+  background: var(--text);
+  color: var(--bg);
+}
+
+@media (min-width: 1024px) {
+  .filter-rail .filter-clear {
+    flex: none;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .filter-rail .filter-clear:disabled {
+    visibility: hidden;
+  }
+}
+
+/* Bottom sheets (filters, "Välj åt mig") on phones; a centred dialog from 720px. */
+
+dialog {
+  color: var(--text);
+}
+
+.sheet {
+  width: 100%;
+  max-width: 100%;
+  max-height: calc(100dvh - 48px);
+  margin: auto 0 0;
+  padding: 8px 16px 20px;
+  border: 0;
+  border-radius: 12px 12px 0 0;
+  background: var(--surface);
+  overflow-y: auto;
+}
+
+.sheet::backdrop,
+#report-dialog::backdrop,
+#install-dialog::backdrop {
+  background: var(--scrim);
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.sheet-head::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  left: calc(50% - 18px);
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-strong);
+}
+
+.sheet-head h2 {
+  margin: 12px 0 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.sheet-close {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: 8px -10px 0 auto;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+@media (min-width: 720px) {
+  .sheet {
+    width: min(480px, calc(100% - 32px));
+    margin: auto;
+    padding: 16px 24px 24px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+
+  .sheet-head::before {
+    display: none;
+  }
+}
+
+/* The menus: one ruled section per place, packed into columns (main.masonry, see app.js). */
+
+main {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  column-gap: 40px;
+  align-items: start;
+}
+
+main.masonry {
+  grid-auto-rows: 4px;
+}
+
+.place {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 0 36px;
+}
+
+.place + .place,
+.notice + .place {
+  border-top: 1px solid var(--line);
+}
+
+/* In columns every place gets the rule, so the tops line up. */
+@media (min-width: 680px) {
+  main.masonry .place {
+    border-top: 1px solid var(--line);
+  }
+}
+
+.place-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.walk {
+  display: grid;
+  flex: none;
+  min-width: 48px;
+  margin: 0;
+}
+
+.walk-min {
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.walk-unit {
+  color: var(--muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.place-title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.place h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.place-meta {
   margin: 0;
   color: var(--muted);
   font-size: 0.85rem;
 }
 
-.filter-clear {
-  padding: 4px 2px;
-  border: 0;
-  background: none;
-  color: var(--accent);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.filter-clear[hidden] {
-  display: none;
-}
-
-@media (max-width: 560px) {
-  .segmented {
-    display: flex;
-    width: 100%;
-  }
-
-  .seg {
-    flex: 1;
-    padding-inline: 8px;
-  }
-}
-
-main {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
-  gap: 16px;
-  align-items: start;
-}
-
-/* Masonry: app.js sets each card's row span from its height, so short cards leave no hole below. */
-main.masonry {
-  grid-auto-rows: 4px;
-  row-gap: 0;
-}
-
-.card {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 24px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-}
-
-.card-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.idx {
-  color: var(--faint);
-  font-size: 0.8rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.04em;
-}
-
 .status {
-  padding: 3px 10px;
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--muted);
-  font-size: 0.75rem;
   font-weight: 600;
-  white-space: nowrap;
 }
 
 .status.open {
-  background: var(--open-soft);
   color: var(--open);
 }
+
 .status.closing {
-  background: var(--closing-soft);
   color: var(--closing);
 }
+
+.status.soon,
 .status.closed {
-  color: var(--faint);
-}
-
-.card h2 {
-  margin: 0;
-  font-size: clamp(1.5rem, 2.4vw, 1.9rem);
-  font-weight: 750;
-  line-height: 1.05;
-  letter-spacing: -0.035em;
-}
-
-.meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 0;
-}
-
-.meta span {
-  padding: 2px 9px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
   color: var(--muted);
-  font-size: 0.8rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.meta .walk {
-  border-color: transparent;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-weight: 600;
 }
 
 .price {
-  margin: -4px 0 0;
+  margin: 0;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
 }
 
 .dishes {
-  list-style: none;
-  margin: 4px 0 0;
-  padding: 0;
   display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .dishes li {
   display: grid;
   gap: 3px;
-  padding: 14px 0;
+  padding: 12px 0;
   border-top: 1px solid var(--border);
 }
 
-.dishes li:last-child {
-  padding-bottom: 4px;
-}
-
 .category {
-  color: var(--accent);
+  color: var(--muted);
   font-size: 0.7rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .dish {
+  margin: 0;
   font-size: 1.02rem;
   font-weight: 600;
   line-height: 1.3;
-  letter-spacing: -0.01em;
 }
 
 .tag {
@@ -528,7 +684,7 @@ main.masonry {
   border: 1px solid var(--muted);
   border-radius: var(--radius-sm);
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.06em;
   line-height: 1.5;
@@ -547,23 +703,14 @@ main.masonry {
 
 .dishes li[hidden],
 .mentions[hidden],
-.filtered[hidden] {
+.filtered[hidden],
+.stars[hidden] {
   display: none;
 }
 
-/* Dish with no diet icon while a diet filter is on: might fit, so it stays, toned down. */
+/* Dish with no diet label while a diet filter is on: might fit, so it stays, toned down. */
 .dishes li.unsure {
   opacity: 0.45;
-}
-
-.mentions {
-  justify-self: start;
-  margin-top: 2px;
-  padding: 2px 8px;
-  border-radius: 8px;
-  background: var(--closing-soft);
-  color: var(--closing);
-  font-size: 0.78rem;
 }
 
 .desc {
@@ -572,20 +719,31 @@ main.masonry {
   line-height: 1.45;
 }
 
+.mentions {
+  justify-self: start;
+  margin-top: 2px;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--warn-bg);
+  color: var(--warn);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
 .embed {
   width: 100%;
   aspect-ratio: 1 / 1.4143;
-  border: 0;
-  border-radius: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   background: #fff;
 }
 
 .badge.warn {
   margin: 0;
   padding: 8px 12px;
-  border-radius: 12px;
-  background: var(--closing-soft);
-  color: var(--closing);
+  border-radius: var(--radius);
+  background: var(--warn-bg);
+  color: var(--warn);
   font-size: 0.85rem;
 }
 
@@ -594,56 +752,94 @@ main.masonry {
   margin: 0;
   color: var(--muted);
 }
+
 .notice {
-  padding: 8px 0 8px;
+  padding: 16px 0;
   grid-column: 1 / -1;
 }
 
 .source {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 4px;
-  padding: 12px 16px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  color: var(--text);
-  font-size: 0.9rem;
-  font-weight: 600;
-  text-decoration: none;
-  transition:
-    background 0.2s var(--ease),
-    border-color 0.2s var(--ease);
+  align-self: flex-start;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
-.source .arrow {
-  color: var(--accent);
-  transition: transform 0.3s var(--ease);
-}
 .source:hover {
-  background: var(--accent-soft);
-  border-color: transparent;
+  color: var(--text);
 }
-.source:hover .arrow {
-  transform: translate(2px, -2px);
+
+/* Ratings: one summary line per dish; "Betygsätt" opens five star buttons. */
+
+.rating {
+  display: grid;
+  gap: 6px;
+  margin-top: 2px;
 }
-.source:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+
+.rating-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 8px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.rating-summary.has-votes {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.rating-toggle {
+  min-height: 32px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.stars {
+  display: flex;
+  gap: 4px;
+}
+
+.star {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.star:hover {
+  border-color: var(--border-strong);
 }
 
 /* Loading skeleton */
 
 .skeleton {
   gap: 12px;
-  min-height: 260px;
+  min-height: 240px;
 }
 
 .skeleton span {
   display: block;
   height: 14px;
-  border-radius: 8px;
-  background: linear-gradient(90deg, var(--surface) 0%, var(--border-strong) 50%, var(--surface) 100%);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--surface) 0%, var(--border) 50%, var(--surface) 100%);
   background-size: 200% 100%;
   animation: shimmer 1.4s linear infinite;
 }
@@ -674,8 +870,9 @@ footer {
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 8px 24px;
-  padding-block: 40px 56px;
-  color: var(--faint);
+  padding-block: 32px 56px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
   font-size: 0.82rem;
 }
 
@@ -688,35 +885,39 @@ footer p {
   border: 0;
   background: none;
   color: var(--muted);
-  font: inherit;
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
 }
-.report button:hover {
+
+.report button:hover,
+.footer-link:hover {
   color: var(--text);
 }
+
+.footer-link {
+  color: var(--muted);
+}
+
+/* Report and install dialogs */
 
 #report-dialog,
 #install-dialog {
   width: min(480px, calc(100% - 32px));
   padding: 24px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg);
-  color: var(--text);
-}
-#report-dialog::backdrop,
-#install-dialog::backdrop {
-  background: rgb(0 0 0 / 0.55);
+  border-radius: 12px;
+  background: var(--surface);
 }
 #report-form {
   display: grid;
   gap: 14px;
 }
-#report-form h2 {
+#report-form h2,
+#install-dialog h2 {
   margin: 0;
   font-size: 1.25rem;
+  font-weight: 800;
 }
 #report-form label {
   display: grid;
@@ -727,9 +928,9 @@ footer p {
 #report-form input:not([type="radio"], [type="checkbox"]),
 #report-form textarea {
   padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg);
   color: var(--text);
   font: inherit;
 }
@@ -756,16 +957,15 @@ footer p {
 }
 .notify {
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius);
   padding: 10px 12px;
 }
 .notify-toggle {
-  color: var(--text);
   font-size: 0.9rem;
   cursor: pointer;
 }
 .optional {
-  color: var(--faint);
+  color: var(--muted);
 }
 .notify-fields {
   display: grid;
@@ -776,7 +976,6 @@ footer p {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  color: var(--muted);
   font-size: 0.85rem;
 }
 #report-form .consent input {
@@ -798,26 +997,22 @@ footer p {
   gap: 10px;
 }
 .report-actions button {
-  padding: 9px 16px;
-  border: 1px solid var(--border);
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   background: var(--surface);
-  color: var(--text);
-  font: inherit;
+  font-weight: 600;
   cursor: pointer;
 }
 .report-actions button[type="submit"] {
   border-color: transparent;
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--text);
+  color: var(--bg);
 }
 .report-actions button:disabled {
   opacity: 0.6;
   cursor: wait;
-}
-#install-dialog h2 {
-  margin: 0;
-  font-size: 1.25rem;
 }
 .install-steps {
   display: grid;
@@ -828,57 +1023,105 @@ footer p {
 }
 .report-note {
   margin: 0;
-  color: var(--faint);
-  font-size: 0.8rem;
-}
-
-/* Ratings: five stars per dish, lit up to data-show (app.js: the hovered star, else your vote). */
-
-.rating {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 4px;
-}
-
-.stars {
-  display: inline-flex;
-}
-
-.star {
-  padding: 2px 1px;
-  border: 0;
-  background: none;
-  color: var(--faint);
-  font-size: 1.05rem;
-  line-height: 1;
-  cursor: pointer;
-  transition:
-    color 0.15s var(--ease),
-    transform 0.15s var(--ease);
-}
-
-.star:hover {
-  transform: scale(1.15);
-}
-
-.star:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-  border-radius: 4px;
-}
-
-.stars[data-show="1"] .star:nth-child(-n + 1),
-.stars[data-show="2"] .star:nth-child(-n + 2),
-.stars[data-show="3"] .star:nth-child(-n + 3),
-.stars[data-show="4"] .star:nth-child(-n + 4),
-.stars[data-show="5"] .star:nth-child(-n + 5) {
-  color: var(--text);
-}
-
-.rating-summary {
   color: var(--muted);
   font-size: 0.8rem;
+}
+
+/* "Välj åt mig": questions and suggestions in the sheet. */
+
+.picker-step {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.picker-heading {
+  margin: 0 0 20px;
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.picker-answers {
+  display: grid;
+  gap: 10px;
+}
+
+.picker-answer {
+  min-height: 56px;
+  padding: 0 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg);
+  font-size: 1.05rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.picker-answer:hover {
+  border-color: var(--text);
+}
+
+.picker-dish {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.picker-desc {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.picker-reason {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  line-height: 1.45;
+}
+
+.picker-meta {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.picker-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.picker-primary,
+.picker-secondary {
+  min-height: 48px;
+  padding: 0 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.picker-primary {
+  border-color: transparent;
+  background: var(--text);
+  color: var(--bg);
+}
+
+/* The place "Vi går hit!" scrolled to. */
+.place.picked {
+  outline: 2px solid var(--accent);
+  outline-offset: 8px;
 }
 
 /* Statistik: a slide of chart cards. --viz-mark is the bar colour, validated per mode (dataviz validator). */
@@ -1228,69 +1471,6 @@ main.stats {
   color: var(--muted);
 }
 
-/* Site nav */
-
-.site-nav {
-  display: flex;
-  justify-content: flex-end;
-  gap: 4px;
-  width: min(1240px, 100%);
-  margin: 0 auto;
-  padding: 16px 16px 0;
-}
-
-.site-nav a {
-  padding: 6px 12px;
-  border-radius: var(--radius);
-  color: var(--muted);
-  font-size: 0.9rem;
-  text-decoration: none;
-  transition:
-    background 0.2s var(--ease),
-    color 0.2s var(--ease);
-}
-
-.site-nav a:hover {
-  background: var(--surface-hover);
-  color: var(--text);
-}
-
-.site-nav a[aria-current="page"] {
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: inset 0 0 0 1px var(--border-strong);
-}
-
-/* SV/EN switch: names the other language, set apart from the page links. */
-.lang-toggle {
-  margin-left: 8px;
-  padding: 6px 10px;
-  border: 0;
-  border-radius: var(--radius);
-  background: none;
-  box-shadow: inset 0 0 0 1px var(--border);
-  color: var(--muted);
-  font: inherit;
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-  transition:
-    background 0.2s var(--ease),
-    color 0.2s var(--ease);
-}
-
-.lang-toggle:hover {
-  background: var(--surface-hover);
-  color: var(--text);
-}
-
-@media (min-width: 720px) {
-  .site-nav {
-    padding-inline: 32px;
-  }
-}
-
 /* Nyheter: a single reading column with a timeline down the left. */
 
 main.blog {
@@ -1409,157 +1589,6 @@ main.blog > * {
 
 .footer-link {
   color: var(--muted);
-}
-
-/* "Välj åt mig" */
-
-.picker-open {
-  margin-top: 20px;
-  padding: 10px 18px;
-  border: 0;
-  border-radius: var(--radius);
-  background: var(--text);
-  color: var(--bg);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.picker-open[hidden] {
-  display: none;
-}
-
-#picker-dialog {
-  position: fixed;
-  width: min(460px, calc(100% - 32px));
-  padding: 28px 24px 24px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  background: var(--bg);
-  color: var(--text);
-}
-
-#picker-dialog::backdrop {
-  background: rgb(0 0 0 / 0.55);
-}
-
-.picker-close {
-  position: absolute;
-  top: 12px;
-  right: 14px;
-  padding: 4px 8px;
-  border: 0;
-  background: none;
-  color: var(--muted);
-  font-size: 1.4rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.picker-step {
-  margin: 0;
-  color: var(--accent);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.picker-heading {
-  margin: 6px 0 18px;
-  font-size: 1.5rem;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-}
-
-.picker-answers {
-  display: grid;
-  gap: 8px;
-}
-
-.picker-answer {
-  padding: 12px 16px;
-  border: 1px solid var(--border-strong);
-  border-radius: 14px;
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    background 0.2s var(--ease),
-    border-color 0.2s var(--ease);
-}
-
-.picker-answer:hover,
-.picker-answer:focus-visible {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  outline: none;
-}
-
-.picker-dish {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-}
-
-.picker-desc {
-  margin: 4px 0 0;
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.picker-reason {
-  margin: 14px 0 0;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: var(--accent-soft);
-  line-height: 1.45;
-}
-
-.picker-meta {
-  margin: 10px 0 0;
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
-.picker-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 20px;
-}
-
-.picker-primary,
-.picker-secondary {
-  padding: 9px 16px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-  cursor: pointer;
-}
-
-.picker-primary {
-  border-color: transparent;
-  background: var(--accent);
-  color: var(--on-accent);
-  font-weight: 600;
-}
-
-.picker-primary:focus-visible,
-.picker-secondary:focus-visible,
-.picker-close:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* The card "Vi går hit!" scrolled to. */
-.card.picked {
-  box-shadow: 0 0 0 2px var(--accent);
-  transition: box-shadow 0.4s var(--ease);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -2,10 +2,9 @@
 import Layout from '../components/Layout.astro';
 ---
 <Layout title="Nyheter – Dagens lunch" titleKey="title.news" script="nyheter.js" current="news">
-<header class="hero">
-  <p class="eyebrow"><span class="dot" aria-hidden="true"></span><span data-i18n="news.eyebrow">Vad är nytt</span></p>
-  <h1><span data-i18n="news.title">Nyheter</span><em>.</em></h1>
-  <p class="today" data-i18n="news.intro">Allt nytt och fixat på lunchsajten – oftast för att någon önskade det.</p>
+<header class="page-head">
+  <h1 data-i18n="news.title">Nyheter</h1>
+  <p class="lunch-status" data-i18n="news.intro">Allt nytt och fixat på lunchsajten – oftast för att någon önskade det.</p>
 </header>
 <main id="notes" class="blog" aria-live="polite" aria-busy="true">
   <article class="post skeleton" aria-hidden="true"><span></span><span></span><span></span></article>

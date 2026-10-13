@@ -11,6 +11,7 @@ const links = [
 ];
 ---
 <nav class="site-nav" aria-label="Sajtnavigering" data-i18n-label="nav.label">
+  <a href="/" class="wordmark">Lunchit</a>
   {links.map((l) => <a href={l.href} aria-current={l.id === current ? 'page' : undefined} data-i18n={l.key}>{l.text}</a>)}
   <button type="button" id="lang-toggle" class="lang-toggle" data-i18n="lang.short" data-i18n-label="lang.switch" aria-label="In English">EN</button>
 </nav>
