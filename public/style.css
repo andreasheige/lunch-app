@@ -1124,28 +1124,52 @@ footer p {
   outline-offset: 8px;
 }
 
-/* Statistik: a slide of chart cards. --viz-mark is the bar colour, validated per mode (dataviz validator). */
+/* Stats: a slide of chart cards. --viz-mark is the bar colour, validated per mode against the card surface
+   (dataviz validator: light #2f5bd9 on #ffffff, dark #6f8fe8 on #2d2b27). */
 
 :root {
-  --viz-mark: #ff7a3d;
-  --viz-grid: rgb(255 255 255 / 0.08);
+  --viz-mark: #2f5bd9;
+  --viz-grid: rgb(21 23 26 / 0.1);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --viz-mark: #e8622a;
-  }
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    --viz-mark: #e0561c;
-    --viz-grid: rgb(30 25 20 / 0.1);
+    --viz-mark: #6f8fe8;
+    --viz-grid: rgb(238 234 227 / 0.1);
   }
 }
 
 main.stats {
   display: block;
+  padding-top: 8px;
+}
+
+.segmented {
+  display: inline-flex;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.seg {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  background: transparent;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.seg + .seg {
+  border-left: 1px solid var(--border-strong);
+}
+
+.seg[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .stats-controls {
@@ -1158,14 +1182,13 @@ main.stats {
 }
 
 .present {
-  min-height: 45px;
+  min-height: 44px;
   padding: 0 16px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
-  font: inherit;
-  font-size: 0.88rem;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -1188,7 +1211,7 @@ main.stats {
 
 .slide-kicker {
   margin: 0;
-  color: var(--accent);
+  color: var(--muted);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -1213,7 +1236,7 @@ main.stats {
   gap: 2px;
   padding: 16px 18px;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius);
   background: var(--surface);
 }
 
@@ -1226,7 +1249,7 @@ main.stats {
 
 .kpi-value {
   font-size: clamp(1.8rem, 3.6vw, 2.6rem);
-  font-weight: 650;
+  font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.15;
 }
@@ -1244,7 +1267,7 @@ main.stats {
   min-width: 0;
   padding: 18px 20px;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius);
   background: var(--surface);
 }
 
@@ -1300,7 +1323,6 @@ main.stats {
   display: grid;
   min-width: 64px;
   font-weight: 650;
-  font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
@@ -1369,7 +1391,6 @@ main.stats {
   margin-top: 8px;
   border-collapse: collapse;
   font-size: 0.85rem;
-  font-variant-numeric: tabular-nums;
 }
 
 .table-view th,
@@ -1406,7 +1427,7 @@ main.stats {
 }
 
 .top-dishes li:first-child::before {
-  color: var(--accent);
+  color: var(--text);
 }
 
 .top-dish-text {
@@ -1456,7 +1477,7 @@ main.stats {
   gap: 2px;
   padding: 8px 12px;
   border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: var(--bg);
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.3);
   font-size: 0.82rem;
