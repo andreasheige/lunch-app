@@ -1,45 +1,75 @@
 :root {
-  --bg: #0e0d0c;
-  --surface: rgb(255 255 255 / 0.035);
-  --surface-hover: rgb(255 255 255 / 0.06);
-  --border: rgb(255 255 255 / 0.08);
-  --border-strong: rgb(255 255 255 / 0.16);
-  --text: #f4efe8;
-  --muted: #a39b90;
-  --faint: #6f685f;
-  --accent: #ff7a3d;
-  --accent-2: #ffb86b;
-  --accent-soft: rgb(255 122 61 / 0.14);
-  --glow-a: rgb(255 122 61 / 0.22);
-  --glow-b: rgb(255 196 120 / 0.1);
-  --open: #5ee39a;
-  --open-soft: rgb(94 227 154 / 0.12);
-  --closing: #ffc24d;
-  --closing-soft: rgb(255 194 77 / 0.14);
-  --radius: 22px;
+  /* Light "paper" is the default; the warm dark below follows the system setting. */
+  --bg: #f3f3ef;
+  --surface: #ffffff;
+  --surface-hover: #fafaf7;
+  --border: #d9dad4;
+  --border-strong: #c9cac3;
+  --line: #15171a;
+  --text: #15171a;
+  --muted: #5a5f66;
+  --faint: #676c72;
+  --accent: #1d4ed8;
+  --on-accent: #ffffff;
+  --accent-soft: rgb(29 78 216 / 0.1);
+  --open: #0f7a3d;
+  --open-soft: rgb(15 122 61 / 0.1);
+  --closing: #a15c00;
+  --closing-soft: rgb(161 92 0 / 0.12);
+  --warn: #7a4300;
+  --warn-bg: #fcefd9;
+  --scrim: rgb(21 23 26 / 0.45);
+  --radius: 6px;
+  --radius-sm: 4px;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --font: "Schibsted Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI Variable", "Segoe UI", sans-serif;
 }
 
-@media (prefers-color-scheme: light) {
+@media (prefers-color-scheme: dark) {
   :root {
-    --bg: #f5f1ea;
-    --surface: rgb(255 255 255 / 0.7);
-    --surface-hover: #ffffff;
-    --border: rgb(30 25 20 / 0.08);
-    --border-strong: rgb(30 25 20 / 0.18);
-    --text: #1b1916;
-    --muted: #6b645a;
-    --faint: #9a9287;
-    --accent: #e0561c;
-    --accent-2: #f08a2c;
-    --accent-soft: rgb(224 86 28 / 0.1);
-    --glow-a: rgb(255 122 61 / 0.18);
-    --glow-b: rgb(255 196 120 / 0.22);
-    --open: #13864a;
-    --open-soft: rgb(19 134 74 / 0.1);
-    --closing: #a36a00;
-    --closing-soft: rgb(163 106 0 / 0.12);
+    --bg: #23211e;
+    --surface: #2d2b27;
+    --surface-hover: #34322d;
+    --border: #3a3732;
+    --border-strong: #4f4b45;
+    --line: #69645c;
+    --text: #eeeae3;
+    --muted: #ada79e;
+    --faint: #98928a;
+    --accent: #9db4ff;
+    --on-accent: #0b1530;
+    --accent-soft: rgb(157 180 255 / 0.14);
+    --open: #5cc98f;
+    --open-soft: rgb(92 201 143 / 0.12);
+    --closing: #f0b04a;
+    --closing-soft: rgb(240 176 74 / 0.14);
+    --warn: #f4c27a;
+    --warn-bg: #3f2f17;
+    --scrim: rgb(0 0 0 / 0.5);
   }
+}
+
+/* Schibsted Grotesk (SIL OFL, public/fonts/OFL.txt), variable weight, self-hosted. */
+@font-face {
+  font-family: "Schibsted Grotesk";
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("fonts/schibsted-grotesk-latin.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC,
+    U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Schibsted Grotesk";
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("fonts/schibsted-grotesk-latin-ext.woff2") format("woff2");
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+    U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
 * {
@@ -55,29 +85,9 @@ body {
   min-height: 100vh;
   background: var(--bg);
   color: var(--text);
-  font:
-    16px / 1.5 ui-sans-serif,
-    system-ui,
-    -apple-system,
-    "Segoe UI Variable",
-    "Segoe UI",
-    sans-serif;
+  font: 16px / 1.5 var(--font);
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
-}
-
-.glow {
-  position: fixed;
-  top: -20vh;
-  right: -10vw;
-  width: 70vw;
-  height: 70vh;
-  background:
-    radial-gradient(closest-side, var(--glow-a), transparent 70%),
-    radial-gradient(closest-side at 30% 70%, var(--glow-b), transparent 70%);
-  filter: blur(40px);
-  pointer-events: none;
-  z-index: -1;
 }
 
 .hero,
@@ -111,9 +121,8 @@ footer {
   margin: 0;
   padding: 6px 14px 6px 10px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius);
   background: var(--surface);
-  backdrop-filter: blur(12px);
   color: var(--muted);
   font-size: 0.85rem;
   font-weight: 500;
@@ -128,16 +137,6 @@ footer {
 
 .live .dot {
   background: var(--open);
-  animation: pulse 2s var(--ease) infinite;
-}
-
-@keyframes pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgb(94 227 154 / 0.5);
-  }
-  100% {
-    box-shadow: 0 0 0 10px rgb(94 227 154 / 0);
-  }
 }
 
 h1 {
@@ -150,10 +149,6 @@ h1 {
 
 h1 em {
   font-style: normal;
-  background: linear-gradient(100deg, var(--accent), var(--accent-2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
 }
 
 .today {
@@ -188,8 +183,6 @@ h1 em {
   margin-bottom: 20px;
   padding-block: 10px;
   background: color-mix(in srgb, var(--bg) 82%, transparent);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
 }
 
 .filter-bar {
@@ -204,7 +197,7 @@ h1 em {
   margin: 0;
   padding: 4px;
   border: 1px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius);
   background: var(--surface);
 }
 
@@ -220,7 +213,7 @@ h1 em {
 .seg {
   padding: 7px 14px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--muted);
   white-space: nowrap;
@@ -250,7 +243,7 @@ h1 em {
   min-height: 45px;
   padding: 0 16px;
   border: 1px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--muted);
   list-style: none;
@@ -284,7 +277,7 @@ h1 em {
   min-width: 20px;
   height: 20px;
   padding-inline: 6px;
-  border-radius: 999px;
+  border-radius: var(--radius);
   background: var(--accent);
   color: var(--bg);
   font-size: 0.72rem;
@@ -332,7 +325,7 @@ h1 em {
 .chip {
   padding: 6px 12px;
   border: 1px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--muted);
   transition:
@@ -419,32 +412,6 @@ main.masonry {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
-  backdrop-filter: blur(16px);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
-  transition:
-    background 0.3s var(--ease),
-    border-color 0.3s var(--ease),
-    transform 0.4s var(--ease);
-  animation: rise 0.7s var(--ease) both;
-  animation-delay: calc(var(--i, 0) * 70ms);
-}
-
-.card:hover {
-  background: var(--surface-hover);
-  border-color: var(--border-strong);
-  transform: translateY(-2px);
-}
-
-/* Animates `translate`, not `transform`, so the held end state doesn't block the hover lift. */
-@keyframes rise {
-  from {
-    opacity: 0;
-    translate: 0 16px;
-  }
-  to {
-    opacity: 1;
-    translate: 0 0;
-  }
 }
 
 .card-top {
@@ -464,7 +431,7 @@ main.masonry {
 
 .status {
   padding: 3px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--muted);
   font-size: 0.75rem;
@@ -502,7 +469,7 @@ main.masonry {
 .meta span {
   padding: 2px 9px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius);
   color: var(--muted);
   font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
@@ -815,7 +782,7 @@ footer p {
 .report-actions button {
   padding: 9px 16px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
   font: inherit;
@@ -824,7 +791,7 @@ footer p {
 .report-actions button[type="submit"] {
   border-color: transparent;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 .report-actions button:disabled {
   opacity: 0.6;
@@ -888,7 +855,7 @@ footer p {
 .stars[data-show="3"] .star:nth-child(-n + 3),
 .stars[data-show="4"] .star:nth-child(-n + 4),
 .stars[data-show="5"] .star:nth-child(-n + 5) {
-  color: var(--accent-2);
+  color: var(--text);
 }
 
 .rating-summary {
@@ -933,7 +900,7 @@ main.stats {
   min-height: 45px;
   padding: 0 16px;
   border: 1px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
   font: inherit;
@@ -1265,7 +1232,7 @@ main.stats {
 
 .site-nav a {
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius);
   color: var(--muted);
   font-size: 0.9rem;
   text-decoration: none;
@@ -1290,7 +1257,7 @@ main.stats {
   margin-left: 8px;
   padding: 6px 10px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius);
   background: none;
   box-shadow: inset 0 0 0 1px var(--border);
   color: var(--muted);
@@ -1372,7 +1339,7 @@ main.blog > * {
 
 .post-tag {
   padding: 2px 9px;
-  border-radius: 999px;
+  border-radius: var(--radius);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -1441,18 +1408,12 @@ main.blog > * {
   margin-top: 20px;
   padding: 10px 18px;
   border: 0;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: #fff;
+  border-radius: var(--radius);
+  background: var(--text);
+  color: var(--bg);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 8px 24px var(--glow-a);
-  transition: transform 0.2s var(--ease);
-}
-
-.picker-open:hover {
-  transform: translateY(-1px);
 }
 
 .picker-open[hidden] {
@@ -1471,7 +1432,6 @@ main.blog > * {
 
 #picker-dialog::backdrop {
   background: rgb(0 0 0 / 0.55);
-  backdrop-filter: blur(4px);
 }
 
 .picker-close {
@@ -1566,7 +1526,7 @@ main.blog > * {
 .picker-secondary {
   padding: 9px 16px;
   border: 1px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
   font: inherit;
@@ -1576,7 +1536,7 @@ main.blog > * {
 .picker-primary {
   border-color: transparent;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font-weight: 600;
 }
 
@@ -1589,9 +1549,7 @@ main.blog > * {
 
 /* The card "Vi går hit!" scrolled to. */
 .card.picked {
-  box-shadow:
-    0 0 0 2px var(--accent),
-    0 0 40px var(--glow-a);
+  box-shadow: 0 0 0 2px var(--accent);
   transition: box-shadow 0.4s var(--ease);
 }
 
