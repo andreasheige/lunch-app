@@ -1,6 +1,6 @@
 {
   "name": "Dagens lunch",
-  "short_name": "Lunch",
+  "short_name": "Lunchit",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
