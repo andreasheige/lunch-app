@@ -174,17 +174,12 @@ function renderPlace(r, isToday, rateDate) {
   place.dataset.id = r.id;
 
   const head = el('div', 'place-head');
-  const walk = el('p', 'walk');
-  walk.append(el('span', 'walk-min', String(walkMinutes(r))), el('span', 'walk-unit', t('card.walk-unit')));
-  walk.title = t('card.walk', walkMinutes(r));
-  const title = el('div', 'place-title');
-  title.append(el('h2', null, r.name));
+  head.append(el('h2', null, r.name));
   const meta = el('p', 'place-meta');
   const s = status(r, isToday);
   if (s) meta.append(el('span', `status ${s.state}`, s.text), ' · ');
-  meta.append(el('span', 'hours', r.hours), ` · ${r.distance} m`);
-  title.append(meta);
-  head.append(walk, title);
+  meta.append(el('span', 'walk', t('card.walk', walkMinutes(r))), ' · ', el('span', 'hours', r.hours));
+  head.append(meta);
   place.append(head);
   if (r.price) place.append(el('p', 'price', tr(r.price)));
 

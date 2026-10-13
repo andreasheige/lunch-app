@@ -569,36 +569,8 @@ dialog {
 }
 
 .place-head {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-}
-
-.walk {
-  display: grid;
-  flex: none;
-  min-width: 48px;
-  margin: 0;
-}
-
-.walk-min {
-  font-size: 2.25rem;
-  font-weight: 800;
-  line-height: 1;
-  letter-spacing: -0.03em;
-  font-variant-numeric: tabular-nums;
-}
-
-.walk-unit {
-  color: var(--muted);
-  font-size: 0.75rem;
-  white-space: nowrap;
-}
-
-.place-title {
   display: grid;
   gap: 2px;
-  min-width: 0;
 }
 
 .place h2 {
