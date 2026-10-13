@@ -95,7 +95,7 @@ function ratingRow(r, d, date) {
   toggle.addEventListener('click', () => {
     stars.hidden = !stars.hidden;
     sync();
-    if (!stars.hidden) stars.querySelector('[aria-pressed="true"]')?.focus();
+    if (!stars.hidden) (stars.querySelector('[aria-pressed="true"]') ?? stars.firstChild).focus();
   });
   for (let i = 1; i <= 5; i++) {
     const b = el('button', 'star', '☆');
@@ -145,6 +145,26 @@ async function fillRatings() {
   } catch {}
 }
 
+// A Canva menu loads only on request: the embed keeps polling and sets third-party cookies.
+function embedFacade(r) {
+  const box = el('div', 'embed-facade');
+  const show = el('button', 'embed-show', t('card.embed-show'));
+  show.type = 'button';
+  show.addEventListener('click', () => {
+    const frame = el('iframe', 'embed');
+    frame.src = r.embed;
+    frame.title = t('card.embed', r.name);
+    frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups');
+    box.replaceWith(frame);
+  });
+  const link = el('a', 'source', t('card.embed-open'));
+  link.href = r.embed;
+  link.target = '_blank';
+  link.rel = 'noopener';
+  box.append(el('p', 'embed-note', t('card.embed-note')), show, link);
+  return box;
+}
+
 const walkMinutes = (r) => Math.max(1, Math.round(r.distance / WALK_M_PER_MIN));
 // A category that only repeats the diet label ("Kött", "Veg") is left out.
 const REPEATS_DIET = /^(kött|fisk|veg|vegetarisk[at]?|vegetariska|grönt)$/i;
@@ -173,12 +193,7 @@ function renderPlace(r, isToday, rateDate) {
   if (r.error) {
     place.append(el('p', 'empty', tr(r.error)));
   } else if (r.embed) {
-    const frame = el('iframe', 'embed');
-    frame.src = r.embed;
-    frame.title = t('card.embed', r.name);
-    frame.loading = 'lazy';
-    frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups');
-    place.append(frame);
+    place.append(embedFacade(r));
   } else {
     const list = el('ul', 'dishes');
     for (const d of r.dishes) {
@@ -594,8 +609,9 @@ function setupPicker() {
 
   document.getElementById('picker-open').addEventListener('click', () => {
     if (!lunch) return;
-    start();
+    // Open first: showModal() focuses the close button, start() then moves focus to the first answer.
     dialog.showModal();
+    start();
   });
   document.getElementById('picker-close').addEventListener('click', () => dialog.close());
   dialog.addEventListener('click', (event) => {

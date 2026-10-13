@@ -26,7 +26,11 @@ const showCategory = (d: Dish) => d.category && !REPEATS_DIET.test(d.category.tr
   {r.error ? (
     <p class="empty">{r.error}</p>
   ) : r.embed ? (
-    <iframe class="embed" src={r.embed} title={`Lunchmeny för ${r.name}`} loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>
+    <div class="embed-facade">
+      <p class="embed-note">Menyn är en Canva-bild som laddas först när du ber om den.</p>
+      <button type="button" class="embed-show">Visa menyn här</button>
+      <a class="source" href={r.embed} target="_blank" rel="noopener">Öppna menyn hos Canva ↗</a>
+    </div>
   ) : (
     <ul class="dishes">
       {r.dishes.map((d) => (

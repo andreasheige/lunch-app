@@ -48,6 +48,7 @@ const tooltip = {
 
 function withTooltip(mark, lines) {
   mark.tabIndex = 0;
+  mark.setAttribute('role', 'img');
   mark.setAttribute('aria-label', lines.join(', '));
   mark.addEventListener('pointerenter', () => tooltip.show(mark, lines));
   mark.addEventListener('focus', () => tooltip.show(mark, lines));

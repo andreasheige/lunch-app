@@ -1,6 +1,7 @@
 ---
 import { SITE } from '../snapshot.ts';
 // Shared <head> and nav. Each page's own script is plain JS from public/, loaded as is (not bundled).
+import '../styles/site.css';
 import Nav from './Nav.astro';
 
 interface Props {
@@ -39,7 +40,6 @@ const url = `${SITE}${path}`;
   <meta name="apple-mobile-web-app-title" content="Lunchit">
   <meta name="theme-color" content="#23211e" media="(prefers-color-scheme: dark)">
   <meta name="theme-color" content="#f3f3ef" media="(prefers-color-scheme: light)">
-  <link rel="stylesheet" href="/style.css">
   <script is:inline src={`/${script}`} type="module"></script>
   <slot name="head" />
 </head>
