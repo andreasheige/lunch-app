@@ -30,10 +30,11 @@ const ld = {
       hasMenu: {
         '@type': 'Menu',
         name: `Dagens lunch ${lunch?.date}`,
+        // Names only: the descriptions are in the page itself, and leaving them out keeps the page within the
+        // first network round trip (~14 kB gzipped).
         hasMenuItem: r.dishes.map((d) => ({
           '@type': 'MenuItem',
           name: d.name,
-          ...(d.description && { description: d.description }),
           ...(d.diet === 'veg' && { suitableForDiet: DIET_URL.veg }),
         })),
       },
@@ -71,45 +72,40 @@ const allergens = [
   <p id="lunch-status" class="lunch-status"></p>
   <p id="lunch-soon" class="lunch-soon" hidden></p>
 </header>
-<div class="toolbar">
-  <button type="button" id="filter-open" class="filter-open" aria-haspopup="dialog"><span data-i18n="filters.label">Filter</span> <span id="filter-count" class="count" hidden></span></button>
-  <p id="filter-summary" class="filter-summary" aria-live="polite"></p>
-  <button type="button" id="picker-open" class="picker-open" hidden data-i18n="picker.open">Välj åt mig</button>
-</div>
-<div class="layout">
-  <aside id="filter-rail" class="filter-rail" aria-label="Filter" data-i18n-label="filters.label">
-    <section id="filter-panel" class="filter-panel">
-      <fieldset class="diets">
-        <legend data-i18n="diet.legend">Visa kost</legend>
-        {diets.map((d) => (
-          <button type="button" class="diet-option" data-diet={d.id} aria-pressed="false"><span data-i18n={d.key}>{d.text}</span> <span class="diet-count" data-count={d.id}></span></button>
-        ))}
-      </fieldset>
-      <fieldset class="allergen-chips">
-        <legend data-i18n="allergens.legend">Markera rätter som nämner</legend>
-        <div class="chips">
-          {allergens.map((a) => (
-            <button type="button" class="chip" data-allergen={a.id} aria-pressed="false" data-i18n={a.key}>{a.text}</button>
-          ))}
-        </div>
-        <p class="filter-note" data-i18n="allergens.note">
-          Bygger bara på vad menytexten nämner. Omarkerade rätter kan ändå innehålla allergenen – fråga alltid restaurangen.
-        </p>
-      </fieldset>
-      <div class="filter-actions">
-        <button type="button" id="filter-clear" class="filter-clear" data-i18n="filter.clear">Rensa</button>
-        <button type="button" id="filter-done" class="filter-done"></button>
-      </div>
-    </section>
-  </aside>
-  <div class="listing">
-  <div class="listing-bar">
-    <div class="views" role="group" aria-label="Visa som" data-i18n-label="view.label">
-      <button type="button" data-view="cards" aria-pressed="false" data-i18n="view.cards">Kort</button>
-      <button type="button" data-view="overview" aria-pressed="false" data-i18n="view.overview">Översikt</button>
-      <button type="button" data-view="dishes" aria-pressed="false" data-i18n="view.dishes">Rätter</button>
+<div class="page-body">
+  <button type="button" id="picker-open" class="decide">
+    <span class="decide-text">
+      <span class="decide-title" data-i18n="decide.title">Kan du inte bestämma dig?</span>
+      <span class="decide-sub" data-i18n="decide.sub">Svara på tre snabba frågor så föreslår vi ett ställe.</span>
+    </span>
+    <span class="decide-go"><span data-i18n="picker.open">Välj åt mig</span> →</span>
+  </button>
+  <div class="controls">
+    <div class="chip-row" role="group" aria-label="Visa kost" data-i18n-label="diet.legend">
+      <button type="button" class="chip diet-chip" data-diet-all aria-pressed="true"><span data-i18n="diet.all">Alla</span> <span class="chip-count" data-count="all"></span></button>
+      {diets.map((d) => (
+        <button type="button" class="chip diet-chip" data-diet={d.id} aria-pressed="false"><span data-i18n={d.key}>{d.text}</span> <span class="chip-count" data-count={d.id}></span></button>
+      ))}
+      <button type="button" id="filter-open" class="chip allergen-open" aria-haspopup="dialog"><span data-i18n="allergens">Allergener</span> <span id="filter-count" class="count" hidden></span></button>
     </div>
-    <button type="button" id="sort-toggle" class="sort-toggle" aria-pressed="false" hidden data-i18n="order.open">Sortera</button>
+    <button type="button" id="display-open" class="display-open" popovertarget="display-menu" aria-haspopup="true">
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span data-i18n="display.open">Visning</span>
+    </button>
+    <div id="display-menu" class="display-menu" popover>
+      <p class="menu-label" id="view-label" data-i18n="view.label">Visa som</p>
+      <div class="views" role="group" aria-labelledby="view-label">
+        <button type="button" data-view="cards" aria-pressed="false" data-i18n="view.cards">Kort</button>
+        <button type="button" data-view="overview" aria-pressed="false" data-i18n="view.overview">Lista</button>
+        <button type="button" data-view="dishes" aria-pressed="false" data-i18n="view.dishes">Rätter</button>
+      </div>
+      <fieldset class="order-choice">
+        <legend class="menu-label" data-i18n="order.label">Ordning</legend>
+        <label><input type="radio" name="order" value="nearest"> <span data-i18n="order.nearest-label">Närmast först</span></label>
+        <label><input type="radio" name="order" value="mine"> <span data-i18n="order.mine-label">Min ordning</span></label>
+        <button type="button" id="sort-toggle" class="order-edit" data-i18n="order.edit">Ändra min ordning…</button>
+      </fieldset>
+    </div>
   </div>
   <main id="restaurants" aria-live="polite" aria-busy="true">
     {places.length ? (
@@ -122,7 +118,6 @@ const allergens = [
       </>
     )}
   </main>
-  </div>
 </div>
 <footer>
   <p data-i18n="footer.source">Menyerna läses från restaurangernas egna sidor. Fråga alltid personalen om allergier.</p>
@@ -135,9 +130,26 @@ const allergens = [
 </footer>
 <dialog id="filter-dialog" class="sheet" aria-labelledby="filter-heading">
   <div class="sheet-head">
-    <h2 id="filter-heading" data-i18n="filters.label">Filter</h2>
+    <h2 id="filter-heading" data-i18n="allergens">Allergener</h2>
     <button type="button" id="filter-close" class="sheet-close" aria-label="Stäng" data-i18n-label="close"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg></button>
   </div>
+  <section class="filter-panel">
+    <fieldset class="allergen-chips">
+      <legend data-i18n="allergens.legend">Markera rätter som nämner</legend>
+      <div class="chips">
+        {allergens.map((a) => (
+          <button type="button" class="chip" data-allergen={a.id} aria-pressed="false" data-i18n={a.key}>{a.text}</button>
+        ))}
+      </div>
+      <p class="filter-note" data-i18n="allergens.note">
+        Bygger bara på vad menytexten nämner. Omarkerade rätter kan ändå innehålla allergenen – fråga alltid restaurangen.
+      </p>
+    </fieldset>
+    <div class="filter-actions">
+      <button type="button" id="filter-clear" class="filter-clear" data-i18n="filter.clear">Rensa</button>
+      <button type="button" id="filter-done" class="filter-done"></button>
+    </div>
+  </section>
 </dialog>
 <dialog id="picker-dialog" class="sheet" aria-labelledby="picker-heading">
   <div class="sheet-head">

@@ -37,9 +37,18 @@ const url = `${SITE}${path}`;
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="alternate" type="application/json" href="/lunch.json" title="Dagens lunch som JSON">
   <meta name="apple-mobile-web-app-title" content="Lunchit">
-  <meta name="theme-color" content="#23211e" media="(prefers-color-scheme: dark)">
-  <meta name="theme-color" content="#f3f3ef" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1c1916" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#faf7f2" media="(prefers-color-scheme: light)">
+  <link rel="preload" href="/fonts/dm-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <script is:inline>
+    // A saved light/dark choice applies before the first paint, so it never flashes (public/theme.js).
+    try {
+      const theme = localStorage.getItem('lunch-theme');
+      if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+    } catch {}
+  </script>
   <script is:inline src={`/${script}`} type="module"></script>
+  <script is:inline src="/theme.js" type="module"></script>
   <slot name="head" />
 </head>
 <body data-title={titleKey}>

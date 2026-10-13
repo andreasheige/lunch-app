@@ -443,10 +443,13 @@ function dishesView() {
 // Your own order of the places ("Sortera"), saved per browser as a list of ids; without one, nearest first.
 // Either way places whose lunch is over move to the end, and places not in your list follow it, nearest first.
 const ORDER_KEY = 'lunch-order';
-const savedOrder = () => {
+// "nearest" or "mine": the Visning menu's Ordning choice; a saved order is kept while nearest first is chosen.
+const ORDER_MODE_KEY = 'lunch-order-mode';
+const myOrder = () => {
   const ids = readStored(ORDER_KEY, null);
   return Array.isArray(ids) && ids.length ? ids : null;
 };
+const savedOrder = () => (readStored(ORDER_MODE_KEY, 'mine') === 'mine' ? myOrder() : null);
 
 function orderPlaces() {
   const sorted = [...lunch.data.restaurants].sort((a, b) => a.distance - b.distance);
@@ -514,13 +517,23 @@ function sortView() {
   reset.hidden = !savedOrder();
   reset.addEventListener('click', () => {
     writeStored(ORDER_KEY, null);
+    writeStored(ORDER_MODE_KEY, 'nearest');
     lunch.sorted = orderPlaces();
     renderListing();
   });
+  const done = el('button', 'sorter-done', t('order.done'));
+  done.type = 'button';
+  done.addEventListener('click', () => {
+    sorting = false;
+    renderListing();
+    document.getElementById('display-open').focus();
+  });
   note.append(' ', reset);
+  box.append(done);
   const list = el('ul', 'sort-list');
   const save = (ids) => {
     writeStored(ORDER_KEY, ids);
+    writeStored(ORDER_MODE_KEY, 'mine');
     lunch.sorted = orderPlaces();
   };
   const ids = lunch.sorted.map((r) => r.id);
@@ -575,13 +588,30 @@ function sortView() {
   return box;
 }
 
+// The Visning menu: view, order (nearest first / my order) and "Ändra min ordning…", which opens sort mode.
 function setupSort() {
-  const toggle = document.getElementById('sort-toggle');
-  toggle.addEventListener('click', () => {
-    sorting = !sorting;
-    renderListing();
-    toggle.focus();
+  const menu = document.getElementById('display-menu');
+  const opener = document.getElementById('display-open');
+  // Below its button on wide screens; a bottom sheet on phones (site.css).
+  menu.addEventListener('toggle', (event) => {
+    if (event.newState !== 'open' || !matchMedia('(min-width: 720px)').matches) return;
+    const box = opener.getBoundingClientRect();
+    menu.style.top = `${box.bottom + 8}px`;
+    menu.style.left = `${Math.max(16, box.right - menu.offsetWidth)}px`;
   });
+  document.getElementById('sort-toggle').addEventListener('click', () => {
+    menu.hidePopover();
+    sorting = true;
+    renderListing();
+    document.querySelector('.sorter-done')?.focus();
+  });
+  for (const radio of document.querySelectorAll('input[name="order"]')) {
+    radio.addEventListener('change', () => {
+      writeStored(ORDER_MODE_KEY, radio.value);
+      if (lunch?.sorted) lunch.sorted = orderPlaces();
+      renderListing();
+    });
+  }
 }
 
 const VIEWS = { cards: cardsView, overview: overviewView, dishes: dishesView };
@@ -601,10 +631,11 @@ function renderListing() {
     b.setAttribute('aria-pressed', String(b.dataset.view === view));
   const container = document.getElementById('restaurants');
   container.dataset.view = sorting ? 'sort' : view;
-  const toggle = document.getElementById('sort-toggle');
-  toggle.textContent = t(sorting ? 'order.done' : 'order.open');
-  toggle.setAttribute('aria-pressed', String(sorting));
-  toggle.hidden = !lunch.sorted.length;
+  const mine = Boolean(savedOrder());
+  for (const radio of document.querySelectorAll('input[name="order"]')) {
+    radio.checked = radio.value === (mine ? 'mine' : 'nearest');
+    if (radio.value === 'mine') radio.disabled = !myOrder();
+  }
   container.replaceChildren(...lunch.notices.map((n) => el('p', 'notice', n)), sorting ? sortView() : VIEWS[view]());
   updateFilterSummary(filter);
 }
@@ -613,6 +644,7 @@ function setupViews() {
   for (const b of document.querySelectorAll('[data-view]')) {
     b.addEventListener('click', () => {
       writeStored(VIEW_KEY, b.dataset.view);
+      sorting = false;
       renderListing();
     });
   }
@@ -696,46 +728,29 @@ function saveFilter(filter) {
 
 const allergenNames = (ids) => ids.map((a) => t(`allergen.${a}`).toLocaleLowerCase(LOCALE)).join(', ');
 
-// The filter's counts and summary: dishes per diet on the buttons, the badge, and what the toolbar says.
+// The filter's counts: dishes per diet on the chips, flagged allergens on the Allergener chip.
 function updateFilterSummary(filter) {
   const menus = lunch?.sorted?.filter((r) => !r.error && !r.embed) ?? [];
   const all = menus.flatMap((r) => r.dishes);
   const shown = menus.reduce((n, r) => n + filtered(r).length, 0);
   for (const count of document.querySelectorAll('[data-count]')) {
-    count.textContent = all.length ? String(all.filter((d) => d.diet === count.dataset.count).length) : '';
+    const id = count.dataset.count;
+    count.textContent = all.length ? String(all.filter((d) => id === 'all' || d.diet === id).length) : '';
   }
-  const n = filter.diets.length + filter.allergens.length;
+  const n = filter.allergens.length;
   const badge = document.getElementById('filter-count');
   badge.hidden = n === 0;
   badge.textContent = String(n);
+  document.getElementById('filter-open').setAttribute('aria-pressed', String(n > 0));
   document.getElementById('filter-clear').disabled = n === 0;
   document.getElementById('filter-done').textContent = t('filter.show', shown);
-  const parts = [
-    ...filter.diets.map((d) => t(`diet.${d}`)),
-    ...(filter.allergens.length ? [t('filter.flagging', allergenNames(filter.allergens))] : []),
-  ];
-  document.getElementById('filter-summary').textContent = !all.length
-    ? ''
-    : parts.length
-      ? `${parts.join(' · ')} · ${t('filter.count', shown)}`
-      : t('filter.all', all.length, lunch.sorted.length);
 }
 
-// On a wide screen the filters sit in a rail beside the menus; narrower, the same panel moves into a bottom
-// sheet behind the "Filter" button.
+// Diet chips (Alla, Veg, Fisk, Kött) filter the listing at once; the "Allergener" chip opens a sheet (a dialog from
+// 720px) where allergens flag the dishes that mention them.
 function setupFilter() {
   const filter = loadFilter();
-  const panel = document.getElementById('filter-panel');
-  const rail = document.getElementById('filter-rail');
   const dialog = document.getElementById('filter-dialog');
-  const place = () => {
-    if (wide.matches) {
-      if (dialog.open) dialog.close();
-      rail.append(panel);
-    } else dialog.append(panel);
-  };
-  wide.addEventListener('change', place);
-  place();
   document.getElementById('filter-open').addEventListener('click', () => dialog.showModal());
   document.getElementById('filter-close').addEventListener('click', () => dialog.close());
   document.getElementById('filter-done').addEventListener('click', () => dialog.close());
@@ -743,6 +758,7 @@ function setupFilter() {
     if (event.target === dialog) dialog.close();
   });
 
+  const all = document.querySelector('[data-diet-all]');
   const buttons = document.querySelectorAll('[data-diet], [data-allergen]');
   const listOf = (button) =>
     button.dataset.diet ? ['diets', button.dataset.diet] : ['allergens', button.dataset.allergen];
@@ -751,6 +767,7 @@ function setupFilter() {
       const [list, value] = listOf(button);
       button.setAttribute('aria-pressed', String(filter[list].includes(value)));
     }
+    all.setAttribute('aria-pressed', String(filter.diets.length === 0));
     saveFilter(filter);
     if (lunch?.sorted) renderListing();
     else updateFilterSummary(filter);
@@ -762,8 +779,11 @@ function setupFilter() {
       sync();
     });
   }
-  document.getElementById('filter-clear').addEventListener('click', () => {
+  all.addEventListener('click', () => {
     filter.diets = [];
+    sync();
+  });
+  document.getElementById('filter-clear').addEventListener('click', () => {
     filter.allergens = [];
     sync();
   });
@@ -775,6 +795,9 @@ async function main() {
   const container = document.getElementById('restaurants');
   const heading = document.getElementById('today');
   heading.textContent = DATE_FMT.format(new Date());
+  // The built HTML already shows today's menus: let it paint (fonts in, two frames) before fetching the live data.
+  await document.fonts.ready;
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   try {
     const translating = fetchTranslations();
     const res = await fetch('lunch.json', { cache: 'no-store' });
@@ -801,10 +824,11 @@ async function main() {
     if (data.day) lunch.sorted = orderPlaces();
     renderHeaderStatus();
     renderListing();
+    // No lunch today (weekend): nothing to pick from.
+    document.getElementById('picker-open').hidden = !data.day;
     if (!data.day) return;
     if (lunch.rateDate) fillRatings();
     keepTime(isToday);
-    document.getElementById('picker-open').hidden = false;
     if (!en) {
       translating.then((late) => {
         translations = late;
