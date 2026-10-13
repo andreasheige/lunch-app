@@ -57,9 +57,9 @@ export const QUESTIONS = [
     text: 'Kött, fisk eller grönt?',
     textEn: 'Meat, fish or veggie?',
     answers: [
-      { label: '🥩 Kött', labelEn: '🥩 Meat', diet: 'meat', why: 'du var sugen på kött', whyEn: 'you fancied meat' },
-      { label: '🐟 Fisk', labelEn: '🐟 Fish', diet: 'fish', why: 'du var sugen på fisk', whyEn: 'you fancied fish' },
-      { label: '🌱 Grönt', labelEn: '🌱 Veggie', diet: 'veg', why: 'du ville äta grönt', whyEn: 'you wanted veggie' },
+      { label: 'Kött', labelEn: 'Meat', diet: 'meat', why: 'du var sugen på kött', whyEn: 'you fancied meat' },
+      { label: 'Fisk', labelEn: 'Fish', diet: 'fish', why: 'du var sugen på fisk', whyEn: 'you fancied fish' },
+      { label: 'Grönt', labelEn: 'Veggie', diet: 'veg', why: 'du ville äta grönt', whyEn: 'you wanted veggie' },
       { label: 'Överraska mig', labelEn: 'Surprise me', chance: 2 },
     ],
   },

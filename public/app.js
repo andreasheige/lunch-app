@@ -8,37 +8,8 @@ const TIME_FMT = new Intl.DateTimeFormat(LOCALE, { hour: '2-digit', minute: '2-d
 const WALK_M_PER_MIN = 80;
 const ALLERGENS = ['nuts', 'gluten', 'lactose', 'shellfish', 'egg'];
 const FILTER_KEY = 'lunch-filter';
-const KINDS = {
-  burger: { icon: '🍔', label: t('kind.burger') },
-  pizza: { icon: '🍕', label: t('kind.pizza') },
-  taco: { icon: '🌮', label: t('kind.taco') },
-  wrap: { icon: '🌯', label: t('kind.wrap') },
-  soup: { icon: '🍲', label: t('kind.soup') },
-  curry: { icon: '🍛', label: t('kind.curry') },
-  noodles: { icon: '🍜', label: t('kind.noodles') },
-  pasta: { icon: '🍝', label: t('kind.pasta') },
-  sushi: { icon: '🍣', label: t('kind.sushi') },
-  sandwich: { icon: '🥪', label: t('kind.sandwich') },
-  dumpling: { icon: '🥟', label: t('kind.dumpling') },
-  pie: { icon: '🥧', label: t('kind.pie') },
-  pancake: { icon: '🥞', label: t('kind.pancake') },
-  falafel: { icon: '🧆', label: t('kind.falafel') },
-  salad: { icon: '🥗', label: t('kind.salad') },
-  wok: { icon: '🥘', label: t('kind.wok') },
-  fish: { icon: '🐟', label: t('kind.fish') },
-  shellfish: { icon: '🍤', label: t('kind.shellfish') },
-  chicken: { icon: '🍗', label: t('kind.chicken') },
-  sausage: { icon: '🌭', label: t('kind.sausage') },
-  steak: { icon: '🥩', label: t('kind.steak') },
-  pork: { icon: '🥓', label: t('kind.pork') },
-  mince: { icon: '🍖', label: t('kind.mince') },
-  mushroom: { icon: '🍄', label: t('kind.mushroom') },
-};
-const DIETS = {
-  veg: { icon: '🌱', label: t('diet.veg') },
-  fish: { icon: '🐟', label: t('diet.fish') },
-  meat: { icon: '🥩', label: t('diet.meat') },
-};
+// Short diet labels on each dish; also the diets the filter accepts.
+const DIETS = { veg: t('tag.veg'), fish: t('tag.fish'), meat: t('tag.meat') };
 
 function minutesNow() {
   const [h, m] = TIME_FMT.format(new Date()).split(':').map(Number);
@@ -62,21 +33,13 @@ function status(r, isToday) {
   return { state: 'open', text: t('status.open', closeTime) };
 }
 
-function icon(emoji, label) {
-  const node = el('span', 'diet', emoji);
-  node.title = label;
-  node.setAttribute('role', 'img');
-  node.setAttribute('aria-label', label);
-  return node;
-}
-
-// What the dish is (🍔, 🍲 …) when its name says, else its diet; 🌱 always shows for vegetarian dishes.
-function dishIcons(d) {
-  const diet = DIETS[d.diet];
-  const dietIcon = diet && icon(diet.icon, d.dietByAi ? t('ai-guess', diet.label) : diet.label);
-  const kind = KINDS[d.kind];
-  if (!kind) return dietIcon ? [dietIcon] : [];
-  return [icon(kind.icon, kind.label), ...(d.diet === 'veg' ? [dietIcon] : [])];
+// The dish's diet as a short text label; an AI guess says so on hover.
+function dietTag(d) {
+  const label = DIETS[d.diet];
+  if (!label) return [];
+  const tag = el('span', `tag ${d.diet}`, label);
+  if (d.dietByAi) tag.title = t('ai-guess', t(`diet.${d.diet}`));
+  return [tag];
 }
 
 const VOTER_KEY = 'lunch-voter';
@@ -195,7 +158,7 @@ function renderCard(r, index, isToday, rateDate) {
       const item = el('li');
       if (d.category) item.append(el('span', 'category', tr(d.category)));
       const dish = el('span', 'dish', tr(d.name));
-      dish.prepend(...dishIcons(d));
+      dish.prepend(...dietTag(d));
       item.append(dish);
       if (d.description) item.append(el('span', 'desc', tr(d.description)));
       item.dataset.diet = d.diet ?? '';
@@ -527,7 +490,7 @@ function setupPicker() {
     const { restaurant: r, dish: d } = pick;
     heading.textContent = r.name;
     const dish = el('p', 'picker-dish', tr(d.name));
-    dish.prepend(...dishIcons(d));
+    dish.prepend(...dietTag(d));
     const walk = Math.max(1, Math.round(r.distance / WALK_M_PER_MIN));
     const actions = el('div', 'picker-actions');
     actions.append(

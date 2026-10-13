@@ -172,23 +172,20 @@ const dayName = (iso) => `${WEEKDAY_FMT.format(utcDate(iso))} ${SHORT_FMT.format
 
 function funFacts(data) {
   const facts = el('ul', 'facts');
-  const add = (emoji, title, text) => {
+  const add = (title, text) => {
     const li = el('li');
-    li.append(el('span', 'fact-emoji', emoji));
-    const body = el('div');
-    body.append(el('strong', null, title), el('span', null, text));
-    li.append(body);
+    li.append(el('strong', null, title), el('span', null, text));
     facts.append(li);
   };
   const [winner] = data.restaurants;
-  if (winner) add('🏆', t('stats.winner'), t('stats.winner-text', winner.name, num(winner.avg)));
+  if (winner) add(t('stats.winner'), t('stats.winner-text', winner.name, num(winner.avg)));
   if (data.divisive) {
-    add('⚔️', t('stats.divisive'), t('stats.divisive-text', data.divisive.dish, data.divisive.restaurant));
+    add(t('stats.divisive'), t('stats.divisive-text', data.divisive.dish, data.divisive.restaurant));
   }
   const busiest = [...data.days].sort((a, b) => b.votes - a.votes)[0];
-  if (busiest) add('🔥', t('stats.busiest'), t('stats.busiest-text', dayName(busiest.date), busiest.votes));
+  if (busiest) add(t('stats.busiest'), t('stats.busiest-text', dayName(busiest.date), busiest.votes));
   const happiest = [...data.days].filter((d) => d.votes >= 3).sort((a, b) => b.avg - a.avg)[0];
-  if (happiest) add('😋', t('stats.happiest'), t('stats.happiest-text', dayName(happiest.date), num(happiest.avg)));
+  if (happiest) add(t('stats.happiest'), t('stats.happiest-text', dayName(happiest.date), num(happiest.avg)));
   return facts;
 }
 

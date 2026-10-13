@@ -49,7 +49,7 @@ test('drawQuestions skips the diet question while a diet filter is on', () => {
 
 test('rank follows the answers', () => {
   const top = (answers, opts = {}) => rank(data, answers, { random: noChance, ...opts })[0].restaurant.id;
-  assert.equal(top([answer('diet', '🌱 Grönt')]), 'mid-veg');
+  assert.equal(top([answer('diet', 'Grönt')]), 'mid-veg');
   assert.equal(top([answer('mood', 'Något kryddigt'), answer('distance', 'Gärna en promenad')]), 'far-curry');
   assert.equal(top([answer('distance', 'Så nära som möjligt'), answer('sauce', 'Sås är livet')]), 'near-meat');
 });
@@ -70,12 +70,12 @@ test('rank leaves out closed restaurants, menus with errors and dishes the filte
 test('rank: a visit yesterday counts against a place, "Det vanliga" turns that around', () => {
   const history = [{ id: 'mid-veg', date: '2026-10-06' }];
   const order = (answers) => rank(data, answers, { random: noChance, history }).map((r) => r.restaurant.id);
-  assert.equal(order([answer('diet', '🌱 Grönt'), answer('novelty', 'Något nytt')]).at(-1), 'mid-veg');
-  assert.equal(order([answer('diet', '🌱 Grönt'), answer('novelty', 'Det vanliga')])[0], 'mid-veg');
+  assert.equal(order([answer('diet', 'Grönt'), answer('novelty', 'Något nytt')]).at(-1), 'mid-veg');
+  assert.equal(order([answer('diet', 'Grönt'), answer('novelty', 'Det vanliga')])[0], 'mid-veg');
 });
 
 test('rank explains the pick with the answers that helped', () => {
-  const [best] = rank(data, [answer('diet', '🌱 Grönt'), answer('weather', 'Sol!')], { random: noChance });
+  const [best] = rank(data, [answer('diet', 'Grönt'), answer('weather', 'Sol!')], { random: noChance });
   assert.equal(best.restaurant.id, 'mid-veg');
   assert.deepEqual(best.why, ['du ville äta grönt']);
 });
@@ -97,7 +97,7 @@ test('every question and answer has English text, and reasons too where there ar
 });
 
 test('rank and reasonText speak English when asked', () => {
-  const [best] = rank(data, [answer('diet', '🌱 Grönt'), answer('distance', 'Så nära som möjligt')], {
+  const [best] = rank(data, [answer('diet', 'Grönt'), answer('distance', 'Så nära som möjligt')], {
     random: noChance,
     lang: 'en',
   });
