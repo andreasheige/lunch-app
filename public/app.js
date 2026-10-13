@@ -337,6 +337,11 @@ function placeMenu(r) {
 function overviewView() {
   const box = el('div', 'overview');
   const list = el('ul', 'place-list');
+  const head = el('li', 'box-head');
+  const title = el('span', 'box-head-title', t('overview.places', lunch.sorted.length));
+  title.append(el('span', 'box-head-note', ` · ${t(savedOrder() ? 'order.mine' : 'order.nearest')}`));
+  head.append(title);
+  list.append(head);
   if (wide.matches) {
     selectedPlace ??= lunch.sorted[0]?.id;
     for (const r of lunch.sorted) {
@@ -356,7 +361,9 @@ function overviewView() {
     const detail = el('section', 'place-detail');
     detail.dataset.id = r.id;
     detail.setAttribute('aria-label', r.name);
-    detail.append(el('h2', null, r.name), placeMeta(r), placeMenu(r));
+    const detailHead = el('div', 'box-head');
+    detailHead.append(el('h2', null, r.name), placeMeta(r));
+    detail.append(detailHead, placeMenu(r));
     box.append(list, detail);
   } else {
     for (const r of lunch.sorted) {
@@ -433,6 +440,150 @@ function dishesView() {
   return table;
 }
 
+// Your own order of the places ("Sortera"), saved per browser as a list of ids; without one, nearest first.
+// Either way places whose lunch is over move to the end, and places not in your list follow it, nearest first.
+const ORDER_KEY = 'lunch-order';
+const savedOrder = () => {
+  const ids = readStored(ORDER_KEY, null);
+  return Array.isArray(ids) && ids.length ? ids : null;
+};
+
+function orderPlaces() {
+  const sorted = [...lunch.data.restaurants].sort((a, b) => a.distance - b.distance);
+  const ids = savedOrder();
+  if (ids) {
+    const rank = (r) => (ids.includes(r.id) ? ids.indexOf(r.id) : ids.length);
+    sorted.sort((a, b) => rank(a) - rank(b));
+  } else {
+    // Magasin 5 is shown in Indya's place and vice versa; their distances stay as they are.
+    const indya = sorted.findIndex((r) => r.id === 'indya');
+    const fem = sorted.findIndex((r) => r.id === 'magasinfem');
+    if (indya >= 0 && fem >= 0) [sorted[indya], sorted[fem]] = [sorted[fem], sorted[indya]];
+  }
+  const over = (r) => (status(r, lunch.isToday)?.state === 'closed' ? 1 : 0);
+  return sorted.sort((a, b) => over(a) - over(b));
+}
+
+// Six dots, like Primer's grabber icon.
+function gripIcon() {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 16 16');
+  svg.setAttribute('width', '16');
+  svg.setAttribute('height', '16');
+  svg.setAttribute('fill', 'currentColor');
+  for (const [cx, cy] of [
+    [5.5, 3.5],
+    [10.5, 3.5],
+    [5.5, 8],
+    [10.5, 8],
+    [5.5, 12.5],
+    [10.5, 12.5],
+  ]) {
+    const dot = document.createElementNS(ns, 'circle');
+    dot.setAttribute('cx', String(cx));
+    dot.setAttribute('cy', String(cy));
+    dot.setAttribute('r', '1.2');
+    svg.append(dot);
+  }
+  return svg;
+}
+
+let sorting = false;
+let sortable = null;
+
+// SortableJS loads the first time sort mode opens (public/vendor/sortable.min.js, copied there by the build).
+function loadSortable() {
+  if (window.Sortable) return Promise.resolve(window.Sortable);
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = '/vendor/sortable.min.js';
+    script.onload = () => resolve(window.Sortable);
+    script.onerror = reject;
+    document.head.append(script);
+  });
+}
+
+// Sort mode: the places in your order with a drag handle and move up/down buttons (for keyboard and screen
+// readers); every change is saved at once.
+function sortView() {
+  const box = el('div', 'sorter');
+  const note = el('p', 'sorter-note', t('order.help'));
+  const reset = el('button', 'sorter-reset', t('order.reset'));
+  reset.type = 'button';
+  reset.hidden = !savedOrder();
+  reset.addEventListener('click', () => {
+    writeStored(ORDER_KEY, null);
+    lunch.sorted = orderPlaces();
+    renderListing();
+  });
+  note.append(' ', reset);
+  const list = el('ul', 'sort-list');
+  const save = (ids) => {
+    writeStored(ORDER_KEY, ids);
+    lunch.sorted = orderPlaces();
+  };
+  const ids = lunch.sorted.map((r) => r.id);
+  for (const [i, r] of lunch.sorted.entries()) {
+    const li = el('li', 'sort-row');
+    li.dataset.id = r.id;
+    const handle = el('span', 'drag-handle');
+    handle.setAttribute('aria-hidden', 'true');
+    handle.append(gripIcon());
+    const text = el('span', 'sort-text');
+    text.append(el('span', 'sort-name', r.name), placeMeta(r, false));
+    const moves = el('span', 'sort-moves');
+    for (const [delta, label, glyph] of [
+      [-1, 'order.up', '▲'],
+      [1, 'order.down', '▼'],
+    ]) {
+      const b = el('button', 'sort-move', glyph);
+      b.type = 'button';
+      b.setAttribute('aria-label', t(label, r.name));
+      b.disabled = i + delta < 0 || i + delta >= ids.length;
+      b.addEventListener('click', () => {
+        const next = [...ids];
+        [next[i], next[i + delta]] = [next[i + delta], next[i]];
+        save(next);
+        renderListing();
+        // Keep focus on the moved place: the same arrow, or the other one at the top or bottom.
+        const [up, down] = document.querySelectorAll(`.sort-row[data-id="${CSS.escape(r.id)}"] .sort-move`);
+        const same = delta < 0 ? up : down;
+        (same.disabled ? (delta < 0 ? down : up) : same).focus();
+      });
+      moves.append(b);
+    }
+    li.append(handle, text, moves);
+    list.append(li);
+  }
+  loadSortable()
+    .then((Sortable) => {
+      sortable?.destroy();
+      sortable = Sortable.create(list, {
+        handle: '.drag-handle',
+        animation: 150,
+        // Pointer events instead of native HTML drag and drop: the same behaviour with mouse, touch and pen.
+        forceFallback: true,
+        onEnd: () => {
+          save([...list.children].map((li) => li.dataset.id));
+          renderListing();
+        },
+      });
+    })
+    .catch(() => {});
+  box.append(note, list);
+  return box;
+}
+
+function setupSort() {
+  const toggle = document.getElementById('sort-toggle');
+  toggle.addEventListener('click', () => {
+    sorting = !sorting;
+    renderListing();
+    toggle.focus();
+  });
+}
+
 const VIEWS = { cards: cardsView, overview: overviewView, dishes: dishesView };
 const VIEW_KEY = 'lunch-view';
 const wide = matchMedia('(min-width: 1024px)');
@@ -449,8 +600,12 @@ function renderListing() {
   for (const b of document.querySelectorAll('[data-view]'))
     b.setAttribute('aria-pressed', String(b.dataset.view === view));
   const container = document.getElementById('restaurants');
-  container.dataset.view = view;
-  container.replaceChildren(...lunch.notices.map((n) => el('p', 'notice', n)), VIEWS[view]());
+  container.dataset.view = sorting ? 'sort' : view;
+  const toggle = document.getElementById('sort-toggle');
+  toggle.textContent = t(sorting ? 'order.done' : 'order.open');
+  toggle.setAttribute('aria-pressed', String(sorting));
+  toggle.hidden = !lunch.sorted.length;
+  container.replaceChildren(...lunch.notices.map((n) => el('p', 'notice', n)), sorting ? sortView() : VIEWS[view]());
   updateFilterSummary(filter);
 }
 
@@ -642,21 +797,8 @@ async function main() {
     );
     const notices = isToday ? [] : [t('notice.old', DATE_FMT.format(new Date(data.date)))];
     if (!data.day) notices.push(t('notice.weekend'));
-    // Nearest first; places whose lunch is over move to the end.
-    const over = (r) => (status(r, isToday)?.state === 'closed' ? 1 : 0);
-    const sorted = [...data.restaurants].sort((a, b) => a.distance - b.distance);
-    // Magasin 5 is shown in Indya's place and vice versa; their distances stay as they are.
-    const indya = sorted.findIndex((r) => r.id === 'indya');
-    const fem = sorted.findIndex((r) => r.id === 'magasinfem');
-    if (indya >= 0 && fem >= 0) [sorted[indya], sorted[fem]] = [sorted[fem], sorted[indya]];
-    sorted.sort((a, b) => over(a) - over(b));
-    lunch = {
-      data,
-      isToday,
-      sorted: data.day ? sorted : [],
-      notices,
-      rateDate: isToday && data.day ? data.date : null,
-    };
+    lunch = { data, isToday, sorted: [], notices, rateDate: isToday && data.day ? data.date : null };
+    if (data.day) lunch.sorted = orderPlaces();
     renderHeaderStatus();
     renderListing();
     if (!data.day) return;
@@ -695,6 +837,7 @@ async function fetchTranslations() {
 let lunch = null;
 const filter = setupFilter();
 setupViews();
+setupSort();
 main();
 
 const HISTORY_KEY = 'lunch-history';

@@ -1,5 +1,6 @@
 ---
-// Site nav; `current` marks this page's link. Texts are Swedish and swapped by i18n.js (data-i18n).
+// Site header: the Lunchit name and the page tabs (underlined like GitHub's), full width on a muted bar. `current`
+// marks this page's tab. Texts are Swedish and swapped by i18n.js (data-i18n).
 interface Props {
   current: 'lunch' | 'stats' | 'news';
 }
@@ -10,8 +11,10 @@ const links = [
   { id: 'news', href: '/news', key: 'nav.news', text: 'Nyheter' },
 ];
 ---
-<nav class="site-nav" aria-label="Sajtnavigering" data-i18n-label="nav.label">
-  <a href="/" class="wordmark">Lunchit</a>
-  {links.map((l) => <a href={l.href} aria-current={l.id === current ? 'page' : undefined} data-i18n={l.key}>{l.text}</a>)}
-  <button type="button" id="lang-toggle" class="lang-toggle" data-i18n="lang.short" data-i18n-label="lang.switch" aria-label="In English">EN</button>
-</nav>
+<header class="site-header">
+  <nav class="site-nav" aria-label="Sajtnavigering" data-i18n-label="nav.label">
+    <a href="/" class="wordmark">Lunchit</a>
+    {links.map((l) => <a href={l.href} aria-current={l.id === current ? 'page' : undefined} data-i18n={l.key}>{l.text}</a>)}
+    <button type="button" id="lang-toggle" class="lang-toggle" data-i18n="lang.short" data-i18n-label="lang.switch" aria-label="In English">EN</button>
+  </nav>
+</header>
