@@ -15,11 +15,8 @@ const showCategory = (d: Dish) => d.category && !REPEATS_DIET.test(d.category.tr
 ---
 <article class="place" data-id={r.id}>
   <div class="place-head">
-    <p class="walk" title={`${walk} min gång`}><span class="walk-min">{walk}</span><span class="walk-unit">min gång</span></p>
-    <div class="place-title">
-      <h2>{r.name}</h2>
-      <p class="place-meta"><span class="hours">{r.hours}</span> · {r.distance} m</p>
-    </div>
+    <h2>{r.name}</h2>
+    <p class="place-meta"><span class="walk">{walk} min gång</span> · <span class="hours">{r.hours}</span></p>
   </div>
   {r.price && <p class="price">{r.price}</p>}
   {r.stale && <p class="badge warn">Menyn gäller vecka {r.menuWeek} – kan vara inaktuell</p>}
