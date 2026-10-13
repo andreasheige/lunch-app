@@ -7,7 +7,8 @@ import { getTodaysLunch, parseCaptured } from './src/server/lunch.ts';
 import { GIT_LOG_FORMAT, parseCommitLog, toNotes } from './src/server/releases.ts';
 
 const PORT = Number(process.env.PORT) || 3000;
-const PUBLIC_DIR = path.join(import.meta.dirname, 'public');
+// The pages as `astro build` wrote them (npm start builds first); lunch.json and releases.json are live below.
+const DIST_DIR = path.join(import.meta.dirname, 'dist');
 const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css',
@@ -37,8 +38,8 @@ const server = http.createServer(async (req, res) => {
 
   // Extensionless page URLs (/nyheter) map to their .html file, as Cloudflare's asset handling does.
   const page = pathname === '/' ? 'index.html' : path.extname(pathname) ? pathname : `${pathname}.html`;
-  const file = path.join(PUBLIC_DIR, page);
-  if (!file.startsWith(PUBLIC_DIR + path.sep)) {
+  const file = path.join(DIST_DIR, page);
+  if (!file.startsWith(DIST_DIR + path.sep)) {
     res.writeHead(403);
     return res.end();
   }

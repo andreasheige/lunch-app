@@ -1,6 +1,6 @@
 # lunch-app
 
-Shows today's lunch menus for restaurants near the Knowit office (Göteborg). Strict TypeScript (TS 7), run directly by Node ≥22.18 (type stripping) and wrangler; no runtime dependencies.
+Shows today's lunch menus for restaurants near the Knowit office (Göteborg). Strict TypeScript (TS 7), run directly by Node ≥22.18 (type stripping) and wrangler; no runtime dependencies. Pages are built by Astro (static output, dev dependency only).
 
 - `src/shared/types.ts` — shapes shared by server and client (`LunchResponse`, `Dish`, `ReportRequest`, …)
 - `src/server/restaurants.ts` — restaurant list + one parser per site (page text lines → today's dishes)
@@ -11,19 +11,20 @@ Shows today's lunch menus for restaurants near the Knowit office (Göteborg). St
 - `src/server/worker.ts` — Cloudflare Worker (`wrangler.jsonc`): live `/lunch.json` edge-cached 30 min (keyed by deployed version, so deploys need no purge), rest from `dist/`
 - `src/server/report.ts` — `POST /report`: in-page form → GitHub issue (honeypot, Turnstile, per-IP rate limit); Worker secrets `TURNSTILE_SECRET`, `GITHUB_TOKEN`
 - `public/picker.js` — "Välj åt mig": 3 random questions from a pool score dishes/restaurants (plus distance, open now, the diet filter and the per-browser visit history in localStorage); pure functions, tested in `test/picker.test.js`
-- `src/server/releases.ts` + `public/nyheter.html` — release notes at `/nyheter`: build writes feat/fix commits from git log to `dist/commits.json`; the Worker's `/releases.json` rewrites new ones into Swedish with Workers AI (8 per request) and stores them in D1 `release_notes`, so each commit is rewritten once
-- `src/server/ratings.ts` + `public/statistik.html` — 1–5 stars per dish on today's menu (`POST /rate`, only dishes on today's menu, random per-browser voter id, no IPs/names; `RATE_LIMITER`), today's averages at `/ratings.json`, and `/stats.json?range=14|all` for the `/statistik` slide (KPI row, ranking, top dishes, votes per day, fun facts; bar colour validated with the dataviz validator)
+- `src/server/releases.ts` + `src/site/pages/nyheter.astro` — release notes at `/nyheter`: build writes feat/fix commits from git log to `dist/commits.json`; the Worker's `/releases.json` rewrites new ones into Swedish with Workers AI (8 per request) and stores them in D1 `release_notes`, so each commit is rewritten once
+- `src/server/ratings.ts` + `src/site/pages/statistik.astro` — 1–5 stars per dish on today's menu (`POST /rate`, only dishes on today's menu, random per-browser voter id, no IPs/names; `RATE_LIMITER`), today's averages at `/ratings.json`, and `/stats.json?range=14|all` for the `/statistik` slide (KPI row, ranking, top dishes, votes per day, fun facts; bar colour validated with the dataviz validator)
 - `public/manifest.webmanifest` + `icon-192/512.png`, `apple-touch-icon.png` — installable to the home screen (standalone). The footer link "Lägg till på hemskärmen" (`setupInstall` in `app.js`) opens Chrome's/Android's own install prompt (`beforeinstallprompt`); on iOS, which has no prompt, it shows the Share → Lägg till på hemskärmen steps. Hidden on desktop and when already installed
 - `src/server/notify.ts` — reporters can tick "mejla mig" in the report form: name/email go to D1 `report_contacts` (never GitHub); a 15-min cron (`scheduled` in worker.ts) checks their issues and, once closed, emails them from hej@lunchit.se (Cloudflare Email Sending, `EMAIL` binding) and deletes the row (or after 180 days). Test locally: `wrangler dev --test-scheduled`, then `curl 'localhost:8787/__scheduled'`
 - `migrations/` — D1 (`lunch-app`, binding `DB`) schema; apply with `npx wrangler d1 migrations apply lunch-app --remote` (and `--local` for `wrangler dev`)
-- `server.ts` — local dev: serves `public/` and a live `GET /lunch.json`
+- `src/site/` — Astro pages (`pages/index|statistik|nyheter.astro`) and the shared `components/Layout.astro` (head + nav); `astro.config.mjs` writes them to `dist/` as `statistik.html` etc. Client JS and CSS stay plain files in `public/`, copied as is and loaded with `is:inline` (not bundled), so tests import them directly
+- `server.ts` — local dev: serves the built `dist/` and a live `GET /lunch.json`
 - `scripts/capture.ts` — reads Poppels' Canva menu text with a headed Playwright Chromium (headless is blocked by Cloudflare) into `captured.json`; CI runs it under `xvfb-run` before the build
-- `scripts/build.ts` — static build to `dist/` (public/ + fetched `lunch.json` snapshot + `captured.json`, which the Worker reads via `ASSETS`)
+- `scripts/build.ts` — runs after `astro build` (`npm run build`): adds the fetched `lunch.json` snapshot, `commits.json` and `captured.json` (which the Worker reads via `ASSETS`) to `dist/`
 - `.github/workflows/deploy.yml` — tests, captures, builds and `wrangler deploy`s to Cloudflare on push to main and weekdays 08:00 UTC
 - `test/fixtures/*.txt` — each parsed site's page flattened with `htmlToLines`, captured 2026-09-28 (v. 40); `delissimo.pdf` is the raw menu PDF; `poppels.txt` is `scripts/capture.ts` output from 2026-10-06 (v. 41); `carotte.txt` and `bbbangers.txt` are from 2026-10-06 (v. 41)
 
 ## Common commands
-- `npm start` — run on http://localhost:3000 (`PORT=…` to change)
+- `npm start` — `astro build`, then run on http://localhost:3000 (`PORT=…` to change); after editing pages or `public/`, `npx astro build` again (the server reads `dist/` per request)
 - `node scripts/capture.ts` — capture Poppels locally (opens a Chrome window; `npx playwright install chromium` once)
 - `npm run build` — build `dist/` (prints one line per restaurant)
 - `node --test --test-reporter=dot` — quiet test run

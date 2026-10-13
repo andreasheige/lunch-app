@@ -1,0 +1,34 @@
+---
+// Shared <head> and nav. Each page's own script is plain JS from public/, loaded as is (not bundled).
+import Nav from './Nav.astro';
+
+interface Props {
+  title: string;
+  titleKey: string;
+  script: string;
+  current: 'lunch' | 'stats' | 'news';
+}
+const { title, titleKey, script, current } = Astro.props;
+---
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>{title}</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="apple-mobile-web-app-title" content="Lunchit">
+  <meta name="theme-color" content="#0e0d0c" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f5f1ea" media="(prefers-color-scheme: light)">
+  <link rel="stylesheet" href="style.css">
+  <script is:inline src={script} type="module"></script>
+</head>
+<body data-title={titleKey}>
+  <div class="glow" aria-hidden="true"></div>
+  <Nav current={current} />
+  <slot />
+</body>
+</html>
