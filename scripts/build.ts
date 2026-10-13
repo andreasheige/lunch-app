@@ -1,4 +1,4 @@
-// Builds the static site for GitHub Pages: public/ plus a freshly fetched lunch.json in dist/.
+// Runs after `astro build` (npm run build), which writes the pages and public/ to dist/; this adds the data files.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -8,9 +8,6 @@ import { GIT_LOG_FORMAT, parseCommitLog } from '../src/server/releases.ts';
 
 const root = path.join(import.meta.dirname, '..');
 const dist = path.join(root, 'dist');
-
-await fs.rm(dist, { recursive: true, force: true });
-await fs.cp(path.join(root, 'public'), dist, { recursive: true });
 
 // Shipped as an asset so the Worker's live /lunch.json can use it too.
 const captured = await fs.readFile(path.join(root, 'captured.json'), 'utf8').catch(() => null);

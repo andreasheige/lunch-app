@@ -1,0 +1,18 @@
+---
+import Layout from '../components/Layout.astro';
+---
+<Layout title="Nyheter – Dagens lunch" titleKey="title.news" script="nyheter.js" current="news">
+<header class="hero">
+  <p class="eyebrow"><span class="dot" aria-hidden="true"></span><span data-i18n="news.eyebrow">Vad är nytt</span></p>
+  <h1><span data-i18n="news.title">Nyheter</span><em>.</em></h1>
+  <p class="today" data-i18n="news.intro">Allt nytt och fixat på lunchsajten – oftast för att någon önskade det.</p>
+</header>
+<main id="notes" class="blog" aria-live="polite" aria-busy="true">
+  <article class="post skeleton" aria-hidden="true"><span></span><span></span><span></span></article>
+  <article class="post skeleton" aria-hidden="true"><span></span><span></span><span></span></article>
+</main>
+<footer>
+  <p data-i18n="news.footer">Texterna skrivs om till svenska av AI utifrån ändringarna i koden.</p>
+  <p><a class="footer-link" href="/" data-i18n="back">← Tillbaka till dagens lunch</a></p>
+</footer>
+</Layout>
