@@ -15,7 +15,7 @@ test('notifyEmail: a completed issue says it is live and links to Nyheter', () =
   assert.equal(mail.subject, 'Klart: Kunna filtrera på allergier');
   assert.match(mail.text, /^Hej Anna!/);
   assert.match(mail.text, /ditt önskemål, ”Kunna filtrera på allergier”, är nu klart/);
-  assert.match(mail.html, /<a href="https:\/\/lunchit.se\/nyheter">/);
+  assert.match(mail.html, /<a href="https:\/\/lunchit.se\/news">/);
 });
 
 test('notifyEmail: not planned gets a friendly no, bugs are called fel, no name is fine', () => {

@@ -1,0 +1,3 @@
+# The pages had Swedish URLs until 2026-10; keep old links and home-screen shortcuts working.
+/statistik /stats 301
+/nyheter /news 301

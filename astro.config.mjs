@@ -5,7 +5,7 @@ import { defineConfig } from 'astro/config';
 export default defineConfig({
   srcDir: './src/site',
   outDir: './dist',
-  // statistik.html, not statistik/index.html: Cloudflare serves it at /statistik, like before.
+  // stats.html, not stats/index.html: Cloudflare serves it at /stats. The old Swedish URLs redirect (public/_redirects).
   build: { format: 'file' },
   // Small pages; inline nothing, so pages keep loading /style.css like the client scripts expect.
   compressHTML: false,

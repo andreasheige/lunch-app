@@ -25,7 +25,7 @@ export function notifyEmail(row: ContactRow, reason: string | null): { subject: 
     ? [
         hello,
         `Tack för att du hörde av dig till Dagens lunch – ${what}, ”${row.title}”, är nu klart och ute på lunchit.se.`,
-        `Se vad som är nytt: ${SITE}/nyheter`,
+        `Se vad som är nytt: ${SITE}/news`,
       ]
     : [
         hello,
@@ -35,7 +35,7 @@ export function notifyEmail(row: ContactRow, reason: string | null): { subject: 
   const footer =
     'Du får det här mejlet för att du bad om besked när du skickade in ärendet. Din e-postadress är nu raderad.';
   const text = `${lines.join('\n\n')}\n\nHälsningar,\nDagens lunch\n\n${footer}\n`;
-  const html = `${lines.map((l) => `<p>${escapeHtml(l).replace(`${SITE}/nyheter`, `<a href="${SITE}/nyheter">${SITE}/nyheter</a>`)}</p>`).join('')}<p>Hälsningar,<br>Dagens lunch</p><p style="color:#888;font-size:12px">${footer}</p>`;
+  const html = `${lines.map((l) => `<p>${escapeHtml(l).replace(`${SITE}/news`, `<a href="${SITE}/news">${SITE}/news</a>`)}</p>`).join('')}<p>Hälsningar,<br>Dagens lunch</p><p style="color:#888;font-size:12px">${footer}</p>`;
   return {
     subject: done ? `Klart: ${row.title}` : `Om ditt ärende: ${row.title}`,
     text,
