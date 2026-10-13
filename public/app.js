@@ -389,11 +389,15 @@ function overviewView() {
 // View C, "Rätter": every dish on its own row with its place, walk and status; a table on wide screens.
 function dishesView() {
   const rows = lunch.sorted.flatMap((r) => (r.error || r.embed ? [] : filtered(r).map((f) => ({ r, f }))));
+  // Every other place's rows get a soft tint, so it's easy to see which dishes belong together.
+  const places = lunch.sorted.filter((r) => rows.some((x) => x.r === r));
+  const tinted = new Set(places.filter((_, i) => i % 2).map((r) => r.id));
   if (!wide.matches) {
     const list = el('ul', 'dish-rows');
     for (const { r, f } of rows) {
       const li = el('li', f.unsure ? 'unsure' : null);
       li.dataset.id = r.id;
+      if (tinted.has(r.id)) li.classList.add('tinted');
       const details = el('details', 'dish');
       const summary = el('summary');
       const where = el('span', 'dish-where');
@@ -419,6 +423,7 @@ function dishesView() {
     const tr_ = el('tr', f.unsure ? 'unsure' : null);
     tr_.dataset.id = r.id;
     if (r !== last) tr_.classList.add('first-of-place');
+    if (tinted.has(r.id)) tr_.classList.add('tinted');
     const dish = el('td');
     dish.append(dishLine(r, f, false));
     if (f.d.description) dish.append(el('span', 'desc', tr(f.d.description)));

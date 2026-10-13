@@ -22,6 +22,7 @@
   --warn: #8a4a0d;
   --warn-bg: #fbebd3;
   --neutral: #f0e9de;
+  --tint: #f5efe5;
   --control: #ffffff;
   --control-hover: #f5f0e8;
   --ink: #2a2420;
@@ -66,6 +67,7 @@
     --warn: #edb46e;
     --warn-bg: #3f2d17;
     --neutral: #2f2a24;
+    --tint: #322b24;
     --control: #2b2620;
     --control-hover: #332d26;
     --ink: #f2ece3;
@@ -104,6 +106,7 @@
   --warn: #edb46e;
   --warn-bg: #3f2d17;
   --neutral: #2f2a24;
+  --tint: #322b24;
   --control: #2b2620;
   --control-hover: #332d26;
   --ink: #f2ece3;
@@ -914,7 +917,7 @@ dialog {
   font-weight: 600;
 }
 
-.dish-avg:empty {
+span.dish-avg:empty {
   display: none;
 }
 
@@ -1396,6 +1399,12 @@ details.dish > .dish-details {
   display: block;
   margin-top: 2px;
   font-size: 0.82rem;
+}
+
+/* Every other place's dishes on a soft tint, so a place's rows read as one group. */
+.dish-table tr.tinted td,
+.dish-rows > li.tinted {
+  background: var(--tint);
 }
 
 .dish-table .place-cell {
