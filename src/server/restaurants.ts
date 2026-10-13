@@ -112,7 +112,8 @@ function parseIndya(lines: string[], day: Weekday): ParsedMenu {
     const l = lines[i] ?? '';
     // "Stående Rätter" (the fixed dishes) closes each day's own menu.
     if (upperDays.includes(l) || /^Stående Rätter/.test(l)) break;
-    body.push(l);
+    // Stray paragraphs like "." would shift the name/description pairs.
+    if (/\p{L}/u.test(l)) body.push(l);
   }
   const dishes: Dish[] = [];
   for (let i = 0; i < body.length; i += 2) {

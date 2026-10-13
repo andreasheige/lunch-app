@@ -107,6 +107,19 @@ test('Indya: Friday keeps its extra dessert and skips the duplicated block', () 
   assert.equal(dishes[4].name, 'Fredagsmys');
 });
 
+test('Indya: a stray "." line does not shift names and descriptions', () => {
+  // Tuesday of v. 42 had an empty "." paragraph between two dishes.
+  const lines = ['TISDAG', 'Chilli Chicken', 'Saftig kycklingfilé', '.', 'Baingan Gosht', 'Mört lammkött', 'ONSDAG'];
+  const { dishes } = parser('indya')(lines, 'Tisdag');
+  assert.deepEqual(
+    dishes.map((d) => [d.name, d.description]),
+    [
+      ['Chilli Chicken', 'Saftig kycklingfilé'],
+      ['Baingan Gosht', 'Mört lammkött'],
+    ],
+  );
+});
+
 test('Monopolet: splits "Dagens X – a / b / c" into category, name and description', () => {
   const { week, dishes } = parser('monopolet')(fixture('monopolet'), 'Måndag');
   assert.equal(week, 40);
