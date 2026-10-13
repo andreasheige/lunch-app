@@ -6,6 +6,11 @@
   <meta name="color-scheme" content="dark light">
   <title>Dagens lunch</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="apple-mobile-web-app-title" content="Lunch">
+  <meta name="theme-color" content="#0e0d0c" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f5f1ea" media="(prefers-color-scheme: light)">
   <link rel="stylesheet" href="style.css">
   <script src="app.js" type="module"></script>
 </head>
@@ -65,6 +70,7 @@
     <p class="report">
       <button type="button" data-report="bug" data-i18n="report.bug">Rapportera fel</button>
       · <button type="button" data-report="feat-req" data-i18n="report.feat">Önska funktion</button>
+      <span id="install" hidden>· <button type="button" id="install-open" data-i18n="install.open">Lägg till på hemskärmen</button></span>
     </p>
   </footer>
   <dialog id="picker-dialog" aria-labelledby="picker-heading">
@@ -72,6 +78,15 @@
     <p id="picker-step" class="picker-step"></p>
     <h2 id="picker-heading" class="picker-heading" data-i18n="picker.open">Välj åt mig</h2>
     <div id="picker-body" class="picker-body"></div>
+  </dialog>
+  <dialog id="install-dialog" aria-labelledby="install-heading">
+    <h2 id="install-heading" data-i18n="install.open">Lägg till på hemskärmen</h2>
+    <ol class="install-steps">
+      <li data-i18n="install.share">Tryck på Dela-knappen (fyrkanten med en pil uppåt).</li>
+      <li data-i18n="install.add">Välj ”Lägg till på hemskärmen”.</li>
+      <li data-i18n="install.confirm">Tryck på Lägg till.</li>
+    </ol>
+    <form method="dialog" class="report-actions"><button type="submit" data-i18n="close">Stäng</button></form>
   </dialog>
   <dialog id="report-dialog" aria-labelledby="report-heading">
     <form id="report-form" method="dialog" novalidate>

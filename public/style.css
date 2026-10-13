@@ -712,7 +712,8 @@ footer p {
   color: var(--text);
 }
 
-#report-dialog {
+#report-dialog,
+#install-dialog {
   width: min(480px, calc(100% - 32px));
   padding: 24px;
   border: 1px solid var(--border);
@@ -720,7 +721,8 @@ footer p {
   background: var(--bg);
   color: var(--text);
 }
-#report-dialog::backdrop {
+#report-dialog::backdrop,
+#install-dialog::backdrop {
   background: rgb(0 0 0 / 0.55);
 }
 #report-form {
@@ -827,6 +829,17 @@ footer p {
 .report-actions button:disabled {
   opacity: 0.6;
   cursor: wait;
+}
+#install-dialog h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+.install-steps {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0 20px;
+  padding-left: 1.3em;
+  color: var(--muted);
 }
 .report-note {
   margin: 0;

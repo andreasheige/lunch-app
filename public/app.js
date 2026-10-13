@@ -674,3 +674,38 @@ function setupReport() {
 }
 
 setupReport();
+
+// "Lägg till på hemskärmen": Chrome & co. have their own install prompt (beforeinstallprompt); iOS has none, so
+// there the link shows the Share → Lägg till på hemskärmen steps. Hidden once running from the home screen.
+function setupInstall() {
+  const link = document.getElementById('install');
+  const dialog = document.getElementById('install-dialog');
+  let installPrompt = null;
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    installPrompt = event;
+    link.hidden = false;
+  });
+  window.addEventListener('appinstalled', () => {
+    link.hidden = true;
+  });
+  // navigator.standalone only exists in iOS/iPadOS WebKit: false in the browser, true from the home screen.
+  if (navigator.standalone === false && navigator.maxTouchPoints > 0) link.hidden = false;
+
+  document.getElementById('install-open').addEventListener('click', async () => {
+    if (!installPrompt) {
+      dialog.showModal();
+      return;
+    }
+    // A prompt can only be shown once; the browser fires a new beforeinstallprompt if it may ask again.
+    const shown = installPrompt;
+    installPrompt = null;
+    link.hidden = true;
+    await shown.prompt();
+  });
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog) dialog.close();
+  });
+}
+
+setupInstall();
