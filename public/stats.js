@@ -1,4 +1,4 @@
-// /statistik: the ratings as a slide (KPI row, restaurant ranking, top dishes, votes per day, fun facts) for
+// /stats: the ratings as a slide (KPI row, restaurant ranking, top dishes, votes per day, fun facts) for
 // the last two weeks or all time. Charts are plain HTML; every value is labelled or in a table, the tooltip
 // only repeats it.
 import { el } from './dom.js';

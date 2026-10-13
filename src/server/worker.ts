@@ -222,7 +222,7 @@ async function todaysRatings(request: Request, env: Env, ctx: ExecutionContext):
 
 const STATS_MAX_AGE = 5 * 60;
 
-// GET /stats.json?range=14|all: everything the /statistik page shows, in one round trip.
+// GET /stats.json?range=14|all: everything the /stats page shows, in one round trip.
 async function stats(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
   const range = url.searchParams.get('range') === 'all' ? 'all' : '14';

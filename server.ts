@@ -38,7 +38,7 @@ const server = http.createServer(async (req, res) => {
     return res.end(JSON.stringify(toNotes(parseCommitLog(log), new Map())));
   }
 
-  // Extensionless page URLs (/nyheter) map to their .html file, as Cloudflare's asset handling does.
+  // Extensionless page URLs (/news) map to their .html file, as Cloudflare's asset handling does.
   const page = pathname === '/' ? 'index.html' : path.extname(pathname) ? pathname : `${pathname}.html`;
   const file = path.join(DIST_DIR, page);
   if (!file.startsWith(DIST_DIR + path.sep)) {
