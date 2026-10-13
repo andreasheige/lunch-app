@@ -103,10 +103,13 @@ const allergens = [
     </section>
   </aside>
   <div class="listing">
-  <div class="views" role="group" aria-label="Visa som" data-i18n-label="view.label">
-    <button type="button" data-view="cards" aria-pressed="false" data-i18n="view.cards">Kort</button>
-    <button type="button" data-view="overview" aria-pressed="false" data-i18n="view.overview">Översikt</button>
-    <button type="button" data-view="dishes" aria-pressed="false" data-i18n="view.dishes">Rätter</button>
+  <div class="listing-bar">
+    <div class="views" role="group" aria-label="Visa som" data-i18n-label="view.label">
+      <button type="button" data-view="cards" aria-pressed="false" data-i18n="view.cards">Kort</button>
+      <button type="button" data-view="overview" aria-pressed="false" data-i18n="view.overview">Översikt</button>
+      <button type="button" data-view="dishes" aria-pressed="false" data-i18n="view.dishes">Rätter</button>
+    </div>
+    <button type="button" id="sort-toggle" class="sort-toggle" aria-pressed="false" hidden data-i18n="order.open">Sortera</button>
   </div>
   <main id="restaurants" aria-live="polite" aria-busy="true">
     {places.length ? (
