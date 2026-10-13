@@ -521,9 +521,27 @@ main.masonry {
   letter-spacing: -0.01em;
 }
 
-.diet {
-  margin-right: 6px;
-  font-size: 0.95em;
+.tag {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 0 5px;
+  border: 1px solid var(--muted);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.5;
+  text-transform: uppercase;
+  vertical-align: 0.15em;
+}
+
+.tag.veg {
+  border-color: var(--open);
+  color: var(--open);
+}
+
+.tag[title] {
   cursor: help;
 }
 
@@ -1180,19 +1198,10 @@ main.stats {
 
 .facts li {
   display: grid;
-  grid-template-columns: 32px 1fr;
-  gap: 10px;
+  gap: 2px;
 }
 
-.fact-emoji {
-  font-size: 1.4rem;
-}
-
-.facts strong {
-  display: block;
-}
-
-.facts span:not(.fact-emoji) {
+.facts span {
   color: var(--muted);
   font-size: 0.9rem;
 }

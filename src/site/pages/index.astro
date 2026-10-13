@@ -6,29 +6,29 @@ import Layout from '../components/Layout.astro';
   <p class="eyebrow"><span class="dot" aria-hidden="true"></span><span id="now" data-i18n="hero.near">Nära kontoret</span></p>
   <h1><span data-i18n="hero.title">Dagens</span> <em data-i18n="hero.title-em">lunch.</em></h1>
   <p id="today" class="today"></p>
-  <button type="button" id="picker-open" class="picker-open" hidden><span aria-hidden="true">🎲</span> <span data-i18n="picker.open">Välj åt mig</span></button>
+  <button type="button" id="picker-open" class="picker-open" hidden><span data-i18n="picker.open">Välj åt mig</span></button>
 </header>
 <section class="filters" aria-label="Filter" data-i18n-label="filters.label">
   <div class="filter-bar">
     <fieldset class="segmented">
       <legend class="visually-hidden" data-i18n="diet.legend">Visa kost</legend>
-      <button type="button" class="seg" data-diet="veg" aria-pressed="false"><span aria-hidden="true">🌱</span> <span data-i18n="diet.veg">Vegetariskt</span></button>
-      <button type="button" class="seg" data-diet="fish" aria-pressed="false"><span aria-hidden="true">🐟</span> <span data-i18n="diet.fish">Fisk</span></button>
-      <button type="button" class="seg" data-diet="meat" aria-pressed="false"><span aria-hidden="true">🥩</span> <span data-i18n="diet.meat">Kött</span></button>
+      <button type="button" class="seg" data-diet="veg" aria-pressed="false"><span data-i18n="diet.veg">Vegetariskt</span></button>
+      <button type="button" class="seg" data-diet="fish" aria-pressed="false"><span data-i18n="diet.fish">Fisk</span></button>
+      <button type="button" class="seg" data-diet="meat" aria-pressed="false"><span data-i18n="diet.meat">Kött</span></button>
     </fieldset>
     <details class="allergen-menu">
       <summary>
-        <span aria-hidden="true">⚠️</span> <span data-i18n="allergens">Allergier</span> <span id="allergen-count" class="count" hidden></span>
+        <span data-i18n="allergens">Allergier</span> <span id="allergen-count" class="count" hidden></span>
         <svg class="caret" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </summary>
       <div class="allergen-panel">
         <fieldset class="allergen-chips">
           <legend data-i18n="allergens.legend">Markera rätter som nämner</legend>
-          <button type="button" class="chip" data-allergen="nuts" aria-pressed="false"><span aria-hidden="true">🥜</span> <span data-i18n="allergen.nuts">Nötter</span></button>
-          <button type="button" class="chip" data-allergen="gluten" aria-pressed="false"><span aria-hidden="true">🌾</span> <span data-i18n="allergen.gluten">Gluten</span></button>
-          <button type="button" class="chip" data-allergen="lactose" aria-pressed="false"><span aria-hidden="true">🥛</span> <span data-i18n="allergen.lactose">Laktos</span></button>
-          <button type="button" class="chip" data-allergen="shellfish" aria-pressed="false"><span aria-hidden="true">🦐</span> <span data-i18n="allergen.shellfish">Skaldjur</span></button>
-          <button type="button" class="chip" data-allergen="egg" aria-pressed="false"><span aria-hidden="true">🥚</span> <span data-i18n="allergen.egg">Ägg</span></button>
+          <button type="button" class="chip" data-allergen="nuts" aria-pressed="false"><span data-i18n="allergen.nuts">Nötter</span></button>
+          <button type="button" class="chip" data-allergen="gluten" aria-pressed="false"><span data-i18n="allergen.gluten">Gluten</span></button>
+          <button type="button" class="chip" data-allergen="lactose" aria-pressed="false"><span data-i18n="allergen.lactose">Laktos</span></button>
+          <button type="button" class="chip" data-allergen="shellfish" aria-pressed="false"><span data-i18n="allergen.shellfish">Skaldjur</span></button>
+          <button type="button" class="chip" data-allergen="egg" aria-pressed="false"><span data-i18n="allergen.egg">Ägg</span></button>
         </fieldset>
         <p class="filter-note" data-i18n="allergens.note">
           Bygger bara på vad menytexten nämner. Omarkerade rätter kan ändå innehålla allergenen – fråga alltid restaurangen.
