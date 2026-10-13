@@ -13,6 +13,8 @@ const TYPES: Record<string, string> = {
   '.css': 'text/css',
   '.js': 'text/javascript',
   '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.webmanifest': 'application/manifest+json',
 };
 
 const server = http.createServer(async (req, res) => {
