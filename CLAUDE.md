@@ -19,14 +19,15 @@ Shows today's lunch menus for restaurants near the Knowit office (Göteborg). St
 - `src/site/` — Astro pages (`pages/index|stats|news.astro`) and the shared `components/Layout.astro` (head + nav); `astro.config.mjs` writes them to `dist/` as `stats.html` etc. (the old Swedish URLs `/statistik` and `/nyheter` 301 via `public/_redirects`) Client JS and CSS stay plain files in `public/`, copied as is and loaded with `is:inline` (not bundled), so tests import them directly
 - `server.ts` — local dev: serves the built `dist/` and a live `GET /lunch.json`
 - `scripts/capture.ts` — reads Poppels' Canva menu text with a headed Playwright Chromium (headless is blocked by Cloudflare) into `captured.json`; CI runs it under `xvfb-run` before the build
-- `scripts/build.ts` — runs after `astro build` (`npm run build`): adds the fetched `lunch.json` snapshot, `commits.json` and `captured.json` (which the Worker reads via `ASSETS`) to `dist/`
+- `scripts/build.ts` — the site build (`npm run build`): fetches today's menus, runs `astro build` with them as `LUNCH_SNAPSHOT` (so the home page's HTML carries the menus and JSON-LD for crawlers, agents and no-JS readers; `src/site/snapshot.ts`, `components/Place.astro` mirrors `renderPlace` in `app.js`), then adds the `lunch.json` snapshot, `commits.json` and `captured.json` (which the Worker reads via `ASSETS`) to `dist/`
+- `public/robots.txt`, `sitemap.xml`, `llms.txt` — for crawlers and agents; `llms.txt` describes the JSON endpoints
 - `.github/workflows/deploy.yml` — tests, captures, builds and `wrangler deploy`s to Cloudflare on push to main and weekdays 08:00 UTC
 - `test/fixtures/*.txt` — each parsed site's page flattened with `htmlToLines`, captured 2026-09-28 (v. 40); `delissimo.pdf` is the raw menu PDF; `poppels.txt` is `scripts/capture.ts` output from 2026-10-06 (v. 41); `carotte.txt` and `bbbangers.txt` are from 2026-10-06 (v. 41)
 
 ## Common commands
 - `npm start` — `astro build`, then run on http://localhost:3000 (`PORT=…` to change); after editing pages or `public/`, `npx astro build` again (the server reads `dist/` per request)
 - `node scripts/capture.ts` — capture Poppels locally (opens a Chrome window; `npx playwright install chromium` once)
-- `npm run build` — build `dist/` (prints one line per restaurant)
+- `npm run build` — build `dist/` with today's menus in the HTML (prints one line per restaurant)
 - `node --test --test-reporter=dot` — quiet test run
 - `npm run -s lint` — Biome lint + format check (`npm run format` applies fixes)
 - `npm run -s typecheck` — tsc (TS 7) over the node, worker, test and client tsconfigs

@@ -1,0 +1,5 @@
+# Everything is public. Today's menus are also plain JSON at /lunch.json; see /llms.txt.
+User-agent: *
+Allow: /
+
+Sitemap: https://lunchit.se/sitemap.xml

@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "astro build && node server.ts",
-    "build": "astro build && node scripts/build.ts",
+    "build": "node scripts/build.ts",
     "test": "node --test",
     "lint": "biome check .",
     "format": "biome check --write .",

@@ -1,5 +1,45 @@
 ---
 import Layout from '../components/Layout.astro';
+import Place from '../components/Place.astro';
+import { jsonForScript, lunchSnapshot, SITE } from '../snapshot.ts';
+
+const lunch = lunchSnapshot();
+const places = lunch?.day ? [...lunch.restaurants].sort((a, b) => a.distance - b.distance) : [];
+const date = lunch
+  ? new Intl.DateTimeFormat('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }).format(
+      new Date(`${lunch.date}T12:00:00Z`),
+    )
+  : 'Dagens lunch';
+const DIET_URL = { veg: 'https://schema.org/VegetarianDiet' };
+// schema.org: the site, and each place with today's menu, for search engines and agents.
+const ld = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    { '@type': 'WebSite', name: 'Lunchit', url: SITE, inLanguage: ['sv', 'en'] },
+    ...places.map((r) => ({
+      '@type': 'Restaurant',
+      name: r.name,
+      url: r.url,
+      address: {
+        '@type': 'PostalAddress',
+        streetAddress: r.address,
+        addressLocality: 'Göteborg',
+        addressCountry: 'SE',
+      },
+      ...(r.price && { priceRange: r.price }),
+      hasMenu: {
+        '@type': 'Menu',
+        name: `Dagens lunch ${lunch?.date}`,
+        hasMenuItem: r.dishes.map((d) => ({
+          '@type': 'MenuItem',
+          name: d.name,
+          ...(d.description && { description: d.description }),
+          ...(d.diet === 'veg' && { suitableForDiet: DIET_URL.veg }),
+        })),
+      },
+    })),
+  ],
+};
 
 const diets = [
   { id: 'veg', key: 'diet.veg', text: 'Vegetariskt' },
@@ -14,11 +54,19 @@ const allergens = [
   { id: 'egg', key: 'allergen.egg', text: 'Ägg' },
 ];
 ---
-<Layout title="Dagens lunch" titleKey="title.lunch" script="app.js" current="lunch">
+<Layout
+  title="Dagens lunch – Lunchit"
+  titleKey="title.lunch"
+  description="Dagens lunchmenyer från restaurangerna nära Knowit-kontoret i Göteborg: rätter, priser, öppettider och gångavstånd, med filter för kost och allergener."
+  path="/"
+  script="app.js"
+  current="lunch"
+>
+<script type="application/ld+json" slot="head" set:html={jsonForScript(ld)} />
 <header class="page-head">
   <div class="date-row">
-    <h1 id="today">Dagens lunch</h1>
-    <span id="week" class="week"></span>
+    <h1 id="today">{date}</h1>
+    <span id="week" class="week">{lunch && `Vecka ${lunch.week}`}</span>
   </div>
   <p id="lunch-status" class="lunch-status"></p>
   <p id="lunch-soon" class="lunch-soon" hidden></p>
@@ -55,9 +103,15 @@ const allergens = [
     </section>
   </aside>
   <main id="restaurants" aria-live="polite" aria-busy="true">
-    <article class="place skeleton" aria-hidden="true"><span></span><span></span><span></span><span></span></article>
-    <article class="place skeleton" aria-hidden="true"><span></span><span></span><span></span></article>
-    <article class="place skeleton" aria-hidden="true"><span></span><span></span><span></span><span></span></article>
+    {places.length ? (
+      places.map((r) => <Place r={r} />)
+    ) : (
+      <>
+        <article class="place skeleton" aria-hidden="true"><span></span><span></span><span></span><span></span></article>
+        <article class="place skeleton" aria-hidden="true"><span></span><span></span><span></span></article>
+        <article class="place skeleton" aria-hidden="true"><span></span><span></span><span></span><span></span></article>
+      </>
+    )}
   </main>
 </div>
 <footer>

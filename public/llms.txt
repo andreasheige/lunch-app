@@ -1,0 +1,18 @@
+# Lunchit
+
+> Today's lunch menus from the restaurants near the Knowit office in Göteborg, Sweden: dishes, prices, opening hours and walking distance, with veg/fish/meat labels and the allergens each menu text mentions. The site is Swedish with an English mode; the data is Swedish.
+
+Menus are read from each restaurant's own website every weekday. Allergen mentions only reflect what the menu text says; a dish without a mention can still contain the allergen.
+
+## Data
+
+- [Today's menus (JSON)](https://lunchit.se/lunch.json): `{ date, day, week, fetchedAt, restaurants: [{ id, name, url, address, distance (metres from the office), hours ("11.00–13.30"), price, dishes: [{ category, name, description, diet ("veg" | "fish" | "meat"), dietByAi, mentions (allergens) }], stale, error }] }`. `day` is null on weekends.
+- [Today's ratings (JSON)](https://lunchit.se/ratings.json): average 1–5 stars and vote count per "restaurantId\ndish name".
+- [Rating statistics (JSON)](https://lunchit.se/stats.json?range=14): last two weeks; `range=all` for all time, `lang=en` for English.
+- [Release notes (JSON)](https://lunchit.se/releases.json): what changed on the site; `lang=en` for English.
+
+## Pages
+
+- [Today's lunch](https://lunchit.se/): the menus, with diet and allergen filters and a "pick for me" helper.
+- [Statistics](https://lunchit.se/stats): what the lunch guests think, from anonymous star ratings.
+- [News](https://lunchit.se/news): new features and fixes.
