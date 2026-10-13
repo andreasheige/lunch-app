@@ -102,9 +102,15 @@ const allergens = [
       </div>
     </section>
   </aside>
+  <div class="listing">
+  <div class="views" role="group" aria-label="Visa som" data-i18n-label="view.label">
+    <button type="button" data-view="cards" aria-pressed="false" data-i18n="view.cards">Kort</button>
+    <button type="button" data-view="overview" aria-pressed="false" data-i18n="view.overview">Översikt</button>
+    <button type="button" data-view="dishes" aria-pressed="false" data-i18n="view.dishes">Rätter</button>
+  </div>
   <main id="restaurants" aria-live="polite" aria-busy="true">
     {places.length ? (
-      places.map((r) => <Place r={r} />)
+      <div class="cards">{places.map((r) => <Place r={r} />)}</div>
     ) : (
       <>
         <article class="place skeleton" aria-hidden="true"><span></span><span></span><span></span><span></span></article>
@@ -113,6 +119,7 @@ const allergens = [
       </>
     )}
   </main>
+  </div>
 </div>
 <footer>
   <p data-i18n="footer.source">Menyerna läses från restaurangernas egna sidor. Fråga alltid personalen om allergier.</p>

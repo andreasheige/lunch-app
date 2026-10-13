@@ -1,6 +1,7 @@
 ---
-// One place as app.js's renderPlace draws it (same classes and order; keep the two in step), in Swedish and
-// without the time-dependent status. app.js replaces it with the live version.
+// One card as app.js's cardsView draws it (same classes and order; keep the two in step), in Swedish, with every
+// dish and without the time-dependent status or ratings. Each dish is a <details>, so it opens without JavaScript
+// too. app.js redraws the listing from the live data.
 import type { Dish, RestaurantMenu } from '../../shared/types.ts';
 
 interface Props {
@@ -13,39 +14,44 @@ const DIETS = { veg: 'Vegetariskt', fish: 'Fisk', meat: 'Kött' };
 const REPEATS_DIET = /^(kött|fisk|veg|vegetarisk[at]?|vegetariska|grönt)$/i;
 const showCategory = (d: Dish) => d.category && !REPEATS_DIET.test(d.category.trim());
 ---
-<article class="place" data-id={r.id}>
-  <div class="place-head">
+<article class="card" data-id={r.id}>
+  <div class="card-head">
     <h2>{r.name}</h2>
     <p class="place-meta"><span class="walk">{walk} min gång</span> · <span class="hours">{r.hours}</span></p>
+    {r.price && <p class="price">{r.price}</p>}
+    {r.stale && <p class="badge warn">Menyn gäller vecka {r.menuWeek} – kan vara inaktuell</p>}
   </div>
-  {r.price && <p class="price">{r.price}</p>}
-  {r.stale && <p class="badge warn">Menyn gäller vecka {r.menuWeek} – kan vara inaktuell</p>}
   {r.error ? (
     <p class="empty">{r.error}</p>
   ) : r.embed ? (
     <div class="embed-facade">
       <p class="embed-note">Menyn är en Canva-bild som laddas först när du ber om den.</p>
-      <button type="button" class="embed-show">Visa menyn här</button>
       <a class="source" href={r.embed} target="_blank" rel="noopener">Öppna menyn hos Canva ↗</a>
     </div>
   ) : (
-    <ul class="dishes">
+    <ul class="dish-list">
       {r.dishes.map((d) => (
-        <li data-diet={d.diet ?? ''} data-mentions={(d.mentions ?? []).join(' ')}>
-          {showCategory(d) && <span class="category">{d.category}</span>}
-          <p class="dish">
-            {d.diet && (
-              <span class={`tag ${d.diet}`} title={d.dietByAi ? `${DIETS[d.diet]} (AI-bedömning)` : undefined}>{TAGS[d.diet]}</span>
-            )}
-            <span class="dish-name">{d.name}</span>
-          </p>
-          {d.description && <span class="desc">{d.description}</span>}
-          <span class="mentions" hidden></span>
-          <div class="rating-slot" aria-hidden="true"></div>
+        <li>
+          <details class="dish">
+            <summary>
+              <span class="dish-line">
+                <span class="dish-name">
+                  {d.diet && (
+                    <span class={`tag ${d.diet}`} title={d.dietByAi ? `${DIETS[d.diet]} (AI-bedömning)` : undefined}>{TAGS[d.diet]}</span>
+                  )}
+                  {d.name}
+                </span>
+                <span class="dish-avg"></span>
+              </span>
+            </summary>
+            <div class="dish-details">
+              {showCategory(d) && <span class="category">{d.category}</span>}
+              {d.description && <span class="desc">{d.description}</span>}
+            </div>
+          </details>
         </li>
       ))}
     </ul>
   )}
-  {!r.error && !r.embed && <p class="empty filtered" hidden>Inget som matchar filtret.</p>}
   <a class="source" href={r.url} target="_blank" rel="noopener">Restaurangens sida ↗</a>
 </article>

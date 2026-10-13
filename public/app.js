@@ -29,7 +29,7 @@ function status(r, isToday) {
   if (now < toMinutes(openTime)) return { state: 'soon', text: t('status.soon', openTime) };
   const left = toMinutes(closeTime) - now;
   if (left <= 0) return { state: 'closed', text: t('status.closed') };
-  if (left <= 20) return { state: 'closing', text: t('status.closing', left) };
+  if (left <= 30) return { state: 'closing', text: t('status.closing', left) };
   return { state: 'open', text: t('status.open', closeTime) };
 }
 
@@ -55,17 +55,24 @@ function voterId() {
   return id;
 }
 
+// Today's averages from /ratings.json, keyed "restaurantId\ndish name"; votes made here update it.
+const ratings = {};
+const ratingKey = (r, d) => `${r.id}\n${d.name}`;
+
 // "★ 4,5 · 2 röster", plus your own vote; "Inga röster än" before anyone has voted.
 function summaryText(s, mine) {
   const base = s?.count ? `★ ${num(s.avg)} · ${t('votes', s.count)}` : t('rate.none');
   return mine ? `${base} · ${t('rate.yours', mine)}` : base;
 }
 
-// One line per dish: today's average and a "Betygsätt" button that opens five star buttons. A click votes (or
-// changes your vote) for this dish.
+// The short "★ 4,5" next to a dish name; empty until someone has voted.
+const avgText = (key) => (ratings[key]?.count ? `★ ${num(ratings[key].avg)}` : '');
+
+// Today's average, your vote and a "Betygsätt" button that opens five star buttons. A click votes (or changes your
+// vote) for this dish.
 function ratingRow(r, d, date) {
   const row = el('div', 'rating');
-  const key = `${r.id}\n${d.name}`;
+  const key = ratingKey(r, d);
   row.dataset.key = key;
   const voteKey = `${date}|${key}`;
   const line = el('p', 'rating-line');
@@ -78,12 +85,11 @@ function ratingRow(r, d, date) {
   stars.setAttribute('role', 'group');
   stars.setAttribute('aria-label', t('rate.label', tr(d.name)));
   stars.hidden = true;
-  let stats = null;
   const mine = () => readStored(VOTES_KEY, {})[voteKey] ?? 0;
   const sync = () => {
     const vote = mine();
-    summary.textContent = summaryText(stats, vote);
-    summary.classList.toggle('has-votes', Boolean(stats?.count));
+    summary.textContent = summaryText(ratings[key], vote);
+    summary.classList.toggle('has-votes', Boolean(ratings[key]?.count));
     toggle.textContent = stars.hidden ? t(vote ? 'rate.change' : 'rate.open') : t('rate.done');
     toggle.setAttribute('aria-expanded', String(!stars.hidden));
     for (const b of stars.children) {
@@ -91,6 +97,8 @@ function ratingRow(r, d, date) {
       b.textContent = n <= vote ? '★' : '☆';
       b.setAttribute('aria-pressed', String(n === vote));
     }
+    for (const avg of document.querySelectorAll('.dish-avg'))
+      if (avg.dataset.key === key) avg.textContent = avgText(key);
   };
   toggle.addEventListener('click', () => {
     stars.hidden = !stars.hidden;
@@ -117,7 +125,7 @@ function ratingRow(r, d, date) {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        stats = data;
+        ratings[key] = data;
         sync();
       } catch {
         writeStored(VOTES_KEY, { ...readStored(VOTES_KEY, {}), [voteKey]: before || undefined });
@@ -127,10 +135,7 @@ function ratingRow(r, d, date) {
     });
     stars.append(b);
   }
-  row.update = (s) => {
-    stats = s ?? null;
-    sync();
-  };
+  row.update = sync;
   sync();
   row.append(line, stars);
   return row;
@@ -140,8 +145,9 @@ async function fillRatings() {
   try {
     const res = await fetch('ratings.json', { cache: 'no-store' });
     if (!res.ok) return;
-    const ratings = await res.json();
-    for (const row of document.querySelectorAll('.rating')) row.update(ratings[row.dataset.key]);
+    Object.assign(ratings, await res.json());
+    for (const row of document.querySelectorAll('.rating')) row.update();
+    for (const avg of document.querySelectorAll('.dish-avg')) avg.textContent = avgText(avg.dataset.key);
   } catch {}
 }
 
@@ -168,56 +174,294 @@ function embedFacade(r) {
 const walkMinutes = (r) => Math.max(1, Math.round(r.distance / WALK_M_PER_MIN));
 // A category that only repeats the diet label ("Kött", "Veg") is left out.
 const REPEATS_DIET = /^(kött|fisk|veg|vegetarisk[at]?|vegetariska|grönt)$/i;
+const shownCategory = (d) => (d.category && !REPEATS_DIET.test(d.category.trim()) ? tr(d.category) : '');
 
-function renderPlace(r, isToday, rateDate) {
-  const place = el('article', 'place');
-  place.dataset.id = r.id;
-
-  const head = el('div', 'place-head');
-  head.append(el('h2', null, r.name));
+// "Öppet till 14.00 · 1 min gång · 11.30–14.00" (rows leave the hours out); the status span is kept up to date
+// by keepTime.
+function placeMeta(r, withHours = true) {
   const meta = el('p', 'place-meta');
-  const s = status(r, isToday);
-  if (s) meta.append(el('span', `status ${s.state}`, s.text), ' · ');
-  meta.append(el('span', 'walk', t('card.walk', walkMinutes(r))), ' · ', el('span', 'hours', r.hours));
-  head.append(meta);
-  place.append(head);
-  if (r.price) place.append(el('p', 'price', tr(r.price)));
-
-  if (r.stale) place.append(el('p', 'badge warn', t('card.stale', r.menuWeek)));
-
-  if (r.error) {
-    place.append(el('p', 'empty', tr(r.error)));
-  } else if (r.embed) {
-    place.append(embedFacade(r));
-  } else {
-    const list = el('ul', 'dishes');
-    for (const d of r.dishes) {
-      const item = el('li');
-      if (d.category && !REPEATS_DIET.test(d.category.trim())) item.append(el('span', 'category', tr(d.category)));
-      const dish = el('p', 'dish');
-      dish.append(...dietTag(d), el('span', 'dish-name', tr(d.name)));
-      item.append(dish);
-      if (d.description) item.append(el('span', 'desc', tr(d.description)));
-      item.dataset.diet = d.diet ?? '';
-      item.dataset.mentions = (d.mentions ?? []).join(' ');
-      const mentions = el('span', 'mentions');
-      mentions.hidden = true;
-      item.append(mentions);
-      if (rateDate) item.append(ratingRow(r, d, rateDate));
-      list.append(item);
-    }
-    place.append(list);
-    const filtered = el('p', 'empty filtered', t('filter.none'));
-    filtered.hidden = true;
-    place.append(filtered);
+  const s = status(r, lunch.isToday);
+  if (s) {
+    const badge = el('span', `status ${s.state}`, s.text);
+    badge.dataset.statusFor = r.id;
+    meta.append(badge, ' · ');
   }
+  meta.append(el('span', 'walk', t('card.walk', walkMinutes(r))));
+  if (withHours) meta.append(' · ', el('span', 'hours', r.hours));
+  return meta;
+}
 
+function sourceLink(r) {
   const link = el('a', 'source', `${t('card.source')} ↗`);
   link.href = r.url;
   link.target = '_blank';
   link.rel = 'noopener';
-  place.append(link);
-  return place;
+  return link;
+}
+
+// The filter applied to one place: the dishes to show (dishes without a diet stay, marked unsure, when a diet is
+// chosen) and the allergens each one mentions from the flagged list.
+function filtered(r) {
+  return r.dishes
+    .filter((d) => !filter.diets.length || !d.diet || filter.diets.includes(d.diet))
+    .map((d) => ({
+      d,
+      unsure: filter.diets.length > 0 && !d.diet,
+      hits: (d.mentions ?? []).filter((a) => filter.allergens.includes(a)),
+    }));
+}
+
+// Diet label, name and (when flagged) the allergen note: the line every view shows for a dish.
+function dishLine(r, { d, unsure, hits }, withAvg) {
+  const line = el('span', 'dish-line');
+  const name = el('span', 'dish-name');
+  name.append(...dietTag(d), tr(d.name));
+  line.append(name);
+  if (withAvg) {
+    const avg = el('span', 'dish-avg', avgText(ratingKey(r, d)));
+    avg.dataset.key = ratingKey(r, d);
+    line.append(avg);
+  }
+  if (hits.length) line.append(el('span', 'mentions', t('mentions', allergenNames(hits))));
+  if (unsure) line.title = t('filter.unsure');
+  return line;
+}
+
+// Category, description and rating: what opening a dish shows.
+function dishDetails(r, d) {
+  const box = el('div', 'dish-details');
+  const category = shownCategory(d);
+  if (category) box.append(el('span', 'category', category));
+  if (d.description) box.append(el('span', 'desc', tr(d.description)));
+  if (lunch.rateDate) box.append(ratingRow(r, d, lunch.rateDate));
+  return box;
+}
+
+// The menu body shared by the views: an error, the Canva facade, or nothing (the view lists the dishes).
+function menuIssues(r) {
+  if (r.error) return [el('p', 'empty', tr(r.error))];
+  if (r.embed) return [embedFacade(r)];
+  return [];
+}
+
+const CARD_LIMIT = 4;
+const expandedCards = new Set();
+
+// View A, "Kort": a card per place, one line per dish; a dish opens (<details>) to its description and rating.
+// Long menus show the first four dishes and a "Visa N till" button.
+function cardsView() {
+  const grid = el('div', 'cards');
+  for (const r of lunch.sorted) {
+    const card = el('article', 'card');
+    card.dataset.id = r.id;
+    const head = el('div', 'card-head');
+    head.append(el('h2', null, r.name), placeMeta(r));
+    if (r.price) head.append(el('p', 'price', tr(r.price)));
+    if (r.stale) head.append(el('p', 'badge warn', t('card.stale', r.menuWeek)));
+    card.append(head, ...menuIssues(r));
+    if (!r.error && !r.embed) {
+      const dishes = filtered(r);
+      const list = el('ul', 'dish-list');
+      const open = expandedCards.has(r.id) || dishes.length <= CARD_LIMIT + 1;
+      for (const [i, f] of dishes.entries()) {
+        const li = el('li', f.unsure ? 'unsure' : null);
+        const details = el('details', 'dish');
+        const summary = el('summary');
+        summary.append(dishLine(r, f, true));
+        details.append(summary, dishDetails(r, f.d));
+        li.append(details);
+        li.hidden = !open && i >= CARD_LIMIT;
+        list.append(li);
+      }
+      card.append(list);
+      if (!dishes.length) card.append(el('p', 'empty', t('filter.none')));
+      if (dishes.length > CARD_LIMIT + 1) {
+        const more = el('button', 'card-more', open ? t('card.fewer') : t('card.more', dishes.length - CARD_LIMIT));
+        more.type = 'button';
+        more.setAttribute('aria-expanded', String(open));
+        more.addEventListener('click', () => {
+          if (open) expandedCards.delete(r.id);
+          else expandedCards.add(r.id);
+          renderListing();
+          document.querySelector(`.card[data-id="${CSS.escape(r.id)}"] .card-more`)?.focus();
+        });
+        card.append(more);
+      }
+    }
+    card.append(sourceLink(r));
+    grid.append(card);
+  }
+  return grid;
+}
+
+let selectedPlace = null;
+
+// One row per place in view B: name, status and walk, a one-line preview of the dishes, and the counts.
+function overviewRow(r, dishes, tag) {
+  const row = el(tag, 'place-row');
+  const text = el('span', 'place-row-text');
+  text.append(el('span', 'place-row-name', r.name), placeMeta(r, false));
+  const names = dishes.map(({ d }) => tr(d.name)).join(' · ');
+  if (names) text.append(el('span', 'place-row-preview', names));
+  const counts = el('span', 'place-row-counts');
+  const veg = dishes.filter(({ d }) => d.diet === 'veg').length;
+  counts.append(el('span', null, t('filter.count', dishes.length)));
+  if (veg) counts.append(el('span', 'veg', t('overview.veg', veg)));
+  row.append(text, counts);
+  return row;
+}
+
+// The whole menu of one place, descriptions shown: view B's detail pane (desktop) or opened row (phone).
+function placeMenu(r) {
+  const menu = el('div', 'place-menu');
+  if (r.price) menu.append(el('p', 'price', tr(r.price)));
+  if (r.stale) menu.append(el('p', 'badge warn', t('card.stale', r.menuWeek)));
+  menu.append(...menuIssues(r));
+  if (!r.error && !r.embed) {
+    const dishes = filtered(r);
+    const list = el('ul', 'menu-list');
+    for (const f of dishes) {
+      const li = el('li', f.unsure ? 'unsure' : null);
+      li.append(dishLine(r, f, false), dishDetails(r, f.d));
+      list.append(li);
+    }
+    menu.append(list);
+    if (!dishes.length) menu.append(el('p', 'empty', t('filter.none')));
+  }
+  menu.append(sourceLink(r));
+  return menu;
+}
+
+// View B, "Översikt": every place on one row. Wide screens show the chosen place's menu beside the list; on a
+// phone a row opens in place (one at a time).
+function overviewView() {
+  const box = el('div', 'overview');
+  const list = el('ul', 'place-list');
+  if (wide.matches) {
+    selectedPlace ??= lunch.sorted[0]?.id;
+    for (const r of lunch.sorted) {
+      const li = el('li');
+      const row = overviewRow(r, filtered(r), 'button');
+      row.type = 'button';
+      row.setAttribute('aria-pressed', String(r.id === selectedPlace));
+      row.addEventListener('click', () => {
+        selectedPlace = r.id;
+        renderListing();
+        document.querySelector('.place-row[aria-pressed="true"]')?.focus();
+      });
+      li.append(row);
+      list.append(li);
+    }
+    const r = lunch.sorted.find((x) => x.id === selectedPlace) ?? lunch.sorted[0];
+    const detail = el('section', 'place-detail');
+    detail.dataset.id = r.id;
+    detail.setAttribute('aria-label', r.name);
+    detail.append(el('h2', null, r.name), placeMeta(r), placeMenu(r));
+    box.append(list, detail);
+  } else {
+    for (const r of lunch.sorted) {
+      const li = el('li');
+      const details = el('details', 'place-acc');
+      details.name = 'place';
+      details.dataset.id = r.id;
+      details.open = r.id === selectedPlace;
+      details.addEventListener('toggle', () => {
+        if (details.open) selectedPlace = r.id;
+        else if (selectedPlace === r.id) selectedPlace = null;
+      });
+      const summary = overviewRow(r, filtered(r), 'summary');
+      details.append(summary, placeMenu(r));
+      li.append(details);
+      list.append(li);
+    }
+    box.append(list);
+  }
+  return box;
+}
+
+// View C, "Rätter": every dish on its own row with its place, walk and status; a table on wide screens.
+function dishesView() {
+  const rows = lunch.sorted.flatMap((r) => (r.error || r.embed ? [] : filtered(r).map((f) => ({ r, f }))));
+  if (!wide.matches) {
+    const list = el('ul', 'dish-rows');
+    for (const { r, f } of rows) {
+      const li = el('li', f.unsure ? 'unsure' : null);
+      li.dataset.id = r.id;
+      const details = el('details', 'dish');
+      const summary = el('summary');
+      const where = el('span', 'dish-where');
+      where.append(el('strong', null, r.name), ' · ', placeMeta(r, false));
+      summary.append(dishLine(r, f, true), where);
+      details.append(summary, dishDetails(r, f.d));
+      li.append(details);
+      list.append(li);
+    }
+    return list;
+  }
+  const table = el('table', 'dish-table');
+  const head = el('tr');
+  for (const key of ['table.dish', 'table.place', 'table.walk', 'table.status', 'table.rating']) {
+    const th = el('th', null, t(key));
+    th.scope = 'col';
+    head.append(th);
+  }
+  table.append(el('thead'), el('tbody'));
+  table.tHead.append(head);
+  let last = null;
+  for (const { r, f } of rows) {
+    const tr_ = el('tr', f.unsure ? 'unsure' : null);
+    tr_.dataset.id = r.id;
+    if (r !== last) tr_.classList.add('first-of-place');
+    const dish = el('td');
+    dish.append(dishLine(r, f, false));
+    if (f.d.description) dish.append(el('span', 'desc', tr(f.d.description)));
+    const first = r !== last;
+    const s = first && status(r, lunch.isToday);
+    const st = el('td', 'status-cell');
+    if (s) {
+      const badge = el('span', `status ${s.state}`, s.text);
+      badge.dataset.statusFor = r.id;
+      st.append(badge);
+    }
+    const avg = el('td', 'dish-avg', avgText(ratingKey(r, f.d)));
+    avg.dataset.key = ratingKey(r, f.d);
+    const walk = el('td', 'walk-cell', first ? t('card.walk-short', walkMinutes(r)) : '');
+    tr_.append(dish, el('td', 'place-cell', first ? r.name : ''), walk, st, avg);
+    table.tBodies[0].append(tr_);
+    last = r;
+  }
+  return table;
+}
+
+const VIEWS = { cards: cardsView, overview: overviewView, dishes: dishesView };
+const VIEW_KEY = 'lunch-view';
+const wide = matchMedia('(min-width: 1024px)');
+// Cards on phones and overview on wide screens, unless the visitor picked a view.
+const currentView = () => {
+  const saved = readStored(VIEW_KEY, null);
+  return saved in VIEWS ? saved : wide.matches ? 'overview' : 'cards';
+};
+
+// Redraws the listing in the current view, with the current filter and today's ratings.
+function renderListing() {
+  if (!lunch?.sorted) return;
+  const view = currentView();
+  for (const b of document.querySelectorAll('[data-view]'))
+    b.setAttribute('aria-pressed', String(b.dataset.view === view));
+  const container = document.getElementById('restaurants');
+  container.dataset.view = view;
+  container.replaceChildren(...lunch.notices.map((n) => el('p', 'notice', n)), VIEWS[view]());
+  updateFilterSummary(filter);
+}
+
+function setupViews() {
+  for (const b of document.querySelectorAll('[data-view]')) {
+    b.addEventListener('click', () => {
+      writeStored(VIEW_KEY, b.dataset.view);
+      renderListing();
+    });
+  }
+  wide.addEventListener('change', renderListing);
 }
 
 const fmtMinutes = (m) => `${Math.floor(m / 60)}.${String(m % 60).padStart(2, '0')}`;
@@ -257,8 +501,8 @@ function renderHeaderStatus() {
 function keepTime(isToday) {
   const update = () => {
     renderHeaderStatus();
-    for (const badge of document.querySelectorAll('#restaurants .place .status')) {
-      const r = lunch.data.restaurants.find((x) => x.id === badge.closest('.place').dataset.id);
+    for (const badge of document.querySelectorAll('[data-status-for]')) {
+      const r = lunch.data.restaurants.find((x) => x.id === badge.dataset.statusFor);
       const s = r && status(r, isToday);
       if (!s) continue;
       badge.className = `status ${s.state}`;
@@ -297,33 +541,13 @@ function saveFilter(filter) {
 
 const allergenNames = (ids) => ids.map((a) => t(`allergen.${a}`).toLocaleLowerCase(LOCALE)).join(', ');
 
-// Diet filter: matching dishes stay, dishes without a diet stay dimmed, the rest hide.
-// Allergens only add a "Nämner: …" note; nothing is hidden or called free-from because of them.
-function applyFilter(filter) {
-  const places = document.querySelectorAll('#restaurants .place');
-  for (const place of places) {
-    const items = place.querySelectorAll('.dishes li');
-    if (!items.length) continue;
-    let visible = 0;
-    for (const li of items) {
-      const diet = li.dataset.diet;
-      const active = filter.diets.length > 0;
-      li.hidden = active && diet !== '' && !filter.diets.includes(diet);
-      li.classList.toggle('unsure', active && diet === '');
-      if (li.classList.contains('unsure')) li.title = t('filter.unsure');
-      else li.removeAttribute('title');
-      if (!li.hidden) visible++;
-      const hits = li.dataset.mentions.split(' ').filter((a) => filter.allergens.includes(a));
-      const note = li.querySelector('.mentions');
-      note.hidden = hits.length === 0;
-      note.textContent = hits.length ? t('mentions', allergenNames(hits)) : '';
-    }
-    place.querySelector('.filtered').hidden = visible > 0;
-  }
-  const all = [...document.querySelectorAll('#restaurants .dishes li')];
-  const shown = all.filter((li) => !li.hidden).length;
+// The filter's counts and summary: dishes per diet on the buttons, the badge, and what the toolbar says.
+function updateFilterSummary(filter) {
+  const menus = lunch?.sorted?.filter((r) => !r.error && !r.embed) ?? [];
+  const all = menus.flatMap((r) => r.dishes);
+  const shown = menus.reduce((n, r) => n + filtered(r).length, 0);
   for (const count of document.querySelectorAll('[data-count]')) {
-    count.textContent = all.length ? String(all.filter((li) => li.dataset.diet === count.dataset.count).length) : '';
+    count.textContent = all.length ? String(all.filter((d) => d.diet === count.dataset.count).length) : '';
   }
   const n = filter.diets.length + filter.allergens.length;
   const badge = document.getElementById('filter-count');
@@ -339,7 +563,7 @@ function applyFilter(filter) {
     ? ''
     : parts.length
       ? `${parts.join(' · ')} · ${t('filter.count', shown)}`
-      : t('filter.all', all.length, places.length);
+      : t('filter.all', all.length, lunch.sorted.length);
 }
 
 // On a wide screen the filters sit in a rail beside the menus; narrower, the same panel moves into a bottom
@@ -349,7 +573,6 @@ function setupFilter() {
   const panel = document.getElementById('filter-panel');
   const rail = document.getElementById('filter-rail');
   const dialog = document.getElementById('filter-dialog');
-  const wide = matchMedia('(min-width: 1024px)');
   const place = () => {
     if (wide.matches) {
       if (dialog.open) dialog.close();
@@ -374,7 +597,8 @@ function setupFilter() {
       button.setAttribute('aria-pressed', String(filter[list].includes(value)));
     }
     saveFilter(filter);
-    applyFilter(filter);
+    if (lunch?.sorted) renderListing();
+    else updateFilterSummary(filter);
   };
   for (const button of buttons) {
     button.addEventListener('click', () => {
@@ -390,14 +614,6 @@ function setupFilter() {
   });
   sync();
   return filter;
-}
-
-// (Re)draws the places after any notices, with the current filter and today's ratings.
-function renderPlaces(container, sorted, isToday, rateDate) {
-  for (const place of container.querySelectorAll('.place')) place.remove();
-  container.append(...sorted.map((r) => renderPlace(r, isToday, rateDate)));
-  if (rateDate) fillRatings();
-  applyFilter(filter);
 }
 
 async function main() {
@@ -424,17 +640,8 @@ async function main() {
       DATE_FMT.format(fetchedAt),
       TIME_FMT.format(fetchedAt),
     );
-    lunch = { data, isToday };
-    renderHeaderStatus();
-
-    container.replaceChildren();
-    if (!isToday) {
-      container.append(el('p', 'notice', t('notice.old', DATE_FMT.format(new Date(data.date)))));
-    }
-    if (!data.day) {
-      container.append(el('p', 'notice', t('notice.weekend')));
-      return;
-    }
+    const notices = isToday ? [] : [t('notice.old', DATE_FMT.format(new Date(data.date)))];
+    if (!data.day) notices.push(t('notice.weekend'));
     // Nearest first; places whose lunch is over move to the end.
     const over = (r) => (status(r, isToday)?.state === 'closed' ? 1 : 0);
     const sorted = [...data.restaurants].sort((a, b) => a.distance - b.distance);
@@ -443,14 +650,23 @@ async function main() {
     const fem = sorted.findIndex((r) => r.id === 'magasinfem');
     if (indya >= 0 && fem >= 0) [sorted[indya], sorted[fem]] = [sorted[fem], sorted[indya]];
     sorted.sort((a, b) => over(a) - over(b));
-    const rateDate = isToday && data.day ? data.date : null;
-    renderPlaces(container, sorted, isToday, rateDate);
+    lunch = {
+      data,
+      isToday,
+      sorted: data.day ? sorted : [],
+      notices,
+      rateDate: isToday && data.day ? data.date : null,
+    };
+    renderHeaderStatus();
+    renderListing();
+    if (!data.day) return;
+    if (lunch.rateDate) fillRatings();
     keepTime(isToday);
     document.getElementById('picker-open').hidden = false;
     if (!en) {
       translating.then((late) => {
         translations = late;
-        renderPlaces(container, sorted, isToday, rateDate);
+        renderListing();
       });
     }
   } catch {
@@ -478,6 +694,7 @@ async function fetchTranslations() {
 
 let lunch = null;
 const filter = setupFilter();
+setupViews();
 main();
 
 const HISTORY_KEY = 'lunch-history';
@@ -586,10 +803,12 @@ function setupPicker() {
     const history = readStored(HISTORY_KEY, []).filter((h) => !(h.id === r.id && h.date === lunch.data.date));
     writeStored(HISTORY_KEY, [...history, { id: r.id, date: lunch.data.date }].slice(-60));
     dialog.close();
-    const card = document.querySelector(`.place[data-id="${CSS.escape(r.id)}"]`);
-    card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    card?.classList.add('picked');
-    setTimeout(() => card?.classList.remove('picked'), 2400);
+    selectedPlace = r.id;
+    renderListing();
+    const target = document.querySelector(`#restaurants [data-id="${CSS.escape(r.id)}"]`);
+    target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target?.classList.add('picked');
+    setTimeout(() => target?.classList.remove('picked'), 2400);
   };
 
   const start = () => {
