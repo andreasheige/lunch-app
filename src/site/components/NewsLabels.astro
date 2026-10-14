@@ -1,0 +1,8 @@
+---
+// The New / Improved / Fixed labels of a post (Swedish; news.js redraws them in English).
+import type { ChangeKind } from '../../shared/types.ts';
+import { KIND_SV } from '../news.ts';
+
+const { kinds } = Astro.props as { kinds: ChangeKind[] };
+---
+<span class="news-labels">{kinds.map((k) => <span class={`news-label ${k}`}>{KIND_SV[k]}</span>)}</span>

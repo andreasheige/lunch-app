@@ -1,20 +1,62 @@
 ---
 import Layout from '../components/Layout.astro';
+import NewsLabels from '../components/NewsLabels.astro';
+import { byMonth, dateSv, newsPosts, summaryOf } from '../news.ts';
 import '../styles/news.css';
+
+// A changelog: one post per release, newest first, by month. news.js filters by label and redraws in English.
+const posts = newsPosts();
+const filters = [
+  { kind: 'all', key: 'news.all', text: 'Alla' },
+  { kind: 'new', key: 'news.kind.new', text: 'Nytt' },
+  { kind: 'improved', key: 'news.kind.improved', text: 'Förbättrat' },
+  { kind: 'fixed', key: 'news.kind.fixed', text: 'Fixat' },
+] as const;
+const count = (kind: string) => posts.filter((p) => kind === 'all' || p.kinds.some((k) => k === kind)).length;
 ---
 <Layout title="Nyheter – Lunchit"
-  description="Allt nytt och fixat på Lunchit, sajten med dagens lunchmenyer nära Knowit-kontoret i Göteborg."
+  description="Allt nytt, förbättrat och fixat på Lunchit, sajten med dagens lunchmenyer nära Knowit-kontoret i Göteborg. Ett inlägg per release."
   path="/news" titleKey="title.news" script="news.js" current="news">
-<header class="page-head">
-  <h1 data-i18n="news.title">Nyheter</h1>
-  <p class="lunch-status" data-i18n="news.intro">Allt nytt och fixat på lunchsajten – oftast för att någon önskade det.</p>
-</header>
-<main id="notes" class="blog" aria-live="polite" aria-busy="true">
-  <article class="post skeleton" aria-hidden="true"><span></span><span></span><span></span></article>
-  <article class="post skeleton" aria-hidden="true"><span></span><span></span><span></span></article>
+<main class="news">
+  <header class="news-head">
+    <div>
+      <h1 data-i18n="news.title">Nytt på Lunchit</h1>
+      <p data-i18n="news.intro">Varje uppdatering av sajten, ett inlägg per release.</p>
+    </div>
+    <div class="news-filters" role="group" aria-label="Visa" data-i18n-label="news.filter">
+      {filters.map((f, i) => (
+        <button type="button" class="chip" data-kind={f.kind} aria-pressed={i === 0 ? 'true' : 'false'}>
+          <span data-i18n={f.key}>{f.text}</span> <span class="chip-count">{count(f.kind)}</span>
+        </button>
+      ))}
+    </div>
+  </header>
+  <div id="news-list" class="news-list" aria-live="polite">
+    {posts.length === 0 && <p class="notice" data-i18n="news.empty">Inga nyheter än.</p>}
+    {byMonth(posts).map(([month, list]) => (
+      <section class="news-month">
+        <h2 class="news-month-title">{month}</h2>
+        {list.map((post) => (
+          <article class="news-row" data-kinds={post.kinds.join(' ')} data-key={post.key} data-pending={post.pending ? '' : undefined}>
+            <time datetime={post.date}>{dateSv(post.date)}</time>
+            <div class="news-row-body">
+              <NewsLabels kinds={post.kinds} />
+              <h3 class={post.changes.length >= 4 ? 'news-row-title big' : 'news-row-title'}>
+                <a href={`/news/${post.slug}`}>{post.title}</a>
+              </h3>
+              <p class="news-row-summary">{summaryOf(post)}</p>
+              <p class="news-row-more" aria-hidden="true">
+                {post.changes.length > 1 ? `${post.changes.length} ändringar · Läs mer →` : 'Läs mer →'}
+              </p>
+            </div>
+          </article>
+        ))}
+      </section>
+    ))}
+  </div>
 </main>
 <footer>
-  <p data-i18n="news.footer">Texterna skrivs om till svenska av AI utifrån ändringarna i koden.</p>
+  <p data-i18n="news.footer">Texterna skrivs av AI utifrån ändringarna i koden.</p>
   <p><a class="footer-link" href="/" data-i18n="back">← Tillbaka till dagens lunch</a></p>
 </footer>
 </Layout>

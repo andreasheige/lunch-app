@@ -1,14 +1,61 @@
-// The site build (npm run build): fetches today's menus, has Astro write the pages (with those menus in the
-// HTML, see src/site/snapshot.ts) and public/ to dist/, then adds the data files the Worker serves.
+// The site build (npm run build): groups the news by pull request and fetches today's menus, has Astro write the
+// pages (with the menus and news in the HTML, see src/site/snapshot.ts and news.ts) and public/ to dist/, then adds
+// the data files the Worker serves.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { addDiets } from '../src/server/diet.ts';
 import { getTodaysLunch, parseCaptured } from '../src/server/lunch.ts';
-import { GIT_LOG_FORMAT, parseCommitLog } from '../src/server/releases.ts';
+import {
+  GIT_LOG_FORMAT,
+  groupReleases,
+  PR_QUERY,
+  parseCommitLog,
+  parsePullRequests,
+  parseReleaseText,
+  toPosts,
+} from '../src/server/releases.ts';
+import type { ReleasePost, ReleaseText } from '../src/shared/types.ts';
 
 const root = path.join(import.meta.dirname, '..');
 const dist = path.join(root, 'dist');
+
+// Release source for the Worker's /releases.json: feat/fix commits (CI checks out full history for this) grouped
+// by the pull request they came from. Without GitHub (no gh, no token, offline) every commit stands alone.
+const git = (args: string[]) => {
+  try {
+    return execFileSync('git', args, { cwd: root, encoding: 'utf8' });
+  } catch {
+    return '';
+  }
+};
+const prs = (() => {
+  try {
+    const answer = execFileSync(
+      'gh',
+      ['api', 'graphql', '-f', `query=${PR_QUERY}`, '-f', 'owner=andreasheige', '-f', 'name=lunch-app'],
+      { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+    );
+    return parsePullRequests(JSON.parse(answer));
+  } catch {
+    return [];
+  }
+})();
+const releases = groupReleases(parseCommitLog(git(['log', '-n', '300', `--format=${GIT_LOG_FORMAT}`])), prs);
+
+// The Swedish texts the live site has written so far, for the news pages' HTML (news.js fills in newer ones).
+const written = new Map<string, ReleaseText>();
+try {
+  const res = await fetch('https://lunchit.se/releases.json?lang=sv', { signal: AbortSignal.timeout(10_000) });
+  for (const post of res.ok ? ((await res.json()) as ReleasePost[]) : []) {
+    const text = !post.pending && parseReleaseText(post);
+    if (text) written.set(post.key, text);
+  }
+} catch {}
+const newsSnapshot = path.join(root, '.astro', 'news-snapshot.json');
+await fs.mkdir(path.dirname(newsSnapshot), { recursive: true });
+await fs.writeFile(newsSnapshot, JSON.stringify(toPosts(releases, written)));
+process.stdout.write(`News: ${releases.length} releases from ${prs.length} pull requests, ${written.size} written\n`);
 
 // Label-based diets only; the Worker adds Workers AI guesses for the rest.
 const captured = await fs.readFile(path.join(root, 'captured.json'), 'utf8').catch(() => null);
@@ -21,21 +68,14 @@ await fs.writeFile(snapshot, JSON.stringify(data));
 execFileSync('npx', ['astro', 'build'], {
   cwd: root,
   stdio: 'inherit',
-  env: { ...process.env, LUNCH_SNAPSHOT: snapshot },
+  env: { ...process.env, LUNCH_SNAPSHOT: snapshot, NEWS_SNAPSHOT: newsSnapshot },
 });
 
 // Shipped as an asset so the Worker's live /lunch.json can use it too.
 if (captured !== null) await fs.writeFile(path.join(dist, 'captured.json'), captured);
 
-// Release-note source for the Worker's /releases.json (CI checks out full history for this).
-const log = (() => {
-  try {
-    return execFileSync('git', ['log', '-n', '200', `--format=${GIT_LOG_FORMAT}`], { cwd: root, encoding: 'utf8' });
-  } catch {
-    return '';
-  }
-})();
-await fs.writeFile(path.join(dist, 'commits.json'), JSON.stringify(parseCommitLog(log)));
+// The releases for the Worker's /releases.json, which writes their texts.
+await fs.writeFile(path.join(dist, 'releases-source.json'), JSON.stringify(releases));
 
 await fs.writeFile(path.join(dist, 'lunch.json'), JSON.stringify(data));
 

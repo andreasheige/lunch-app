@@ -78,11 +78,15 @@ export interface LunchResponse {
   restaurants: RestaurantMenu[];
 }
 
-// A feat/fix commit as build.ts reads it from git log (dist/commits.json).
+// A feat/fix commit as build.ts reads it from git log.
 export interface ReleaseCommit {
   sha: string;
   /** ISO 8601 commit date. */
   date: string;
+  /** ISO 8601 author date; with the headline it finds the commit among a PR's commits after a rebase merge. */
+  authored: string;
+  /** The whole first line, "feat: …". */
+  headline: string;
   type: 'feat' | 'fix';
   subject: string;
   body: string;
@@ -90,15 +94,54 @@ export interface ReleaseCommit {
   issue: number | null;
 }
 
-// GET /releases.json: one post per commit, newest first.
-export interface ReleaseNote {
-  sha: string;
-  date: string;
-  type: 'feat' | 'fix';
+// A merged pull request as build.ts reads it from GitHub.
+export interface PullRequest {
+  number: number;
   title: string;
   body: string;
-  issue: number | null;
-  /** Not rewritten into Swedish yet; title is the commit subject. */
+  mergeCommit: string | null;
+  commits: { headline: string; authored: string }[];
+}
+
+// One release: the feat/fix commits of one PR, or a single commit pushed without one (dist/releases-source.json).
+export interface ReleaseSource {
+  /** "pr-47" or the commit sha; the D1 key of its texts. */
+  key: string;
+  /** Its page: /news/<slug>, "2026-10-14-a-new-lunchit". Language-neutral, so both languages share it. */
+  slug: string;
+  /** The newest commit's date. */
+  date: string;
+  pr: number | null;
+  title: string;
+  body: string;
+  commits: Pick<ReleaseCommit, 'type' | 'subject' | 'body'>[];
+}
+
+export type ChangeKind = 'new' | 'improved' | 'fixed';
+
+export interface ReleaseChange {
+  kind: ChangeKind;
+  title: string;
+  text: string;
+}
+
+// The texts Workers AI writes for a release, per language (D1 release_posts).
+export interface ReleaseText {
+  title: string;
+  summary: string;
+  intro: string[];
+  changes: ReleaseChange[];
+}
+
+// GET /releases.json: one post per release, newest first.
+export interface ReleasePost extends ReleaseText {
+  key: string;
+  slug: string;
+  date: string;
+  pr: number | null;
+  /** Kinds of change in it, in the order new, improved, fixed. */
+  kinds: ChangeKind[];
+  /** No AI text yet; title and changes come from the PR and commit subjects. */
   pending: boolean;
 }
 

@@ -4,8 +4,9 @@
 import type {
   LunchResponse,
   RatingSummary,
-  ReleaseCommit,
-  ReleaseNote,
+  ReleasePost,
+  ReleaseSource,
+  ReleaseText,
   StatsResponse,
   TodaysRatings,
 } from '../shared/types.ts';
@@ -14,7 +15,7 @@ import { getTodaysLunch, parseCaptured } from './lunch.ts';
 import { menuDayRows } from './menudays.ts';
 import { type ContactRow, FROM, notifyEmail } from './notify.ts';
 import { parseRating, rangeStart, ratingKey } from './ratings.ts';
-import { NOTE_LANGS, type NoteLang, noteLang, parseNote, toNotes } from './releases.ts';
+import { type NoteLang, noteLang, parseReleaseText, RELEASE_PROMPTS, releaseInput, toPosts } from './releases.ts';
 import { githubHeaders, handleReport, type ReportEnv } from './report.ts';
 import { RESTAURANTS } from './restaurants.ts';
 import { menuStrings, parseTranslations, TRANSLATE_PROMPT, type Translations } from './translate.ts';
@@ -101,51 +102,52 @@ async function translate(ai: Ai, texts: string[], origin: string): Promise<Trans
 }
 
 const RELEASE_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
-const RELEASE_BATCH = 8;
+const RELEASE_BATCH = 4;
 
-// Commits from the build (commits.json) with their text in `lang` from D1; up to RELEASE_BATCH commits without
-// one are rewritten by Workers AI and stored, so each commit costs one call per language ever. `complete` is
-// false while some still show their commit subject, so the response isn't cached until all are done.
-async function releaseNotes(
+// Releases from the build (releases-source.json) with their text in `lang` from D1; up to RELEASE_BATCH without
+// one are written by Workers AI and stored, so each release costs one call per language ever. `complete` is false
+// while some still show their fallback text, so the response isn't cached until all are done.
+async function releasePosts(
   env: Env,
   origin: string,
   lang: NoteLang,
-): Promise<{ notes: ReleaseNote[]; complete: boolean }> {
-  const { table, prompt } = NOTE_LANGS[lang];
-  const res = await env.ASSETS.fetch(new Request(`${origin}/commits.json`));
-  const commits: ReleaseCommit[] = res.ok ? await res.json() : [];
-  const { results } = await env.DB.prepare(`SELECT sha, title, body FROM ${table}`).all<{
-    sha: string;
-    title: string;
-    body: string;
-  }>();
-  const texts = new Map(results.map((r) => [r.sha, { title: r.title, body: r.body }]));
-  const missing = commits.filter((c) => !texts.has(c.sha)).slice(0, RELEASE_BATCH);
+): Promise<{ posts: ReleasePost[]; complete: boolean }> {
+  const res = await env.ASSETS.fetch(new Request(`${origin}/releases-source.json`));
+  const releases: ReleaseSource[] = res.ok ? await res.json() : [];
+  const { results } = await env.DB.prepare('SELECT key, text FROM release_posts WHERE lang = ?')
+    .bind(lang)
+    .all<{ key: string; text: string }>();
+  const texts = new Map<string, ReleaseText>();
+  for (const r of results) {
+    const t = parseReleaseText(r.text);
+    if (t) texts.set(r.key, t);
+  }
+  const missing = releases.filter((r) => !texts.has(r.key)).slice(0, RELEASE_BATCH);
   await Promise.all(
-    missing.map(async (c) => {
+    missing.map(async (r) => {
       try {
         const out = await env.AI.run(RELEASE_MODEL, {
           messages: [
-            { role: 'system', content: prompt },
-            { role: 'user', content: `${c.type}: ${c.subject}\n\n${c.body}` },
+            { role: 'system', content: RELEASE_PROMPTS[lang] },
+            { role: 'user', content: releaseInput(r) },
           ],
           response_format: { type: 'json_object' },
           temperature: 0.3,
-          max_tokens: 400,
+          max_tokens: 1200,
         });
-        const note = parseNote(typeof out === 'object' && out !== null && 'response' in out ? out.response : null);
-        if (!note) return;
-        await env.DB.prepare(`INSERT OR IGNORE INTO ${table} (sha, title, body) VALUES (?, ?, ?)`)
-          .bind(c.sha, note.title, note.body)
+        const t = parseReleaseText(typeof out === 'object' && out !== null && 'response' in out ? out.response : null);
+        if (!t) return;
+        await env.DB.prepare('INSERT OR IGNORE INTO release_posts (key, lang, text) VALUES (?, ?, ?)')
+          .bind(r.key, lang, JSON.stringify(t))
           .run();
-        texts.set(c.sha, note);
+        texts.set(r.key, t);
       } catch {
         // Left pending; the next request tries again.
       }
     }),
   );
-  const notes = toNotes(commits, texts);
-  return { notes, complete: notes.every((n) => !n.pending) };
+  const posts = toPosts(releases, texts);
+  return { posts, complete: posts.every((p) => !p.pending) };
 }
 
 // /lunch.json, edge-cached and keyed by deployed version, so a deploy starts with an empty cache instead of
@@ -372,8 +374,8 @@ export default {
       const key = new Request(`${url.origin}/releases.json?v=${env.CF_VERSION_METADATA.id}&lang=${lang}`);
       const cached = await caches.default.match(key);
       if (cached) return cached;
-      const { notes, complete } = await releaseNotes(env, url.origin, lang);
-      const res = new Response(JSON.stringify(notes), {
+      const { posts, complete } = await releasePosts(env, url.origin, lang);
+      const res = new Response(JSON.stringify(posts), {
         headers: {
           'content-type': 'application/json; charset=utf-8',
           'cache-control': complete ? `public, max-age=${MAX_AGE}` : 'no-store',
