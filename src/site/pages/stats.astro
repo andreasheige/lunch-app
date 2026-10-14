@@ -1,24 +1,36 @@
 ---
 import Layout from '../components/Layout.astro';
 import '../styles/stats.css';
+
+const tabs = [
+  { id: 'overview', key: 'stats.tab-overview', text: 'Översikt' },
+  { id: 'analytics', key: 'stats.tab-analytics', text: 'Analys' },
+  { id: 'dashboard', key: 'stats.tab-dashboard', text: 'Dashboard' },
+  { id: 'graph', key: 'stats.tab-graph', text: 'Graf' },
+  { id: 'visuals', key: 'stats.tab-visuals', text: 'Visuellt' },
+];
 ---
 <Layout title="Statistik – Lunchit"
-  description="Vad tycker lunchgästerna? Snittbetyg per restaurang, de bästa rätterna och röster per dag för lunchen nära Knowit-kontoret i Göteborg."
+  description="Lunchen i siffror: betygsligan, analys, dagens menyer som dashboard, ett nätverk av ingredienser och datavisualiseringar för restaurangerna nära Knowit-kontoret i Göteborg."
   path="/stats" titleKey="title.stats" script="stats.js" current="stats">
 <header class="page-head">
   <h1 data-i18n="stats.title">Statistik</h1>
-  <p class="lunch-status" data-i18n="stats.intro">Vad tycker lunchgästerna? Betygsätt dagens rätter med stjärnorna på startsidan.</p>
+  <p class="lunch-status" data-i18n="stats.intro">Lunchen i siffror: vad gästerna tycker och vad som serveras.</p>
 </header>
 <main class="stats">
   <div class="stats-controls">
-    <fieldset class="segmented">
+    <div class="stats-tabs" role="tablist" aria-label="Vy" data-i18n-label="stats.views">
+      {tabs.map((t, i) => (
+        <button type="button" role="tab" id={`tab-${t.id}`} data-tab={t.id} aria-controls="stats-view" aria-selected={i === 0 ? 'true' : 'false'} tabindex={i === 0 ? 0 : -1} data-i18n={t.key}>{t.text}</button>
+      ))}
+    </div>
+    <fieldset id="stats-range" class="segmented">
       <legend class="visually-hidden" data-i18n="stats.period">Period</legend>
       <button type="button" class="seg" data-range="14" aria-pressed="true" data-i18n="stats.14">Senaste 2 veckorna</button>
       <button type="button" class="seg" data-range="all" aria-pressed="false" data-i18n="stats.all">Hela tiden</button>
     </fieldset>
-    <button type="button" id="present" class="present"><span data-i18n="stats.present">Presentera</span></button>
   </div>
-  <section id="slide" class="slide" aria-live="polite" aria-busy="true">
+  <section id="stats-view" class="stats-view" role="tabpanel" aria-labelledby="tab-overview" aria-live="polite" aria-busy="true">
     <p class="notice" data-i18n="stats.loading">Hämtar statistik…</p>
   </section>
   <div id="viz-tooltip" class="viz-tooltip" role="tooltip" hidden></div>

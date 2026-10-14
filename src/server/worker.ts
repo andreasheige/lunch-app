@@ -11,6 +11,7 @@ import type {
 } from '../shared/types.ts';
 import { addDiets, type Classified, DIET_PROMPT, parseModelDiets, unlabelledDishes } from './diet.ts';
 import { getTodaysLunch, parseCaptured } from './lunch.ts';
+import { menuDayRows } from './menudays.ts';
 import { type ContactRow, FROM, notifyEmail } from './notify.ts';
 import { parseRating, rangeStart, ratingKey } from './ratings.ts';
 import { NOTE_LANGS, type NoteLang, noteLang, parseNote, toNotes } from './releases.ts';
@@ -163,7 +164,23 @@ async function lunchResponse(request: Request, env: Env, ctx: ExecutionContext):
     headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': `public, max-age=${MAX_AGE}` },
   });
   ctx.waitUntil(caches.default.put(key, res.clone()));
+  ctx.waitUntil(saveMenuDay(env, data));
   return res;
+}
+
+// Today's menus into D1 menu_days for the stats history; runs on each cache miss (every 30 min at most) and
+// replaces the day's rows, so later diet guesses and menu fixes win. A failure only costs history, not the page.
+async function saveMenuDay(env: Env, lunch: LunchResponse): Promise<void> {
+  const rows = menuDayRows(lunch);
+  if (!rows.length) return;
+  const insert = env.DB.prepare(
+    'INSERT OR REPLACE INTO menu_days (date, restaurant, dish, description, diet, mentions) VALUES (?, ?, ?, ?, ?, ?)',
+  );
+  try {
+    await env.DB.batch(rows.map((r) => insert.bind(r.date, r.restaurant, r.dish, r.description, r.diet, r.mentions)));
+  } catch (err) {
+    console.error('menu_days: save failed', err instanceof Error ? err.message : err);
+  }
 }
 
 const json = (data: unknown, status = 200, maxAge = 0): Response =>
@@ -230,7 +247,7 @@ async function stats(request: Request, env: Env, ctx: ExecutionContext): Promise
   const from = rangeStart(lunch.date, range);
   const names = new Map(RESTAURANTS.map((r) => [r.id, r.name]));
   const q = (sql: string) => env.DB.prepare(sql).bind(from);
-  const [totals, restaurants, dishes, days, divisive] = await env.DB.batch([
+  const [totals, restaurants, dishes, days, divisive, placeDays, stars, rated, menuDays] = await env.DB.batch([
     q(`SELECT COUNT(*) AS votes, COUNT(DISTINCT voter) AS voters,
          COUNT(DISTINCT restaurant || char(10) || dish) AS dishes, AVG(stars) AS avg
        FROM ratings WHERE date >= ?`),
@@ -242,6 +259,13 @@ async function stats(request: Request, env: Env, ctx: ExecutionContext): Promise
     q(`SELECT restaurant, dish, AVG(stars) AS avg, COUNT(*) AS votes,
          AVG(stars * stars) - AVG(stars) * AVG(stars) AS spread
        FROM ratings WHERE date >= ? GROUP BY restaurant, dish HAVING COUNT(*) >= 3 ORDER BY spread DESC LIMIT 1`),
+    q(`SELECT restaurant AS id, date, AVG(stars) AS avg, COUNT(*) AS votes FROM ratings WHERE date >= ?
+       GROUP BY restaurant, date ORDER BY date`),
+    q(`SELECT restaurant AS id, stars, COUNT(*) AS votes FROM ratings WHERE date >= ? GROUP BY restaurant, stars`),
+    q(`SELECT restaurant, dish, AVG(stars) AS avg, COUNT(*) AS votes, MIN(stars) AS min, MAX(stars) AS max,
+         MAX(date) AS last FROM ratings WHERE date >= ? GROUP BY restaurant, dish ORDER BY avg DESC, votes DESC`),
+    q(`SELECT date, COUNT(*) AS dishes, SUM(diet = 'veg') AS veg, SUM(diet = 'fish') AS fish,
+         SUM(diet = 'meat') AS meat, SUM(diet IS NULL) AS none FROM menu_days WHERE date >= ? GROUP BY date ORDER BY date`),
   ]);
   const rows = <T>(r: D1Result | undefined) => (r?.results ?? []) as T[]; // D1 rows are untyped; shapes match the SELECTs above
   const name = (id: string) => names.get(id) ?? id;
@@ -259,12 +283,22 @@ async function stats(request: Request, env: Env, ctx: ExecutionContext): Promise
         ...d,
         restaurant: name(d.restaurant),
       }))[0] ?? null,
+    placeDays: rows<StatsResponse['placeDays'][number]>(placeDays),
+    stars: rows<StatsResponse['stars'][number]>(stars),
+    rated: rows<StatsResponse['rated'][number]>(rated).map((d) => ({ ...d, restaurant: name(d.restaurant) })),
+    menuDays: rows<StatsResponse['menuDays'][number]>(menuDays),
   };
   if (url.searchParams.get('lang') !== 'en') return json(data, 200, STATS_MAX_AGE);
   // Dish names are as the menu said them, in Swedish; restaurant names stay as they are.
   const en = await translate(
     env.AI,
-    [...new Set([...data.dishes.map((d) => d.dish), ...(data.divisive ? [data.divisive.dish] : [])])],
+    [
+      ...new Set([
+        ...data.dishes.map((d) => d.dish),
+        ...data.rated.map((d) => d.dish),
+        ...(data.divisive ? [data.divisive.dish] : []),
+      ]),
+    ],
     url.origin,
   );
   const tr = (s: string) => en[s] ?? s;
@@ -272,6 +306,7 @@ async function stats(request: Request, env: Env, ctx: ExecutionContext): Promise
     {
       ...data,
       dishes: data.dishes.map((d) => ({ ...d, dish: tr(d.dish) })),
+      rated: data.rated.map((d) => ({ ...d, dish: tr(d.dish) })),
       divisive: data.divisive && { ...data.divisive, dish: tr(data.divisive.dish) },
     } satisfies StatsResponse,
     200,
