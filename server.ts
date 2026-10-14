@@ -4,7 +4,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { addDiets } from './src/server/diet.ts';
 import { getTodaysLunch, parseCaptured } from './src/server/lunch.ts';
-import { GIT_LOG_FORMAT, parseCommitLog, toNotes } from './src/server/releases.ts';
+import { GIT_LOG_FORMAT, groupReleases, parseCommitLog, toPosts } from './src/server/releases.ts';
 
 const PORT = Number(process.env.PORT) || 3000;
 // The pages as `astro build` wrote them (npm start builds first); lunch.json and releases.json are live below.
@@ -31,11 +31,12 @@ const server = http.createServer(async (req, res) => {
     return res.end(JSON.stringify(data));
   }
 
-  // Commit subjects only: the Swedish texts come from Workers AI + D1, which need the Worker (wrangler dev).
+  // Commit subjects only, one release per commit: PR grouping needs GitHub (npm run build) and the texts come from
+  // Workers AI + D1, which need the Worker (wrangler dev).
   if (pathname === '/releases.json') {
-    const log = execFileSync('git', ['log', '-n', '200', `--format=${GIT_LOG_FORMAT}`], { encoding: 'utf8' });
+    const log = execFileSync('git', ['log', '-n', '300', `--format=${GIT_LOG_FORMAT}`], { encoding: 'utf8' });
     res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
-    return res.end(JSON.stringify(toNotes(parseCommitLog(log), new Map())));
+    return res.end(JSON.stringify(toPosts(groupReleases(parseCommitLog(log), []), new Map())));
   }
 
   // Extensionless page URLs (/news) map to their .html file, as Cloudflare's asset handling does.

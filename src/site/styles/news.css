@@ -1,125 +1,321 @@
-/* The news page only (imported by pages/news.astro); tokens and shared pieces are in site.css. */
+/* The news pages only (imported by pages/news.astro and pages/news/[slug].astro); tokens and shared pieces are in
+   site.css. A changelog: the list by month with the date beside each post, and a post page with its facts beside. */
 
-/* Nyheter: a single reading column with a timeline down the left. */
-
-/* News loads after the page: a screen's height up front keeps the footer from jumping. */
-main.blog {
-  min-height: 100vh;
-}
-
-main.blog {
-  display: block;
-}
-
-main.blog > * {
-  max-width: 760px;
-}
-
-.blog-month {
-  margin: 36px 0 12px;
-  color: var(--faint);
-  font-size: 0.75rem;
+.news-label {
+  display: inline-block;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  line-height: 20px;
+}
+
+/* The diet chips' pairs, already checked for contrast in light and dark. */
+.news-label.new {
+  background: var(--veg-bg);
+  color: var(--veg-fg);
+}
+
+.news-label.improved {
+  background: var(--fish-bg);
+  color: var(--fish-fg);
+}
+
+.news-label.fixed {
+  background: var(--meat-bg);
+  color: var(--meat-fg);
+}
+
+.news-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* List */
+
+main.news {
+  max-width: 920px;
+  padding-block: 28px 48px;
+}
+
+.news-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 18px;
+  border-bottom: 2px solid var(--text);
+}
+
+.news-head h1 {
+  margin: 0;
+  font-family: var(--font-head);
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+}
+
+.news-head p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.news-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.news-filters .chip {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.chip-count {
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.news-month-title {
+  margin: 26px 0 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.blog-month:first-child {
-  margin-top: 0;
-}
-
-.post {
+.news-row {
   position: relative;
-  margin: 0;
-  padding: 4px 0 28px 28px;
-  border-left: 1px solid var(--border-strong);
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 24px;
+  padding-block: 18px;
+  border-bottom: 1px solid var(--border);
 }
 
-.post::before {
-  content: "";
-  position: absolute;
-  top: 10px;
-  left: -6px;
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: var(--bg);
-  box-shadow: inset 0 0 0 2px var(--accent);
-}
-
-.post.fix::before {
-  box-shadow: inset 0 0 0 2px var(--open);
-}
-
-.post-meta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0;
+.news-row > time {
+  padding-top: 2px;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: 13px;
 }
 
-.post-tag {
-  padding: 0 7px;
-  border: 1px solid currentColor;
-  border-radius: 2em;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 18px;
+.news-row-body {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
 }
 
-.post-tag.feat {
-  color: var(--accent);
-}
-
-.post-tag.fix {
-  color: var(--open);
-}
-
-.post-title {
+.news-row-title {
+  margin: 0;
   font-family: var(--font-head);
-  margin: 8px 0 6px;
-  font-size: clamp(1.2rem, 2.4vw, 1.5rem);
-  line-height: 1.25;
-  letter-spacing: -0.02em;
+  font-size: 1.3rem;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
 }
 
-.post-body {
-  margin: 0;
-  color: var(--muted);
-  font-size: 1rem;
-  line-height: 1.6;
+.news-row-title.big {
+  font-size: clamp(1.4rem, 3vw, 1.75rem);
 }
 
-.post-issue {
-  display: inline-block;
-  margin-top: 10px;
-  color: var(--accent);
-  font-size: 0.88rem;
+.news-row-title a {
+  color: inherit;
   text-decoration: none;
 }
 
-.post-issue:hover {
+/* The whole row opens the post; the title is the link. */
+.news-row-title a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.news-row-summary {
+  margin: 0;
+  color: var(--muted);
+}
+
+.news-row-more {
+  margin: 0;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* The label filter (news.js) hides rows and empty months; display: grid would otherwise win over [hidden]. */
+.news-row[hidden],
+.news-month[hidden] {
+  display: none;
+}
+
+@media (max-width: 639px) {
+  .news-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+}
+
+/* Post */
+
+main.news-post {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-areas: "post facts" "pager .";
+  gap: 28px 40px;
+  align-items: start;
+  padding-block: 22px 48px;
+}
+
+#news-post {
+  grid-area: post;
+  max-width: 720px;
+}
+
+.news-back {
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.news-back:hover {
   text-decoration: underline;
 }
 
-.post.skeleton {
-  display: grid;
-  gap: 10px;
+.news-post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 13px;
 }
 
-.post.skeleton span {
-  height: 14px;
-  border-radius: 6px;
+#news-post h1 {
+  margin: 10px 0 0;
+  font-family: var(--font-head);
+  font-size: clamp(1.9rem, 5vw, 2.9rem);
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+}
+
+.news-intro {
+  margin: 16px 0 0;
+  font-size: 1.06rem;
+  line-height: 1.6;
+}
+
+.news-group {
+  margin-top: 28px;
+}
+
+.news-group h2 {
+  margin: 0 0 4px;
+}
+
+.news-group ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.news-group li {
+  display: grid;
+  gap: 2px;
+  padding-block: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.news-group li span {
+  color: var(--muted);
+  font-size: 0.94rem;
+}
+
+.news-facts {
+  grid-area: facts;
+  position: sticky;
+  top: 20px;
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  font-size: 14px;
+}
+
+.news-facts p {
+  display: grid;
+  margin: 0;
+}
+
+.news-facts p > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.news-facts a {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.news-pager {
+  grid-area: pager;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  max-width: 720px;
+}
+
+.news-pager a {
+  display: grid;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.news-pager a:hover {
   background: var(--surface-hover);
 }
 
-.post.skeleton span:nth-child(2) {
-  width: 70%;
-  height: 22px;
+.news-pager a span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.news-pager .newer {
+  text-align: right;
+}
+
+@media (max-width: 859px) {
+  main.news-post {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "post" "facts" "pager";
+  }
+
+  .news-facts {
+    position: static;
+  }
 }
 
 .footer-link {
   color: var(--muted);
+}
+
+/* Last: more specific than the other links' rules above. */
+.news-row:hover .news-row-title a,
+.news-row-title a:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }

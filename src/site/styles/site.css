@@ -216,7 +216,8 @@ button {
 .page-head,
 .page-body,
 main.stats,
-main.blog,
+main.news,
+main.news-post,
 footer {
   width: min(1176px, 100% - 2 * var(--gutter));
   margin-inline: auto;

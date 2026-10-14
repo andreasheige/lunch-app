@@ -1,0 +1,67 @@
+---
+import Layout from '../../components/Layout.astro';
+import NewsLabels from '../../components/NewsLabels.astro';
+import { countsSv, dateSv, KIND_SV, newsPosts, summaryOf } from '../../news.ts';
+import { jsonForScript, SITE } from '../../snapshot.ts';
+import '../../styles/news.css';
+
+// One release as a post: intro, then its changes under New / Improved / Fixed. news.js redraws it in English.
+export function getStaticPaths() {
+  const posts = newsPosts();
+  return posts.map((post, i) => ({
+    params: { slug: post.slug },
+    props: { post, older: posts[i + 1], newer: posts[i - 1] },
+  }));
+}
+
+const { post, older, newer } = Astro.props;
+const description = post.intro[0] ?? summaryOf(post);
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: post.title,
+  description,
+  datePublished: post.date,
+  url: `${SITE}/news/${post.slug}`,
+  inLanguage: 'sv',
+  publisher: { '@type': 'Organization', name: 'Lunchit', url: SITE },
+};
+---
+<Layout title={`${post.title} – Lunchit`} description={description} path={`/news/${post.slug}`} titleKey=""
+  script="news.js" current="news">
+<script is:inline slot="head" type="application/ld+json" set:html={jsonForScript(jsonLd)} />
+<main class="news-post" data-slug={post.slug}>
+  <article id="news-post" data-key={post.key} data-pending={post.pending ? '' : undefined}>
+    <p><a class="news-back" href="/news" data-i18n="news.back">← Alla nyheter</a></p>
+    <p class="news-post-meta"><NewsLabels kinds={post.kinds} /><time datetime={post.date}>{dateSv(post.date)}</time></p>
+    <h1>{post.title}</h1>
+    {post.intro.map((p) => <p class="news-intro">{p}</p>)}
+    {post.kinds.map((kind) => (
+      <section class="news-group">
+        <h2><span class={`news-label ${kind}`}>{KIND_SV[kind]}</span></h2>
+        <ul>
+          {post.changes.filter((c) => c.kind === kind).map((c) => (
+            <li><strong>{c.title}</strong>{c.text && <span>{c.text}</span>}</li>
+          ))}
+        </ul>
+      </section>
+    ))}
+  </article>
+  <aside class="news-facts">
+    <p><span data-i18n="news.released">Släppt</span><strong>{dateSv(post.date)}</strong></p>
+    <p><span data-i18n="news.changes-label">Ändringar</span><strong>{countsSv(post)}</strong></p>
+    {post.pr && (
+      <p><span data-i18n="news.built-in">Byggt i</span>
+        <a href={`https://github.com/andreasheige/lunch-app/pull/${post.pr}`} rel="noopener">Pull request #{post.pr} på GitHub ↗</a></p>
+    )}
+  </aside>
+  <nav class="news-pager" aria-label="Fler inlägg" data-i18n-label="news.more-posts">
+    {older ? <a class="older" href={`/news/${older.slug}`}><span data-i18n="news.older">← Äldre</span><strong>{older.title}</strong></a> : <span />}
+    {newer ? <a class="newer" href={`/news/${newer.slug}`}><span data-i18n="news.newer">Nyare →</span><strong>{newer.title}</strong></a> : <span />}
+  </nav>
+</main>
+<footer>
+  <p data-i18n="news.footer">Texterna skrivs av AI utifrån ändringarna i koden.</p>
+  <p><a class="footer-link" href="/" data-i18n="back">← Tillbaka till dagens lunch</a></p>
+</footer>
+</Layout>
