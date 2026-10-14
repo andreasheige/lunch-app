@@ -1,6 +1,6 @@
 # lunch-app
 
-Shows today's lunch menus for restaurants near the Knowit office (Göteborg). Strict TypeScript (TS 7), run directly by Node ≥22.18 (type stripping) and wrangler. One runtime dependency: SortableJS (the "Sortera" drag and drop; `astro.config.mjs` copies its minified file to `dist/vendor/`, loaded only in sort mode). Pages are built by Astro (static output, dev dependency only).
+Shows today's lunch menus for restaurants around Platinan by Centralen in Göteborg (where the Knowit office is). Strict TypeScript (TS 7), run directly by Node ≥22.18 (type stripping) and wrangler. One runtime dependency: SortableJS (the "Sortera" drag and drop; `astro.config.mjs` copies its minified file to `dist/vendor/`, loaded only in sort mode). Pages are built by Astro (static output, dev dependency only).
 
 - `src/shared/types.ts` — shapes shared by server and client (`LunchResponse`, `Dish`, `ReportRequest`, …)
 - `src/server/restaurants.ts` — restaurant list + one parser per site (page text lines → today's dishes)
