@@ -131,6 +131,14 @@ export interface StatsResponse {
   days: { date: string; votes: number; avg: number }[];
   /** Widest spread of stars (min 3 votes): the dish people disagree on most. */
   divisive: { restaurant: string; dish: string; avg: number; votes: number; spread: number } | null;
+  /** Average and votes per place and day: the league's form. */
+  placeDays: { id: string; date: string; avg: number; votes: number }[];
+  /** Votes per place and star (1–5): the star spread. */
+  stars: { id: string; stars: number; votes: number }[];
+  /** Every rated dish with its lowest and highest vote and the last day it was rated. */
+  rated: { restaurant: string; dish: string; avg: number; votes: number; min: number; max: number; last: string }[];
+  /** The served menus per day (D1 menu_days): dishes and their diets. */
+  menuDays: { date: string; dishes: number; veg: number; fish: number; meat: number; none: number }[];
 }
 
 export type ReportKind = 'bug' | 'feat-req';
