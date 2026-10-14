@@ -11,7 +11,6 @@ const DATE_FMT = new Intl.DateTimeFormat(LOCALE, {
   timeZone: 'Europe/Stockholm',
 });
 const MONTH_FMT = new Intl.DateTimeFormat(LOCALE, { month: 'long', year: 'numeric', timeZone: 'Europe/Stockholm' });
-const PULLS = 'https://github.com/andreasheige/lunch-app/pull/';
 
 const kindCount = (post, kind) => post.changes.filter((c) => c.kind === kind).length;
 const summaryOf = (post) => post.summary || post.changes.map((c) => c.title).join(', ');
@@ -105,11 +104,6 @@ function renderPost(main, posts, i) {
     t('news.changes-label'),
     el('strong', null, post.kinds.map((k) => t(`news.count.${k}`, kindCount(post, k))).join(' · ')),
   );
-  if (post.pr) {
-    const pr = link(`${PULLS}${post.pr}`, t('news.pr', post.pr));
-    pr.rel = 'noopener';
-    fact(t('news.built-in'), pr);
-  }
 
   const pager = el('nav', 'news-pager');
   pager.setAttribute('aria-label', t('news.more-posts'));
