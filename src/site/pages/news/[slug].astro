@@ -50,10 +50,6 @@ const jsonLd = {
   <aside class="news-facts">
     <p><span data-i18n="news.released">Släppt</span><strong>{dateSv(post.date)}</strong></p>
     <p><span data-i18n="news.changes-label">Ändringar</span><strong>{countsSv(post)}</strong></p>
-    {post.pr && (
-      <p><span data-i18n="news.built-in">Byggt i</span>
-        <a href={`https://github.com/andreasheige/lunch-app/pull/${post.pr}`} rel="noopener">Pull request #{post.pr} på GitHub ↗</a></p>
-    )}
   </aside>
   <nav class="news-pager" aria-label="Fler inlägg" data-i18n-label="news.more-posts">
     {older ? <a class="older" href={`/news/${older.slug}`}><span data-i18n="news.older">← Äldre</span><strong>{older.title}</strong></a> : <span />}
