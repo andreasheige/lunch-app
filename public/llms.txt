@@ -9,6 +9,7 @@ Menus are read from each restaurant's own website every weekday. Allergen mentio
 - [Today's menus (JSON)](https://lunchit.se/lunch.json): `{ date, day, week, fetchedAt, restaurants: [{ id, name, url, address, distance (metres from Platinan), hours ("11.00–13.30"), price, dishes: [{ category, name, description, diet ("veg" | "fish" | "meat"), dietByAi, mentions (allergens) }], stale, error }] }`. `day` is null on weekends.
 - [Today's ratings (JSON)](https://lunchit.se/ratings.json): average 1–5 stars and vote count per "restaurantId\ndish name".
 - [Rating statistics (JSON)](https://lunchit.se/stats.json?range=14): last two weeks; `range=all` for all time, `lang=en` for English.
+- [Menu history (JSON)](https://lunchit.se/history.json): the latest week's menus by day and place, that week's best-rated dishes and the dishes served on several days; `lang=en` for English.
 - [Release notes (JSON)](https://lunchit.se/releases.json): what changed on the site, one post per release (title, summary, intro, changes marked new/improved/fixed, `slug` for its page at /news/<slug>); `lang=en` for English.
 
 ## Pages

@@ -897,6 +897,49 @@ dialog {
   line-height: 1.45;
 }
 
+.served {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+/* Weekends: a look back at the week instead of the listing. */
+.recap {
+  display: grid;
+  gap: 16px;
+  max-width: 640px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.recap h2,
+.recap h3 {
+  margin: 0;
+}
+
+.recap h3 {
+  font-size: 1rem;
+}
+
+.recap-list {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recap-list li {
+  display: grid;
+  gap: 2px;
+}
+
+.recap-dish {
+  font-weight: 600;
+}
+
 /* A dish: diet label + name, today's average on the right, and the allergen note when flagged. */
 .dish-line {
   display: flex;

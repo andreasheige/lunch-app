@@ -41,6 +41,8 @@ export interface Dish {
   kind?: DishKind | undefined;
   /** Allergens the menu text mentions. Never a free-from claim: no mention doesn't mean it's absent. */
   mentions?: Allergen[] | undefined;
+  /** Earlier days this place served a dish of this name (D1 menu_days), and the latest of them. */
+  served?: { times: number; last: string } | undefined;
 }
 
 // Static facts about a restaurant, as listed in restaurants.ts.
@@ -182,6 +184,24 @@ export interface StatsResponse {
   rated: { restaurant: string; dish: string; avg: number; votes: number; min: number; max: number; last: string }[];
   /** The served menus per day (D1 menu_days): dishes and their diets. */
   menuDays: { date: string; dishes: number; veg: number; fish: number; meat: number; none: number }[];
+}
+
+// GET /history.json: what the menus held lately (D1 menu_days) and how it was rated.
+export interface HistoryResponse {
+  /** First day in the history and how many days it holds. */
+  since: string | null;
+  days: number;
+  /** The latest week with menus (Monday to Friday, so far): per day, per place, the dishes served. */
+  week: {
+    week: number;
+    from: string;
+    to: string;
+    days: { date: string; places: { id: string; name: string; dishes: { dish: string; diet: Diet | null }[] }[] }[];
+  } | null;
+  /** That week's best-rated dishes. */
+  top: { restaurant: string; dish: string; avg: number; votes: number; date: string }[];
+  /** Dishes served on two or more days: how often, and the first and latest day. */
+  recurring: { restaurant: string; dish: string; times: number; first: string; last: string }[];
 }
 
 export type ReportKind = 'bug' | 'feat-req';
