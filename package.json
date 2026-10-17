@@ -11,6 +11,7 @@
     "start": "astro build && node server.ts",
     "dev": "node scripts/build.ts && wrangler d1 migrations apply lunch-app --local && wrangler dev",
     "build": "node scripts/build.ts",
+    "db:pull": "node scripts/db-pull.ts",
     "test": "node --test",
     "lint": "biome check .",
     "format": "biome check --write .",

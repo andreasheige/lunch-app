@@ -31,6 +31,7 @@ Shows today's lunch menus for restaurants around Platinan by Centralen in Göteb
 
 ## Common commands
 - `npm run dev` — the real Worker with a local D1 on http://localhost:8787: full build, `wrangler d1 migrations apply --local`, `wrangler dev` (wrangler is a pinned dev dependency). Ratings, stats, history and "rate yesterday" only work here; the local D1 starts empty and fills from weekday `/lunch.json` requests and your votes
+- `npm run db:pull` — copies the live D1 data (menu_days, ratings, release posts/notes) into the local D1 for `npm run dev`; leaves out `report_contacts` (reporters' names and emails). Needs `wrangler login`
 - `npm start` — `astro build`, then run on http://localhost:3000 (`PORT=…` to change); after editing pages or `public/`, `npx astro build` again (the server reads `dist/` per request). The D1 endpoints answer empty here
 - `node scripts/capture.ts` — capture Poppels locally (opens a Chrome window; `npx playwright install chromium` once)
 - `npm run build` — build `dist/` with today's menus in the HTML (prints one line per restaurant)
