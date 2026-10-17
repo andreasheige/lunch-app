@@ -45,156 +45,287 @@ function dietTag(d) {
   return [tag];
 }
 
-const VOTER_KEY = 'lunch-voter';
-const VOTES_KEY = 'lunch-votes';
-
-// A random id per browser, so a changed vote replaces the old one; it isn't tied to a person.
-function voterId() {
-  let id = readStored(VOTER_KEY, null);
-  if (!id) {
-    id = crypto.randomUUID();
-    writeStored(VOTER_KEY, id);
-  }
-  return id;
-}
-
-// Today's averages from /ratings.json, keyed "restaurantId\ndish name"; votes made here update it.
+// Today's averages from /ratings.json, keyed "restaurantId\ndish name": the "★ 4,5" next to each dish.
 const ratings = {};
 const ratingKey = (r, d) => `${r.id}\n${d.name}`;
 
-// "★ 4,5 · 2 röster", plus your own vote; "Inga röster än" before anyone has voted.
-function summaryText(s, mine) {
-  const base = s?.count ? `★ ${num(s.avg)} · ${t('votes', s.count)}` : t('rate.none');
-  return mine ? `${base} · ${t('rate.yours', mine)}` : base;
-}
-
 // The short "★ 4,5" next to a dish name; empty until someone has voted.
 const avgText = (key) => (ratings[key]?.count ? `★ ${num(ratings[key].avg)}` : '');
-
-// The day's average, your vote and a "Betygsätt" button that opens five star buttons. A click votes (or changes your
-// vote) for this dish. `store` holds that day's averages: today's, or the previous lunch day's (yesterdayRatings).
-function ratingRow(r, d, date, store = ratings) {
-  const row = el('div', 'rating');
-  const key = ratingKey(r, d);
-  row.dataset.key = key;
-  const voteKey = `${date}|${key}`;
-  const line = el('p', 'rating-line');
-  const summary = el('span', 'rating-summary');
-  const toggle = el('button', 'rating-toggle');
-  toggle.type = 'button';
-  toggle.setAttribute('aria-expanded', 'false');
-  line.append(summary, toggle);
-  const stars = el('div', 'stars');
-  stars.setAttribute('role', 'group');
-  stars.setAttribute('aria-label', t('rate.label', tr(d.name)));
-  stars.hidden = true;
-  const mine = () => readStored(VOTES_KEY, {})[voteKey] ?? 0;
-  const sync = () => {
-    const vote = mine();
-    summary.textContent = summaryText(store[key], vote);
-    summary.classList.toggle('has-votes', Boolean(store[key]?.count));
-    toggle.textContent = stars.hidden ? t(vote ? 'rate.change' : 'rate.open') : t('rate.done');
-    toggle.setAttribute('aria-expanded', String(!stars.hidden));
-    for (const b of stars.children) {
-      const n = Number(b.dataset.stars);
-      b.textContent = n <= vote ? '★' : '☆';
-      b.setAttribute('aria-pressed', String(n === vote));
-    }
-    if (store === ratings)
-      for (const avg of document.querySelectorAll('.dish-avg'))
-        if (avg.dataset.key === key) avg.textContent = avgText(key);
-  };
-  toggle.addEventListener('click', () => {
-    stars.hidden = !stars.hidden;
-    sync();
-    if (!stars.hidden) (stars.querySelector('[aria-pressed="true"]') ?? stars.firstChild).focus();
-  });
-  for (let i = 1; i <= 5; i++) {
-    const b = el('button', 'star', '☆');
-    b.type = 'button';
-    b.dataset.stars = String(i);
-    b.setAttribute('aria-label', t('rate.star', i));
-    b.addEventListener('click', async () => {
-      const votes = readStored(VOTES_KEY, {});
-      const before = votes[voteKey] ?? 0;
-      writeStored(VOTES_KEY, { ...votes, [voteKey]: i });
-      stars.hidden = true;
-      sync();
-      toggle.focus();
-      try {
-        const res = await fetch('rate', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ restaurant: r.id, dish: d.name, stars: i, voter: voterId(), date }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-        store[key] = data;
-        sync();
-      } catch {
-        writeStored(VOTES_KEY, { ...readStored(VOTES_KEY, {}), [voteKey]: before || undefined });
-        sync();
-        summary.textContent = t('rate.failed');
-      }
-    });
-    stars.append(b);
-  }
-  row.update = sync;
-  sync();
-  row.append(line, stars);
-  return row;
-}
 
 async function fillRatings() {
   try {
     const res = await fetch('ratings.json', { cache: 'no-store' });
     if (!res.ok) return;
     Object.assign(ratings, await res.json());
-    for (const row of document.querySelectorAll('.rating')) row.update();
     for (const avg of document.querySelectorAll('.dish-avg')) avg.textContent = avgText(avg.dataset.key);
   } catch {}
 }
 
-// The previous lunch day (/yesterday.json): rated the day after, in a closed section under the listing (open on
-// weekends, when there is no listing). Its averages are kept apart, since a dish can be on both days' menus.
-const yesterdayRatings = {};
+// ---- Rating: "Hur var lunchen?" ----
+// One vote per browser and day, for today's lunch or the previous lunch day's, in a sheet: the place, the dish,
+// the stars. The Worker keeps the voter in a signed cookie it sets after a Turnstile check, so the vote that counts
+// is the server's (/myvote.json); nothing about it is stored here.
 const WEEKDAY_FMT = new Intl.DateTimeFormat(LOCALE, { weekday: 'long', timeZone: 'UTC' });
+const rate = { days: [], mine: {}, day: 0 };
 
-async function showYesterday(today) {
+const lowerFirst = (s) => s.charAt(0).toLocaleLowerCase(LOCALE) + s.slice(1);
+
+// "Idag", "Igår" or "I fredags" for a lunch day.
+function dayLabel(date, today) {
+  if (date === today) return t('rate.today');
+  const before = new Date(`${today}T00:00:00Z`);
+  before.setUTCDate(before.getUTCDate() - 1);
+  if (date === before.toISOString().slice(0, 10)) return t('rate.yesterday');
+  return t('rate.on-day', WEEKDAY_FMT.format(new Date(`${date}T00:00:00Z`)));
+}
+
+// The days that can be rated: today's menus (weekdays) and the previous lunch day's (/yesterday.json), then the
+// bar says what this browser gave.
+async function setupRating(data, isToday) {
+  const days = [];
+  if (isToday && data.day) {
+    days.push({
+      date: data.date,
+      places: lunch.sorted
+        .filter((r) => r.dishes.length)
+        .map((r) => ({ id: r.id, name: r.name, dishes: r.dishes.map((d) => ({ name: d.name, diet: d.diet })) })),
+      name: tr,
+    });
+  }
   try {
-    const res = await fetch(`yesterday.json?lang=${LANG}`, { cache: 'no-store' });
-    if (!res.ok) return;
-    const y = await res.json();
-    if (!y.date || !y.places.length) return;
-    Object.assign(yesterdayRatings, y.ratings);
-    const section = document.getElementById('yesterday');
-    const dayBefore = new Date(`${today}T00:00:00Z`);
-    dayBefore.setUTCDate(dayBefore.getUTCDate() - 1);
-    const day = new Date(`${y.date}T00:00:00Z`);
-    const title =
-      y.date === dayBefore.toISOString().slice(0, 10)
-        ? t('yesterday.title')
-        : t('yesterday.title-day', WEEKDAY_FMT.format(day));
-    const summary = el('summary', 'yesterday-summary');
-    summary.append(el('span', 'yesterday-title', title), el('span', 'place-meta', shortDate(y.date)));
-    const list = el('div', 'yesterday-places');
-    for (const p of y.places) {
-      const place = el('section', 'yesterday-place');
-      place.append(el('h3', null, p.name));
-      const ul = el('ul', 'yesterday-dishes');
-      for (const x of p.dishes) {
-        const d = { name: x.dish, diet: x.diet };
-        const li = el('li', 'yesterday-dish');
-        li.append(el('span', 'dish-name', y.translations[d.name] ?? d.name), ratingRow(p, d, y.date, yesterdayRatings));
-        ul.append(li);
-      }
-      place.append(ul);
-      list.append(place);
+    const [y, mine] = await Promise.all([
+      isToday
+        ? fetch(`yesterday.json?lang=${LANG}`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null))
+        : null,
+      fetch('myvote.json', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : { votes: {} })),
+    ]);
+    if (y?.date && y.places.length) {
+      days.push({
+        date: y.date,
+        places: y.places.map((p) => ({
+          id: p.id,
+          name: p.name,
+          dishes: p.dishes.map((d) => ({ name: d.dish, diet: d.diet })),
+        })),
+        name: (text) => y.translations[text] ?? text,
+      });
     }
-    section.replaceChildren(summary, el('p', 'notice', t('yesterday.note')), list);
-    section.open = !lunch.data.day;
-    section.hidden = false;
+    rate.mine = mine.votes;
   } catch {}
+  for (const d of days) d.label = dayLabel(d.date, data.date);
+  rate.days = days;
+  renderRateBar();
+}
+
+function renderRateBar() {
+  const sub = document.getElementById('rate-sub');
+  const open = document.getElementById('rate-open');
+  const day = rate.days[0];
+  open.disabled = !day;
+  if (!day) {
+    sub.textContent = t('rate.nothing');
+    return;
+  }
+  const mine = rate.mine[day.date];
+  sub.textContent = mine
+    ? t('rate.gave', day.label, day.name(mine.dish), '★'.repeat(mine.stars))
+    : t('rate.ask', lowerFirst(day.label));
+  open.textContent = t(mine ? 'rate.change' : 'rate.go');
+}
+
+function setupRateSheet() {
+  const dialog = document.getElementById('rate-dialog');
+  const step = document.getElementById('rate-step');
+  const heading = document.getElementById('rate-heading');
+  const tabs = document.getElementById('rate-tabs');
+  const body = document.getElementById('rate-body');
+  let token = null;
+
+  const button = (className, onClick, ...content) => {
+    const b = el('button', className);
+    b.type = 'button';
+    b.append(...content);
+    b.addEventListener('click', onClick);
+    return b;
+  };
+  const back = (label, onClick) => button('rate-back', onClick, `← ${label}`);
+
+  const drawTabs = () => {
+    tabs.hidden = rate.days.length < 2;
+    tabs.replaceChildren(
+      ...rate.days.map((d, i) => {
+        const b = button(
+          'seg',
+          () => {
+            rate.day = i;
+            drawTabs();
+            places();
+          },
+          d.label,
+        );
+        b.setAttribute('aria-pressed', String(i === rate.day));
+        return b;
+      }),
+    );
+  };
+
+  const places = () => {
+    const day = rate.days[rate.day];
+    const mine = rate.mine[day.date];
+    step.textContent = t('picker.step', 1, 3);
+    heading.textContent = t('rate.where', lowerFirst(day.label));
+    const list = el('div', 'picker-answers');
+    for (const p of day.places) {
+      list.append(
+        button(
+          'picker-answer rate-answer',
+          () => dishes(p),
+          el('span', null, p.name),
+          el(
+            'span',
+            'rate-meta',
+            mine?.restaurant === p.id ? t('rate.your-place') : t('filter.count', p.dishes.length),
+          ),
+        ),
+      );
+    }
+    body.replaceChildren(list);
+    list.querySelector('button')?.focus();
+  };
+
+  const dishes = (p) => {
+    const day = rate.days[rate.day];
+    const mine = rate.mine[day.date];
+    step.textContent = t('picker.step', 2, 3);
+    heading.textContent = t('rate.which', p.name);
+    const list = el('div', 'picker-answers');
+    for (const d of p.dishes) {
+      const yours = mine?.restaurant === p.id && mine.dish === d.name;
+      const name = el('span');
+      name.append(...dietTag(d), day.name(d.name));
+      list.append(
+        button(
+          'picker-answer rate-answer',
+          () => stars(p, d),
+          name,
+          ...(yours ? [el('span', 'rate-meta', '★'.repeat(mine.stars))] : []),
+        ),
+      );
+    }
+    body.replaceChildren(back(t('rate.back-places'), places), list);
+    list.querySelector('button')?.focus();
+  };
+
+  const stars = (p, d) => {
+    const day = rate.days[rate.day];
+    const mine = rate.mine[day.date];
+    let chosen = mine?.restaurant === p.id && mine.dish === d.name ? mine.stars : 0;
+    step.textContent = t('picker.step', 3, 3);
+    heading.textContent = day.name(d.name);
+    const row = el('div', 'stars rate-stars');
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', t('rate.label', day.name(d.name)));
+    const send = button('picker-primary', () => submit(p, d, chosen, status, send), t('rate.send'));
+    const sync = () => {
+      for (const b of row.children) {
+        const n = Number(b.dataset.stars);
+        b.textContent = n <= chosen ? '★' : '☆';
+        b.setAttribute('aria-pressed', String(n === chosen));
+      }
+      send.disabled = !chosen;
+    };
+    for (let i = 1; i <= 5; i++) {
+      const b = button('star', () => {
+        chosen = i;
+        sync();
+      });
+      b.dataset.stars = String(i);
+      b.setAttribute('aria-label', t('rate.star', i));
+      row.append(b);
+    }
+    const status = el('p', 'rate-status');
+    status.setAttribute('aria-live', 'polite');
+    const note =
+      mine && !(mine.restaurant === p.id && mine.dish === d.name)
+        ? [el('p', 'rate-note', t('rate.moves', day.name(mine.dish)))]
+        : [];
+    const actions = el('div', 'picker-actions');
+    actions.append(send);
+    body.replaceChildren(
+      back(t('rate.back-dishes', p.name), () => dishes(p)),
+      row,
+      ...note,
+      el('div', 'rate-check', ''),
+      status,
+      actions,
+    );
+    sync();
+    (row.querySelector('[aria-pressed="true"]') ?? row.firstChild).focus();
+  };
+
+  // A Turnstile token for the first vote from this browser; the widget only shows if Cloudflare wants a click.
+  const check = async () => {
+    const turnstile = await loadTurnstile();
+    return new Promise((resolve, reject) => {
+      turnstile.render(body.querySelector('.rate-check'), {
+        sitekey: TURNSTILE_SITE_KEY,
+        language: LANG,
+        appearance: 'interaction-only',
+        callback: resolve,
+        'error-callback': () => reject(new Error('turnstile')),
+      });
+    });
+  };
+
+  const submit = async (p, d, chosen, status, send) => {
+    const day = rate.days[rate.day];
+    send.disabled = true;
+    status.textContent = t('rate.sending');
+    const post = (withToken) =>
+      fetch('rate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ restaurant: p.id, dish: d.name, stars: chosen, date: day.date, token: withToken }),
+      });
+    try {
+      let res = await post(token);
+      let data = await res.json();
+      if (res.status === 401 && data.check) {
+        status.textContent = t('rate.checking');
+        token = await check();
+        res = await post(token);
+        data = await res.json();
+      }
+      token = null;
+      if (!res.ok) throw new Error(data.error);
+      rate.mine[day.date] = data.mine;
+      renderRateBar();
+      if (day.date === lunch.data.date) fillRatings();
+      step.textContent = '';
+      heading.textContent = t('rate.thanks');
+      const done = button('picker-primary', () => dialog.close(), t('rate.close'));
+      const actions = el('div', 'picker-actions');
+      actions.append(done);
+      body.replaceChildren(
+        el('p', 'picker-reason', t('rate.gave', day.label, day.name(d.name), '★'.repeat(chosen))),
+        actions,
+      );
+      done.focus();
+    } catch {
+      token = null;
+      status.textContent = t('rate.failed');
+      send.disabled = false;
+    }
+  };
+
+  document.getElementById('rate-open').addEventListener('click', () => {
+    if (!rate.days.length) return;
+    rate.day = 0;
+    drawTabs();
+    dialog.showModal();
+    places();
+  });
+  document.getElementById('rate-close').addEventListener('click', () => dialog.close());
 }
 
 // A Canva menu loads only on request: the embed keeps polling and sets third-party cookies.
@@ -285,14 +416,13 @@ function dishLine(r, { d, unsure, hits }, withAvg) {
   return line;
 }
 
-// Category, description and rating: what opening a dish shows.
-function dishDetails(r, d) {
+// Category, description and how often it was served before: what opening a dish shows.
+function dishDetails(d) {
   const box = el('div', 'dish-details');
   const category = shownCategory(d);
   if (category) box.append(el('span', 'category', category));
   if (d.description) box.append(el('span', 'desc', tr(d.description)));
   if (d.served) box.append(el('span', 'served', t('served.before', d.served.times, shortDate(d.served.last))));
-  if (lunch.rateDate) box.append(ratingRow(r, d, lunch.rateDate));
   return box;
 }
 
@@ -327,7 +457,7 @@ function cardsView() {
         const details = el('details', 'dish');
         const summary = el('summary');
         summary.append(dishLine(r, f, true));
-        details.append(summary, dishDetails(r, f.d));
+        details.append(summary, dishDetails(f.d));
         li.append(details);
         li.hidden = !open && i >= CARD_LIMIT;
         list.append(li);
@@ -381,7 +511,7 @@ function placeMenu(r) {
     const list = el('ul', 'menu-list');
     for (const f of dishes) {
       const li = el('li', f.unsure ? 'unsure' : null);
-      li.append(dishLine(r, f, false), dishDetails(r, f.d));
+      li.append(dishLine(r, f, false), dishDetails(f.d));
       list.append(li);
     }
     menu.append(list);
@@ -462,7 +592,7 @@ function dishesView() {
       const where = el('span', 'dish-where');
       where.append(el('strong', null, r.name), ' · ', placeMeta(r, false));
       summary.append(dishLine(r, f, true), where);
-      details.append(summary, dishDetails(r, f.d));
+      details.append(summary, dishDetails(f.d));
       li.append(details);
       list.append(li);
     }
@@ -940,7 +1070,7 @@ async function main() {
     if (data.day) lunch.sorted = orderPlaces();
     renderHeaderStatus();
     renderListing();
-    if (isToday) showYesterday(data.date);
+    setupRating(data, isToday);
     // No lunch today (weekend): nothing to pick from.
     document.getElementById('picker-open').hidden = !data.day;
     if (!data.day) {
@@ -1122,8 +1252,10 @@ function setupPicker() {
 }
 
 setupPicker();
+setupRateSheet();
 
-const TURNSTILE_SITE_KEY = '0x4AAAAAAFKi3fMo2SvxOuOp';
+// Cloudflare's published always-pass test key under wrangler dev, since the real key only works on the site's domains.
+const TURNSTILE_SITE_KEY = location.hostname === 'localhost' ? '1x00000000000000000000AA' : '0x4AAAAAAFKi3fMo2SvxOuOp';
 const REPORT_HEADINGS = { bug: t('report.bug'), 'feat-req': t('report.feat') };
 let turnstileWidget = null;
 

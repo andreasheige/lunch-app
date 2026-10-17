@@ -1,0 +1,4 @@
+# Copy to .dev.vars (gitignored) for `npm run dev`. TURNSTILE_SECRET is Cloudflare's published always-pass test
+# secret, matching the test site key app.js uses on localhost. VOTER_SECRET signs the voter cookie: any random string.
+TURNSTILE_SECRET=1x0000000000000000000000000000000AA
+VOTER_SECRET=replace-with-a-random-string

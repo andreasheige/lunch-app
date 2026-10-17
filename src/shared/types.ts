@@ -204,6 +204,18 @@ export interface HistoryResponse {
   recurring: { restaurant: string; dish: string; times: number; first: string; last: string }[];
 }
 
+/** A browser's vote for one day: one dish, 1–5 stars. */
+export interface MyVote {
+  restaurant: string;
+  dish: string;
+  stars: number;
+}
+
+// GET /myvote.json: this browser's votes (voter cookie) for today and the previous lunch day, by date.
+export interface MyVotesResponse {
+  votes: Record<string, MyVote>;
+}
+
 // GET /yesterday.json: the previous lunch day's served menu (D1 menu_days), to rate it the day after.
 export interface YesterdayResponse {
   /** The previous lunch day, or null when the history has none. */

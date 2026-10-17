@@ -4,6 +4,8 @@
 import type {
   HistoryResponse,
   LunchResponse,
+  MyVote,
+  MyVotesResponse,
   RatingSummary,
   ReleasePost,
   ReleaseSource,
@@ -27,15 +29,18 @@ import { menuDayRows } from './menudays.ts';
 import { type ContactRow, FROM, notifyEmail } from './notify.ts';
 import { type PreviousMenu, parseRating, rangeStart, ratingKey } from './ratings.ts';
 import { type NoteLang, noteLang, parseReleaseText, RELEASE_PROMPTS, releaseInput, toPosts } from './releases.ts';
-import { githubHeaders, handleReport, type ReportEnv } from './report.ts';
+import { githubHeaders, handleReport, type ReportEnv, verifyTurnstile } from './report.ts';
 import { RESTAURANTS } from './restaurants.ts';
 import { menuStrings, parseTranslations, TRANSLATE_PROMPT, type Translations } from './translate.ts';
+import { readVoter, signVoter, voterCookie } from './voter.ts';
 
 interface Env extends ReportEnv {
   AI: Ai;
   ASSETS: Fetcher;
   DB: D1Database;
   RATE_LIMITER: { limit(options: { key: string }): Promise<{ success: boolean }> };
+  /** Signs the voter cookie (voter.ts); rating is off without it. */
+  VOTER_SECRET?: string;
   EMAIL: SendEmail;
   CF_VERSION_METADATA: WorkerVersionMetadata;
 }
@@ -224,38 +229,79 @@ const json = (data: unknown, status = 200, maxAge = 0): Response =>
     },
   });
 
-// POST /rate: one vote per dish, voter and day (a new vote replaces the old); only for dishes on today's menu.
+// POST /rate: one vote per voter and day (a vote for another dish moves it), for a dish on today's menu or the
+// previous lunch day's. The voter is the signed cookie the Worker sets after a Turnstile check (voter.ts), never an
+// id from the request, so bots can't vote again by making up ids.
 async function handleRate(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   if (request.method !== 'POST') return json({ error: 'Använd POST.' }, 405);
+  if (!env.VOTER_SECRET) return json({ error: 'Betyg är inte påslaget.' }, 503);
   if (request.headers.get('origin') !== new URL(request.url).origin) return json({ error: 'Fel ursprung.' }, 403);
-  const { success } = await env.RATE_LIMITER.limit({ key: request.headers.get('cf-connecting-ip') ?? '' });
+  const ip = request.headers.get('cf-connecting-ip') ?? '';
+  const { success } = await env.RATE_LIMITER.limit({ key: ip });
   if (!success) return json({ error: 'För många röster. Vänta en minut.' }, 429);
   const raw = await request.text();
-  if (raw.length > 2000) return json({ error: 'Ogiltig förfrågan.' }, 413);
+  if (raw.length > 4000) return json({ error: 'Ogiltig förfrågan.' }, 413);
   let input: unknown;
   try {
     input = JSON.parse(raw);
   } catch {
     return json({ error: 'Ogiltig förfrågan.' }, 400);
   }
+  if (typeof input !== 'object' || input === null) return json({ error: 'Ogiltig förfrågan.' }, 400);
+  let voter = await readVoter(env.VOTER_SECRET, request.headers.get('cookie'));
+  let setCookie: string | null = null;
+  if (!voter) {
+    const token = 'token' in input ? input.token : undefined;
+    if (typeof token !== 'string' || !token || !(await verifyTurnstile(env.TURNSTILE_SECRET, token, ip)))
+      return json({ error: 'Bekräfta att du inte är en robot.', check: true }, 401);
+    voter = crypto.randomUUID();
+    setCookie = voterCookie(await signVoter(env.VOTER_SECRET, voter));
+  }
+  const withCookie = (res: Response): Response => {
+    if (setCookie) res.headers.append('set-cookie', setCookie);
+    return res;
+  };
   const lunch: LunchResponse = await (await lunchResponse(request, env, ctx)).json();
   // A vote for another day than today is only looked up against the previous lunch day.
-  const forDate = typeof input === 'object' && input !== null && 'date' in input ? input.date : undefined;
+  const forDate = 'date' in input ? input.date : undefined;
   const previous = forDate !== undefined && forDate !== lunch.date ? await previousMenu(env, lunch.date) : null;
-  const vote = parseRating(input, lunch, previous);
-  if (!vote) return json({ error: 'Rätten finns inte på dagens meny.' }, 400);
-  await env.DB.prepare(
-    `INSERT INTO ratings (date, restaurant, dish, voter, stars) VALUES (?, ?, ?, ?, ?)
-     ON CONFLICT (date, restaurant, dish, voter) DO UPDATE SET stars = excluded.stars, created_at = datetime('now')`,
-  )
-    .bind(vote.date, vote.restaurant, vote.dish, vote.voter, vote.stars)
-    .run();
+  const vote = parseRating({ ...input, voter }, lunch, previous);
+  if (!vote) return withCookie(json({ error: 'Rätten finns inte på menyn.' }, 400));
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM ratings WHERE date = ? AND voter = ? AND NOT (restaurant = ? AND dish = ?)').bind(
+      vote.date,
+      vote.voter,
+      vote.restaurant,
+      vote.dish,
+    ),
+    env.DB.prepare(
+      `INSERT INTO ratings (date, restaurant, dish, voter, stars) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (date, restaurant, dish, voter) DO UPDATE SET stars = excluded.stars, created_at = datetime('now')`,
+    ).bind(vote.date, vote.restaurant, vote.dish, vote.voter, vote.stars),
+  ]);
   const summary = await env.DB.prepare(
     'SELECT AVG(stars) AS avg, COUNT(*) AS count FROM ratings WHERE date = ? AND restaurant = ? AND dish = ?',
   )
     .bind(vote.date, vote.restaurant, vote.dish)
     .first<RatingSummary>();
-  return json({ ok: true, ...summary });
+  const mine: MyVote = { restaurant: vote.restaurant, dish: vote.dish, stars: vote.stars };
+  return withCookie(json({ ok: true, date: vote.date, mine, ...summary }));
+}
+
+// GET /myvote.json: this browser's votes for today and the previous lunch day, by date (from the voter cookie).
+async function myVotes(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  const voter = env.VOTER_SECRET ? await readVoter(env.VOTER_SECRET, request.headers.get('cookie')) : null;
+  if (!voter) return json({ votes: {} } satisfies MyVotesResponse);
+  const lunch: LunchResponse = await (await lunchResponse(request, env, ctx)).json();
+  const { results } = await env.DB.prepare(
+    `SELECT date, restaurant, dish, stars FROM ratings WHERE voter = ?
+     AND date >= (SELECT COALESCE(MAX(date), ?) FROM menu_days WHERE date < ?) AND date <= ?`,
+  )
+    .bind(voter, lunch.date, lunch.date, lunch.date)
+    .all<{ date: string } & MyVote>();
+  const votes: MyVotesResponse['votes'] = {};
+  for (const { date, ...v } of results) votes[date] = v;
+  return json({ votes } satisfies MyVotesResponse);
 }
 
 // The previous lunch day (latest menu_days date before today) with its served dishes; null when there is none.
@@ -526,6 +572,7 @@ export default {
     if (pathname === '/rate') return handleRate(request, env, ctx);
     if (pathname === '/ratings.json') return todaysRatings(request, env, ctx);
     if (pathname === '/yesterday.json') return yesterday(request, env, ctx);
+    if (pathname === '/myvote.json') return myVotes(request, env, ctx);
     if (pathname === '/stats.json') return stats(request, env, ctx);
     if (pathname === '/history.json') return history(request, env, ctx);
     if (pathname === '/translations.json') return translations(request, env, ctx);

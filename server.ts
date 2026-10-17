@@ -5,7 +5,13 @@ import path from 'node:path';
 import { addDiets } from './src/server/diet.ts';
 import { getTodaysLunch, parseCaptured } from './src/server/lunch.ts';
 import { GIT_LOG_FORMAT, groupReleases, parseCommitLog, toPosts } from './src/server/releases.ts';
-import type { HistoryResponse, StatsResponse, TodaysRatings, YesterdayResponse } from './src/shared/types.ts';
+import type {
+  HistoryResponse,
+  MyVotesResponse,
+  StatsResponse,
+  TodaysRatings,
+  YesterdayResponse,
+} from './src/shared/types.ts';
 
 const PORT = Number(process.env.PORT) || 3000;
 // The pages as `astro build` wrote them (npm start builds first); lunch.json and releases.json are live below.
@@ -75,6 +81,8 @@ function emptyAnswer(pathname: string): unknown {
     case '/ratings.json':
     case '/translations.json':
       return {} satisfies TodaysRatings;
+    case '/myvote.json':
+      return { votes: {} } satisfies MyVotesResponse;
     case '/yesterday.json':
       return { date: null, places: [], ratings: {}, translations: {} } satisfies YesterdayResponse;
     case '/history.json':

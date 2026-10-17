@@ -80,6 +80,13 @@ const allergens = [
     </span>
     <span class="decide-go"><span data-i18n="picker.open">Välj åt mig</span> →</span>
   </button>
+  <section class="rate-bar" aria-labelledby="rate-title">
+    <span class="rate-text">
+      <span id="rate-title" class="rate-title" data-i18n="rate.title">Hur var lunchen?</span>
+      <span id="rate-sub" class="rate-sub" data-i18n="rate.sub">En röst per dag – för dagens eller förra lunchdagens lunch.</span>
+    </span>
+    <button type="button" id="rate-open" class="rate-go" disabled data-i18n="rate.go">Betygsätt</button>
+  </section>
   <div class="controls">
     <div class="chip-row" role="group" aria-label="Visa kost" data-i18n-label="diet.legend">
       <button type="button" class="chip diet-chip" data-diet-all aria-pressed="true"><span data-i18n="diet.all">Alla</span> <span class="chip-count" data-count="all"></span></button>
@@ -120,7 +127,6 @@ const allergens = [
       </>
     )}
   </main>
-  <details id="yesterday" class="yesterday" hidden></details>
 </div>
 <footer>
   <p data-i18n="footer.source">Menyerna läses från restaurangernas egna sidor. Fråga alltid personalen om allergier.</p>
@@ -161,6 +167,15 @@ const allergens = [
   </div>
   <h2 id="picker-heading" class="picker-heading" data-i18n="picker.open">Välj åt mig</h2>
   <div id="picker-body" class="picker-body"></div>
+</dialog>
+<dialog id="rate-dialog" class="sheet" aria-labelledby="rate-heading">
+  <div class="sheet-head">
+    <p id="rate-step" class="picker-step"></p>
+    <button type="button" id="rate-close" class="sheet-close" aria-label="Stäng" data-i18n-label="close"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg></button>
+  </div>
+  <h2 id="rate-heading" class="picker-heading" data-i18n="rate.title">Hur var lunchen?</h2>
+  <div id="rate-tabs" class="rate-tabs" role="group" aria-label="Dag" data-i18n-label="rate.day" hidden></div>
+  <div id="rate-body" class="picker-body"></div>
 </dialog>
 <dialog id="install-dialog" aria-labelledby="install-heading">
   <h2 id="install-heading" data-i18n="install.open">Lägg till på hemskärmen</h2>
