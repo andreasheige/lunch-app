@@ -71,9 +71,9 @@ function summaryText(s, mine) {
 // The short "★ 4,5" next to a dish name; empty until someone has voted.
 const avgText = (key) => (ratings[key]?.count ? `★ ${num(ratings[key].avg)}` : '');
 
-// Today's average, your vote and a "Betygsätt" button that opens five star buttons. A click votes (or changes your
-// vote) for this dish.
-function ratingRow(r, d, date) {
+// The day's average, your vote and a "Betygsätt" button that opens five star buttons. A click votes (or changes your
+// vote) for this dish. `store` holds that day's averages: today's, or the previous lunch day's (yesterdayRatings).
+function ratingRow(r, d, date, store = ratings) {
   const row = el('div', 'rating');
   const key = ratingKey(r, d);
   row.dataset.key = key;
@@ -91,8 +91,8 @@ function ratingRow(r, d, date) {
   const mine = () => readStored(VOTES_KEY, {})[voteKey] ?? 0;
   const sync = () => {
     const vote = mine();
-    summary.textContent = summaryText(ratings[key], vote);
-    summary.classList.toggle('has-votes', Boolean(ratings[key]?.count));
+    summary.textContent = summaryText(store[key], vote);
+    summary.classList.toggle('has-votes', Boolean(store[key]?.count));
     toggle.textContent = stars.hidden ? t(vote ? 'rate.change' : 'rate.open') : t('rate.done');
     toggle.setAttribute('aria-expanded', String(!stars.hidden));
     for (const b of stars.children) {
@@ -100,8 +100,9 @@ function ratingRow(r, d, date) {
       b.textContent = n <= vote ? '★' : '☆';
       b.setAttribute('aria-pressed', String(n === vote));
     }
-    for (const avg of document.querySelectorAll('.dish-avg'))
-      if (avg.dataset.key === key) avg.textContent = avgText(key);
+    if (store === ratings)
+      for (const avg of document.querySelectorAll('.dish-avg'))
+        if (avg.dataset.key === key) avg.textContent = avgText(key);
   };
   toggle.addEventListener('click', () => {
     stars.hidden = !stars.hidden;
@@ -124,11 +125,11 @@ function ratingRow(r, d, date) {
         const res = await fetch('rate', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ restaurant: r.id, dish: d.name, stars: i, voter: voterId() }),
+          body: JSON.stringify({ restaurant: r.id, dish: d.name, stars: i, voter: voterId(), date }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        ratings[key] = data;
+        store[key] = data;
         sync();
       } catch {
         writeStored(VOTES_KEY, { ...readStored(VOTES_KEY, {}), [voteKey]: before || undefined });
@@ -151,6 +152,48 @@ async function fillRatings() {
     Object.assign(ratings, await res.json());
     for (const row of document.querySelectorAll('.rating')) row.update();
     for (const avg of document.querySelectorAll('.dish-avg')) avg.textContent = avgText(avg.dataset.key);
+  } catch {}
+}
+
+// The previous lunch day (/yesterday.json): rated the day after, in a closed section under the listing (open on
+// weekends, when there is no listing). Its averages are kept apart, since a dish can be on both days' menus.
+const yesterdayRatings = {};
+const WEEKDAY_FMT = new Intl.DateTimeFormat(LOCALE, { weekday: 'long', timeZone: 'UTC' });
+
+async function showYesterday(today) {
+  try {
+    const res = await fetch(`yesterday.json?lang=${LANG}`, { cache: 'no-store' });
+    if (!res.ok) return;
+    const y = await res.json();
+    if (!y.date || !y.places.length) return;
+    Object.assign(yesterdayRatings, y.ratings);
+    const section = document.getElementById('yesterday');
+    const dayBefore = new Date(`${today}T00:00:00Z`);
+    dayBefore.setUTCDate(dayBefore.getUTCDate() - 1);
+    const day = new Date(`${y.date}T00:00:00Z`);
+    const title =
+      y.date === dayBefore.toISOString().slice(0, 10)
+        ? t('yesterday.title')
+        : t('yesterday.title-day', WEEKDAY_FMT.format(day));
+    const summary = el('summary', 'yesterday-summary');
+    summary.append(el('span', 'yesterday-title', title), el('span', 'place-meta', shortDate(y.date)));
+    const list = el('div', 'yesterday-places');
+    for (const p of y.places) {
+      const place = el('section', 'yesterday-place');
+      place.append(el('h3', null, p.name));
+      const ul = el('ul', 'yesterday-dishes');
+      for (const x of p.dishes) {
+        const d = { name: x.dish, diet: x.diet };
+        const li = el('li', 'yesterday-dish');
+        li.append(el('span', 'dish-name', y.translations[d.name] ?? d.name), ratingRow(p, d, y.date, yesterdayRatings));
+        ul.append(li);
+      }
+      place.append(ul);
+      list.append(place);
+    }
+    section.replaceChildren(summary, el('p', 'notice', t('yesterday.note')), list);
+    section.open = !lunch.data.day;
+    section.hidden = false;
   } catch {}
 }
 
@@ -652,6 +695,7 @@ function renderListing() {
     b.setAttribute('aria-pressed', String(b.dataset.view === view));
   const container = document.getElementById('restaurants');
   container.dataset.view = sorting ? 'sort' : view;
+  container.classList.toggle('no-lunch', !lunch.data.day);
   const mine = Boolean(savedOrder());
   for (const radio of document.querySelectorAll('input[name="order"]')) {
     radio.checked = radio.value === (mine ? 'mine' : 'nearest');
@@ -896,6 +940,7 @@ async function main() {
     if (data.day) lunch.sorted = orderPlaces();
     renderHeaderStatus();
     renderListing();
+    if (isToday) showYesterday(data.date);
     // No lunch today (weekend): nothing to pick from.
     document.getElementById('picker-open').hidden = !data.day;
     if (!data.day) {

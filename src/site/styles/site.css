@@ -780,6 +780,11 @@ dialog {
   padding-bottom: 32px;
 }
 
+/* No listing to make room for (weekends): the recap and the previous day's section follow straight on. */
+#restaurants.no-lunch {
+  min-height: 0;
+}
+
 /* Visa som (inside the Visning menu): a pill track, the chosen view raised. */
 .views {
   display: grid;
@@ -1944,4 +1949,55 @@ footer p {
     /* biome-ignore lint/complexity/noImportantStyles: must beat every component's own animation/transition. */
     transition: none !important;
   }
+}
+
+/* The previous lunch day, to rate it the day after: closed under the listing, open on weekends. */
+.yesterday {
+  margin-top: 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.yesterday-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: baseline;
+  min-height: 44px;
+  padding: 12px 16px;
+  cursor: pointer;
+}
+
+.yesterday-title {
+  font-weight: 700;
+}
+
+.yesterday > .notice {
+  padding: 0 16px 8px;
+}
+
+.yesterday-places {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 16px 24px;
+  padding: 0 16px 16px;
+}
+
+.yesterday-place h3 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+
+.yesterday-dishes {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yesterday-dish {
+  display: grid;
+  gap: 2px;
 }
