@@ -1,15 +1,31 @@
-// Ratings: 1–5 stars per dish on today's menu, stored in D1 by worker.ts. Pure helpers here.
+// Ratings: 1–5 stars per dish on today's menu or the previous lunch day's, stored in D1 by worker.ts. Pure helpers here.
 import type { LunchResponse, RatingInput } from '../shared/types.ts';
 
 const VOTER = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-// A vote is only accepted for a dish on today's menu, so the stats page can't be filled with made-up names.
-export function parseRating(input: unknown, lunch: LunchResponse): RatingInput | null {
+/** The previous lunch day (latest menu_days date before today) and its dishes as ratingKey()s. */
+export interface PreviousMenu {
+  date: string;
+  keys: Set<string>;
+}
+
+// A vote is only accepted for a dish on today's menu, or (with `date`) on the previous lunch day's served menu, so
+// the stats page can't be filled with made-up names or backfilled days.
+export function parseRating(
+  input: unknown,
+  lunch: LunchResponse,
+  previous: PreviousMenu | null = null,
+): RatingInput | null {
   if (typeof input !== 'object' || input === null) return null;
-  const { restaurant, dish, stars, voter } = input as Record<string, unknown>; // shape checked field by field below
+  const { restaurant, dish, stars, voter, date } = input as Record<string, unknown>; // shape checked field by field below
   if (typeof restaurant !== 'string' || typeof dish !== 'string' || typeof voter !== 'string') return null;
   if (typeof stars !== 'number' || !Number.isInteger(stars) || stars < 1 || stars > 5) return null;
-  if (!VOTER.test(voter) || !lunch.day) return null;
+  if (!VOTER.test(voter)) return null;
+  if (date !== undefined && date !== lunch.date) {
+    if (!previous || date !== previous.date || !previous.keys.has(ratingKey(restaurant, dish))) return null;
+    return { date: previous.date, restaurant, dish, stars, voter };
+  }
+  if (!lunch.day) return null;
   const r = lunch.restaurants.find((x) => x.id === restaurant);
   if (!r?.dishes.some((d) => d.name === dish)) return null;
   return { date: lunch.date, restaurant, dish, stars, voter };

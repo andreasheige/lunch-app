@@ -204,6 +204,17 @@ export interface HistoryResponse {
   recurring: { restaurant: string; dish: string; times: number; first: string; last: string }[];
 }
 
+// GET /yesterday.json: the previous lunch day's served menu (D1 menu_days), to rate it the day after.
+export interface YesterdayResponse {
+  /** The previous lunch day, or null when the history has none. */
+  date: string | null;
+  places: { id: string; name: string; dishes: { dish: string; diet: Diet | null }[] }[];
+  /** Its averages by `${restaurant}\n${dish}`. */
+  ratings: TodaysRatings;
+  /** English for the dish names (lang=en); ratings key on the Swedish ones. */
+  translations: Record<string, string>;
+}
+
 export type ReportKind = 'bug' | 'feat-req';
 
 // POST /report body. `website` is the honeypot field.

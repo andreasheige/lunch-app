@@ -1,5 +1,5 @@
 // Cloudflare Worker: live /lunch.json (edge-cached 30 min) and its English /translations.json, /releases.json,
-// ratings (POST /rate, /ratings.json, /stats.json), menu history (/history.json), POST /report → GitHub issue; everything else is served from
+// ratings (POST /rate, /ratings.json, /yesterday.json, /stats.json), menu history (/history.json), POST /report → GitHub issue; everything else is served from
 // dist/ assets.
 import type {
   HistoryResponse,
@@ -10,13 +10,14 @@ import type {
   ReleaseText,
   StatsResponse,
   TodaysRatings,
+  YesterdayResponse,
 } from '../shared/types.ts';
 import { addDiets, type Classified, DIET_PROMPT, parseModelDiets, unlabelledDishes } from './diet.ts';
 import { addServed, groupWeek, type HistoryDishRow, type ServedRow, weekBounds } from './history.ts';
 import { getTodaysLunch, isoWeek, parseCaptured } from './lunch.ts';
 import { menuDayRows } from './menudays.ts';
 import { type ContactRow, FROM, notifyEmail } from './notify.ts';
-import { parseRating, rangeStart, ratingKey } from './ratings.ts';
+import { type PreviousMenu, parseRating, rangeStart, ratingKey } from './ratings.ts';
 import { type NoteLang, noteLang, parseReleaseText, RELEASE_PROMPTS, releaseInput, toPosts } from './releases.ts';
 import { githubHeaders, handleReport, type ReportEnv } from './report.ts';
 import { RESTAURANTS } from './restaurants.ts';
@@ -230,7 +231,10 @@ async function handleRate(request: Request, env: Env, ctx: ExecutionContext): Pr
     return json({ error: 'Ogiltig förfrågan.' }, 400);
   }
   const lunch: LunchResponse = await (await lunchResponse(request, env, ctx)).json();
-  const vote = parseRating(input, lunch);
+  // A vote for another day than today is only looked up against the previous lunch day.
+  const forDate = typeof input === 'object' && input !== null && 'date' in input ? input.date : undefined;
+  const previous = forDate !== undefined && forDate !== lunch.date ? await previousMenu(env, lunch.date) : null;
+  const vote = parseRating(input, lunch, previous);
   if (!vote) return json({ error: 'Rätten finns inte på dagens meny.' }, 400);
   await env.DB.prepare(
     `INSERT INTO ratings (date, restaurant, dish, voter, stars) VALUES (?, ?, ?, ?, ?)
@@ -244,6 +248,43 @@ async function handleRate(request: Request, env: Env, ctx: ExecutionContext): Pr
     .bind(vote.date, vote.restaurant, vote.dish)
     .first<RatingSummary>();
   return json({ ok: true, ...summary });
+}
+
+// The previous lunch day (latest menu_days date before today) with its served dishes; null when there is none.
+async function previousMenu(env: Env, today: string): Promise<(PreviousMenu & { rows: HistoryDishRow[] }) | null> {
+  const { results } = await env.DB.prepare(
+    `SELECT date, restaurant, dish, diet FROM menu_days
+     WHERE date = (SELECT MAX(date) FROM menu_days WHERE date < ?) ORDER BY rowid`,
+  )
+    .bind(today)
+    .all<HistoryDishRow>();
+  const date = results[0]?.date;
+  if (!date) return null;
+  return { date, keys: new Set(results.map((r) => ratingKey(r.restaurant, r.dish))), rows: results };
+}
+
+// GET /yesterday.json?lang=sv|en: the previous lunch day's menu and its averages, to rate it the day after.
+async function yesterday(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  const url = new URL(request.url);
+  const lunch: LunchResponse = await (await lunchResponse(request, env, ctx)).json();
+  const previous = await previousMenu(env, lunch.date);
+  if (!previous) return json({ date: null, places: [], ratings: {}, translations: {} } satisfies YesterdayResponse);
+  const { results } = await env.DB.prepare(
+    'SELECT restaurant, dish, AVG(stars) AS avg, COUNT(*) AS count FROM ratings WHERE date = ? GROUP BY restaurant, dish',
+  )
+    .bind(previous.date)
+    .all<{ restaurant: string; dish: string } & RatingSummary>();
+  const places = groupWeek(previous.rows)[0]?.places ?? [];
+  const translations =
+    url.searchParams.get('lang') === 'en'
+      ? await translate(env.AI, [...new Set(previous.rows.map((r) => r.dish))], url.origin)
+      : {};
+  return json({
+    date: previous.date,
+    places,
+    ratings: Object.fromEntries(results.map((r) => [ratingKey(r.restaurant, r.dish), { avg: r.avg, count: r.count }])),
+    translations,
+  } satisfies YesterdayResponse);
 }
 
 // GET /ratings.json: averages for today's dishes, for the stars on the cards.
@@ -479,6 +520,7 @@ export default {
     }
     if (pathname === '/rate') return handleRate(request, env, ctx);
     if (pathname === '/ratings.json') return todaysRatings(request, env, ctx);
+    if (pathname === '/yesterday.json') return yesterday(request, env, ctx);
     if (pathname === '/stats.json') return stats(request, env, ctx);
     if (pathname === '/history.json') return history(request, env, ctx);
     if (pathname === '/translations.json') return translations(request, env, ctx);

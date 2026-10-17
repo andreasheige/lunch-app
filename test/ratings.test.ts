@@ -37,6 +37,26 @@ test('parseRating rejects made-up dishes, bad stars, odd voter ids and weekends'
   assert.equal(parseRating(ok, { ...lunch, day: null }), null);
 });
 
+test('parseRating takes a vote for the previous lunch day only for a dish served that day', () => {
+  const previous = { date: '2026-10-06', keys: new Set(['bjorkmans\nKöttbullar']) };
+  const vote = { restaurant: 'bjorkmans', dish: 'Köttbullar', stars: 5, voter, date: '2026-10-06' };
+  assert.deepEqual(parseRating(vote, lunch, previous), { ...vote, date: '2026-10-06' });
+  // Also on a weekend, when today has no menu.
+  assert.equal(parseRating(vote, { ...lunch, day: null }, previous)?.date, '2026-10-06');
+  for (const bad of [
+    { ...vote, dish: 'Something rude' },
+    { ...vote, restaurant: 'pocket' },
+    { ...vote, date: '2026-10-05' },
+    { ...vote, date: 42 },
+  ]) {
+    assert.equal(parseRating(bad, lunch, previous), null, JSON.stringify(bad));
+  }
+  assert.equal(parseRating(vote, lunch, null), null);
+  // Today's date still means today's menu.
+  const today = { restaurant: 'pocket', dish: 'Pankobakad kolja', stars: 4, voter, date: '2026-10-07' };
+  assert.equal(parseRating(today, lunch, previous)?.date, '2026-10-07');
+});
+
 test('rangeStart covers the last 14 days including today, or everything', () => {
   assert.equal(rangeStart('2026-10-07', '14'), '2026-09-24');
   assert.equal(rangeStart('2026-10-07', 'all'), '0000-00-00');
