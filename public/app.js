@@ -5,6 +5,9 @@ import { drawQuestions, rank, reasonText } from './picker.js';
 const TZ = 'Europe/Stockholm';
 const DATE_FMT = new Intl.DateTimeFormat(LOCALE, { weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ });
 const TIME_FMT = new Intl.DateTimeFormat(LOCALE, { hour: '2-digit', minute: '2-digit', timeZone: TZ });
+// History dates are plain YYYY-MM-DD days, read as UTC midnight.
+const SHORT_FMT = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short', timeZone: 'UTC' });
+const shortDate = (iso) => SHORT_FMT.format(new Date(`${iso}T00:00:00Z`));
 const WALK_M_PER_MIN = 80;
 const ALLERGENS = ['nuts', 'gluten', 'lactose', 'shellfish', 'egg'];
 const FILTER_KEY = 'lunch-filter';
@@ -245,6 +248,7 @@ function dishDetails(r, d) {
   const category = shownCategory(d);
   if (category) box.append(el('span', 'category', category));
   if (d.description) box.append(el('span', 'desc', tr(d.description)));
+  if (d.served) box.append(el('span', 'served', t('served.before', d.served.times, shortDate(d.served.last))));
   if (lunch.rateDate) box.append(ratingRow(r, d, lunch.rateDate));
   return box;
 }
@@ -653,10 +657,59 @@ function renderListing() {
     radio.checked = radio.value === (mine ? 'mine' : 'nearest');
     if (radio.value === 'mine') radio.disabled = !myOrder();
   }
-  // No lunch today (weekend): only the notices, since the views assume at least one place.
-  const listing = lunch.data.day ? [sorting ? sortView() : VIEWS[view]()] : [];
+  // No lunch today (weekend): the notices and the week's recap, since the views assume at least one place.
+  const listing = lunch.data.day
+    ? [sorting ? sortView() : VIEWS[view]()]
+    : lunch.history
+      ? [weekRecap(lunch.history)]
+      : [];
   container.replaceChildren(...lunch.notices.map((n) => el('p', 'notice', n)), ...listing);
   updateFilterSummary(filter);
+}
+
+// The weekend's look back (/history.json): the week's best-rated dishes and the ones that keep coming back.
+function weekRecap(h) {
+  const box = el('section', 'recap');
+  if (!h.week) return box;
+  const head = el('div', 'recap-head');
+  head.append(
+    el('h2', null, t('history.recap')),
+    el('p', 'place-meta', t('history.week', h.week.week, shortDate(h.week.from), shortDate(h.week.to))),
+  );
+  const list = (title, items) => {
+    const part = el('div', 'recap-part');
+    part.append(el('h3', null, title));
+    const ul = el('ul', 'recap-list');
+    for (const [dish, meta] of items) {
+      const li = el('li');
+      li.append(el('span', 'recap-dish', dish), el('span', 'place-meta', meta));
+      ul.append(li);
+    }
+    part.append(ul);
+    return part;
+  };
+  const top = h.top.slice(0, 3).map((d) => [d.dish, `${d.restaurant} · ★ ${num(d.avg)} · ${t('votes', d.votes)}`]);
+  const back = h.recurring
+    .slice(0, 5)
+    .map((d) => [d.dish, `${d.restaurant} · ${t('history.times', d.times)}, ${t('history.last', shortDate(d.last))}`]);
+  const more = el('a', 'source', `${t('history.more')} →`);
+  more.href = '/stats#history';
+  box.append(
+    head,
+    top.length ? list(t('history.top'), top) : el('p', 'empty', t('history.no-votes')),
+    back.length ? list(t('history.recurring'), back) : el('p', 'empty', t('history.no-recurring')),
+    more,
+  );
+  return box;
+}
+
+async function fetchHistory() {
+  try {
+    const res = await fetch(`history.json?lang=${LANG}`);
+    return res.ok ? await res.json() : null;
+  } catch {
+    return null;
+  }
 }
 
 function setupViews() {
@@ -845,7 +898,11 @@ async function main() {
     renderListing();
     // No lunch today (weekend): nothing to pick from.
     document.getElementById('picker-open').hidden = !data.day;
-    if (!data.day) return;
+    if (!data.day) {
+      lunch.history = await fetchHistory();
+      renderListing();
+      return;
+    }
     if (lunch.rateDate) fillRatings();
     keepTime(isToday);
     if (!en) {

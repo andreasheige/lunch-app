@@ -1380,3 +1380,32 @@ main.stats {
 .viz-tooltip span {
   color: var(--muted);
 }
+
+/* History: one card per day, each place with its dishes. */
+.history-heading {
+  margin: 24px 0 12px;
+  font-size: 1.1rem;
+}
+
+.history-day,
+.history-day ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-day {
+  gap: 12px;
+}
+
+.history-day ul {
+  margin-top: 4px;
+  font-size: 14px;
+}
+
+/* Four short columns fit a half-width card; the 620px floor is for the dashboard's wider table. */
+.menu-table.history-table {
+  min-width: 0;
+}

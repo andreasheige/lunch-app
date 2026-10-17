@@ -1,7 +1,8 @@
 // Cloudflare Worker: live /lunch.json (edge-cached 30 min) and its English /translations.json, /releases.json,
-// ratings (POST /rate, /ratings.json, /stats.json), POST /report → GitHub issue; everything else is served from
+// ratings (POST /rate, /ratings.json, /stats.json), menu history (/history.json), POST /report → GitHub issue; everything else is served from
 // dist/ assets.
 import type {
+  HistoryResponse,
   LunchResponse,
   RatingSummary,
   ReleasePost,
@@ -11,7 +12,8 @@ import type {
   TodaysRatings,
 } from '../shared/types.ts';
 import { addDiets, type Classified, DIET_PROMPT, parseModelDiets, unlabelledDishes } from './diet.ts';
-import { getTodaysLunch, parseCaptured } from './lunch.ts';
+import { addServed, groupWeek, type HistoryDishRow, type ServedRow, weekBounds } from './history.ts';
+import { getTodaysLunch, isoWeek, parseCaptured } from './lunch.ts';
 import { menuDayRows } from './menudays.ts';
 import { type ContactRow, FROM, notifyEmail } from './notify.ts';
 import { parseRating, rangeStart, ratingKey } from './ratings.ts';
@@ -161,13 +163,32 @@ async function lunchResponse(request: Request, env: Env, ctx: ExecutionContext):
   // Menus the build read with a real browser (captured.json, see scripts/capture.ts); 404 when none were.
   const capturedRes = await env.ASSETS.fetch(new Request(`${origin}/captured.json`));
   const lunch = await getTodaysLunch(parseCaptured(capturedRes.ok ? await capturedRes.text() : null));
-  const data = addDiets(lunch, await classify(env.AI, lunch, origin));
+  const data = await servedBefore(env, addDiets(lunch, await classify(env.AI, lunch, origin)));
   const res = new Response(JSON.stringify(data), {
     headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': `public, max-age=${MAX_AGE}` },
   });
   ctx.waitUntil(caches.default.put(key, res.clone()));
   ctx.waitUntil(saveMenuDay(env, data));
   return res;
+}
+
+// Marks today's dishes a place served on earlier days (menu_days), for the "served before" line; a failure only
+// leaves the marks out.
+async function servedBefore(env: Env, lunch: LunchResponse): Promise<LunchResponse> {
+  const names = [...new Set(lunch.restaurants.flatMap((r) => r.dishes.map((d) => d.name)))];
+  if (!names.length) return lunch;
+  try {
+    const { results } = await env.DB.prepare(
+      `SELECT restaurant, dish, COUNT(DISTINCT date) AS times, MAX(date) AS last FROM menu_days
+       WHERE date < ? AND dish IN (SELECT value FROM json_each(?)) GROUP BY restaurant, dish`,
+    )
+      .bind(lunch.date, JSON.stringify(names))
+      .all<ServedRow>();
+    return addServed(lunch, results);
+  } catch (err) {
+    console.error('menu_days: served lookup failed', err instanceof Error ? err.message : err);
+    return lunch;
+  }
 }
 
 // Today's menus into D1 menu_days for the stats history; runs on each cache miss (every 30 min at most) and
@@ -316,6 +337,78 @@ async function stats(request: Request, env: Env, ctx: ExecutionContext): Promise
   );
 }
 
+// GET /history.json?lang=sv|en: the latest week's menus, its best-rated dishes and the dishes that keep coming
+// back, from menu_days and ratings.
+async function history(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  const url = new URL(request.url);
+  const lunch: LunchResponse = await (await lunchResponse(request, env, ctx)).json();
+  const span = await env.DB.prepare(
+    'SELECT MIN(date) AS since, MAX(date) AS latest, COUNT(DISTINCT date) AS days FROM menu_days WHERE date <= ?',
+  )
+    .bind(lunch.date)
+    .first<{ since: string | null; latest: string | null; days: number }>();
+  const names = new Map(RESTAURANTS.map((r) => [r.id, r.name]));
+  const name = (id: string) => names.get(id) ?? id;
+  let data: HistoryResponse = { since: span?.since ?? null, days: span?.days ?? 0, week: null, top: [], recurring: [] };
+  if (span?.latest) {
+    const { from, to } = weekBounds(span.latest);
+    const [week, top, recurring] = await env.DB.batch([
+      env.DB.prepare(
+        'SELECT date, restaurant, dish, diet FROM menu_days WHERE date BETWEEN ? AND ? ORDER BY date, rowid',
+      ).bind(from, to),
+      env.DB.prepare(
+        `SELECT restaurant, dish, AVG(stars) AS avg, COUNT(*) AS votes, MAX(date) AS date FROM ratings
+         WHERE date BETWEEN ? AND ? GROUP BY restaurant, dish
+         ORDER BY (COUNT(*) >= 2) DESC, avg DESC, votes DESC LIMIT 5`,
+      ).bind(from, to),
+      env.DB.prepare(
+        `SELECT restaurant, dish, COUNT(DISTINCT date) AS times, MIN(date) AS first, MAX(date) AS last FROM menu_days
+         WHERE date <= ? GROUP BY restaurant, dish HAVING times >= 2 ORDER BY times DESC, last DESC LIMIT 20`,
+      ).bind(lunch.date),
+    ]);
+    const rows = <T>(r: D1Result | undefined) => (r?.results ?? []) as T[]; // D1 rows are untyped; shapes match the SELECTs above
+    data = {
+      ...data,
+      week: { week: isoWeek(new Date(`${from}T00:00:00Z`)), from, to, days: groupWeek(rows<HistoryDishRow>(week)) },
+      top: rows<HistoryResponse['top'][number]>(top).map((d) => ({ ...d, restaurant: name(d.restaurant) })),
+      recurring: rows<HistoryResponse['recurring'][number]>(recurring).map((d) => ({
+        ...d,
+        restaurant: name(d.restaurant),
+      })),
+    };
+  }
+  if (url.searchParams.get('lang') !== 'en') return json(data, 200, STATS_MAX_AGE);
+  // Dish names are as the menu said them, in Swedish; restaurant names stay as they are.
+  const en = await translate(
+    env.AI,
+    [
+      ...new Set([
+        ...(data.week?.days.flatMap((d) => d.places.flatMap((p) => p.dishes.map((x) => x.dish))) ?? []),
+        ...data.top.map((d) => d.dish),
+        ...data.recurring.map((d) => d.dish),
+      ]),
+    ],
+    url.origin,
+  );
+  const tr = (s: string) => en[s] ?? s;
+  return json(
+    {
+      ...data,
+      week: data.week && {
+        ...data.week,
+        days: data.week.days.map((d) => ({
+          ...d,
+          places: d.places.map((p) => ({ ...p, dishes: p.dishes.map((x) => ({ ...x, dish: tr(x.dish) })) })),
+        })),
+      },
+      top: data.top.map((d) => ({ ...d, dish: tr(d.dish) })),
+      recurring: data.recurring.map((d) => ({ ...d, dish: tr(d.dish) })),
+    } satisfies HistoryResponse,
+    200,
+    STATS_MAX_AGE,
+  );
+}
+
 // GET /translations.json: English for today's menu texts, by their Swedish original. Only English visitors ask,
 // so Swedish page loads never wait on the model.
 async function translations(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -387,6 +480,7 @@ export default {
     if (pathname === '/rate') return handleRate(request, env, ctx);
     if (pathname === '/ratings.json') return todaysRatings(request, env, ctx);
     if (pathname === '/stats.json') return stats(request, env, ctx);
+    if (pathname === '/history.json') return history(request, env, ctx);
     if (pathname === '/translations.json') return translations(request, env, ctx);
     if (pathname !== '/lunch.json') return env.ASSETS.fetch(request);
     return lunchResponse(request, env, ctx);

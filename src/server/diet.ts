@@ -6,7 +6,7 @@ import type { Allergen, Diet, Dish, DishKind, LunchResponse } from '../shared/ty
 export type Classified = Record<string, Diet>;
 
 const DIETS: readonly string[] = ['veg', 'fish', 'meat'] satisfies Diet[];
-const isDiet = (v: unknown): v is Diet => typeof v === 'string' && DIETS.includes(v);
+export const isDiet = (v: unknown): v is Diet => typeof v === 'string' && DIETS.includes(v);
 
 // "Vegetariska", "Veg", "Street Food Vegetarisk", "Fisk", "Fish Market", "Kött", "Fågel", "Butcher´s".
 // Pagoden's "Green Kitchen" isn't one: it has chicken bowls.

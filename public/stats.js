@@ -1,6 +1,7 @@
-// /stats: five views of the lunch data. Overview (the story: headline, league, plate wall) and Analytics (charts and
+// /stats: six views of the lunch data. Overview (the story: headline, league, plate wall) and Analytics (charts and
 // a sortable table) are about the ratings; Dashboard, Graph (ingredient network) and Visuals are about the menus,
-// today's from /lunch.json and earlier days from /stats.json's menu history. The numbers come from statsdata.js.
+// today's from /lunch.json and earlier days from /stats.json's menu history. History (/history.json, fetched when
+// the tab opens) is the latest week's menus and the dishes that keep coming back. The numbers come from statsdata.js.
 // Colours: diet and star scales are CSS variables in stats.css (validated with the dataviz rules); every mark also
 // carries its number or label, and charts have a table view.
 import { el } from './dom.js';
@@ -19,7 +20,7 @@ import {
 const DAY_FMT = new Intl.DateTimeFormat(LOCALE, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 const SHORT_FMT = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short', timeZone: 'UTC' });
 const WEEKDAY_FMT = new Intl.DateTimeFormat(LOCALE, { weekday: 'long', timeZone: 'UTC' });
-const TABS = ['overview', 'analytics', 'dashboard', 'graph', 'visuals'];
+const TABS = ['overview', 'analytics', 'dashboard', 'graph', 'visuals', 'history'];
 const TAB_KEY = 'lunch-stats-tab';
 const WALK_M_PER_MIN = 80;
 const DIETS = ['veg', 'fish', 'meat', 'none'];
@@ -61,9 +62,13 @@ const state = {
   table: { key: 'avg', dir: -1 },
   dietTab: 'all',
   allDishes: false,
+  history: undefined,
 };
 
+// A link to /stats#history (the home page's weekend recap) opens that tab.
 function readTab() {
+  const hash = location.hash.slice(1);
+  if (TABS.includes(hash)) return hash;
   try {
     const saved = localStorage.getItem(TAB_KEY);
     return TABS.includes(saved) ? saved : 'overview';
@@ -992,7 +997,109 @@ const VIEWS = {
   dashboard: dashboardView,
   graph: graphView,
   visuals: visualsView,
+  history: historyView,
 };
+
+// ---- History: the latest week's menus, its best-rated dishes and the dishes that keep coming back ----
+
+function historyTable(head, rows) {
+  const table = el('table', 'menu-table history-table');
+  const headRow = el('tr');
+  for (const [label, cls] of head) {
+    const th = el('th', cls, label);
+    th.scope = 'col';
+    headRow.append(th);
+  }
+  table.append(el('thead'), el('tbody'));
+  table.tHead.append(headRow);
+  for (const cells of rows) {
+    const row = el('tr');
+    cells.forEach((c, i) => {
+      row.append(el('td', head[i][1], c));
+    });
+    table.tBodies[0].append(row);
+  }
+  const wrap = el('div', 'table-scroll');
+  wrap.append(table);
+  return wrap;
+}
+
+function historyView() {
+  const h = state.history;
+  if (h === undefined) {
+    if (!historyRequested) {
+      historyRequested = true;
+      loadHistory();
+    }
+    return [el('p', 'notice', t('stats.loading'))];
+  }
+  if (h === null) return [el('p', 'notice', t('stats.failed'))];
+  if (!h.week) return [el('p', 'notice', t('history.empty'))];
+  const short = (iso) => SHORT_FMT.format(utcDate(iso));
+  const week = t('history.week', h.week.week, short(h.week.from), short(h.week.to));
+  const top = h.top.length
+    ? historyTable(
+        [
+          [t('stats.dish'), null],
+          [t('stats.restaurant'), null],
+          [t('stats.votes'), 'num'],
+          [t('stats.avg'), 'num'],
+        ],
+        h.top.map((d) => [d.dish, d.restaurant, String(d.votes), `★ ${num(d.avg)}`]),
+      )
+    : el('p', 'empty', t('history.no-votes'));
+  const recurring = h.recurring.length
+    ? historyTable(
+        [
+          [t('stats.dish'), null],
+          [t('stats.restaurant'), null],
+          [t('history.col-times'), 'num'],
+          [t('history.col-last'), null],
+        ],
+        h.recurring.map((d) => [d.dish, d.restaurant, String(d.times), short(d.last)]),
+      )
+    : el('p', 'empty', t('history.no-recurring'));
+  const days = el('div', 'viz-grid');
+  for (const day of h.week.days) {
+    const list = el('ul', 'history-day');
+    for (const p of day.places) {
+      const li = el('li');
+      li.append(el('strong', null, p.name));
+      const dishes = el('ul');
+      for (const d of p.dishes) {
+        const item = el('li');
+        const dot = el('span', `diet-dot ${d.diet ?? 'none'}`);
+        dot.setAttribute('role', 'img');
+        dot.setAttribute('aria-label', d.diet ? t(`diet.${d.diet}`) : t('stats.no-label'));
+        item.append(dot, d.dish);
+        dishes.append(item);
+      }
+      li.append(dishes);
+      list.append(li);
+    }
+    days.append(card(WEEKDAY_FMT.format(utcDate(day.date)), short(day.date), list));
+  }
+  const both = el('div', 'viz-grid');
+  both.append(card(t('history.top'), week, top), card(t('history.recurring'), t('history.recurring-sub'), recurring));
+  return [
+    el('p', 'notice', t('history.since', short(h.since), h.days)),
+    both,
+    el('h2', 'history-heading', `${t('history.menus')} · ${week}`),
+    days,
+  ];
+}
+
+// Fetched once, the first time the tab opens; null when it failed.
+let historyRequested = false;
+async function loadHistory() {
+  try {
+    const res = await fetch(`history.json?lang=${LANG}`);
+    state.history = res.ok ? await res.json() : null;
+  } catch {
+    state.history = null;
+  }
+  if (state.tab === 'history') render();
+}
 
 function render() {
   const panel = document.getElementById('stats-view');
