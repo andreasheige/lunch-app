@@ -653,7 +653,9 @@ function renderListing() {
     radio.checked = radio.value === (mine ? 'mine' : 'nearest');
     if (radio.value === 'mine') radio.disabled = !myOrder();
   }
-  container.replaceChildren(...lunch.notices.map((n) => el('p', 'notice', n)), sorting ? sortView() : VIEWS[view]());
+  // No lunch today (weekend): only the notices, since the views assume at least one place.
+  const listing = lunch.data.day ? [sorting ? sortView() : VIEWS[view]()] : [];
+  container.replaceChildren(...lunch.notices.map((n) => el('p', 'notice', n)), ...listing);
   updateFilterSummary(filter);
 }
 
