@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { addServed, groupWeek, weekBounds } from '../src/server/history.ts';
+import { addServed, groupWeek, recurringDishes, weekBounds } from '../src/server/history.ts';
 import type { LunchResponse } from '../src/shared/types.ts';
 
 test('weekBounds gives Monday and Friday, also from a weekend day', () => {
@@ -42,4 +42,25 @@ test('addServed marks only the same dish at the same place', () => {
   assert.deepEqual(out.restaurants[0]?.dishes[0]?.served, { times: 3, last: '2026-10-09' });
   assert.equal(out.restaurants[1]?.dishes[0]?.served, undefined);
   assert.equal(addServed(lunch, []), lunch);
+});
+
+test('recurringDishes: back after a break counts, fixed menus and weekly specials do not', () => {
+  const days = ['2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09', '2026-10-12', '2026-10-13'];
+  const rows = [
+    // A fixed menu: every day.
+    ...days.map((date) => ({ date, restaurant: 'bbbangers', dish: 'Bratwurst' })),
+    // A weekly special: Monday to Friday, then gone.
+    ...days.slice(0, 5).map((date) => ({ date, restaurant: 'delissimo', dish: 'Veckans pasta' })),
+    ...days.map((date) => ({ date, restaurant: 'delissimo', dish: `Dagens ${date}` })),
+    // Mondays only: two separate runs.
+    { date: '2026-10-05', restaurant: 'bjorkmans', dish: 'Köttbullar' },
+    { date: '2026-10-12', restaurant: 'bjorkmans', dish: 'Köttbullar' },
+    ...days.map((date) => ({ date, restaurant: 'bjorkmans', dish: `Fisk ${date}` })),
+    // On all but one day: two runs, but a fixed dish whose menu failed to parse once.
+    ...days.filter((d) => d !== '2026-10-07').map((date) => ({ date, restaurant: 'pagoden', dish: 'Pad thai' })),
+    ...days.map((date) => ({ date, restaurant: 'pagoden', dish: `Wok ${date}` })),
+  ];
+  assert.deepEqual(recurringDishes(rows), [
+    { restaurant: 'bjorkmans', dish: 'Köttbullar', times: 2, first: '2026-10-05', last: '2026-10-12' },
+  ]);
 });
