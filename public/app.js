@@ -172,12 +172,15 @@ function embedFacade(r) {
 }
 
 const walkMinutes = (r) => Math.max(1, Math.round(r.distance / WALK_M_PER_MIN));
+// Google Maps' cross-platform search link; on phones it opens the maps app. Same URL in Place.astro.
+const mapUrl = (r) =>
+  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${r.name}, ${r.address}, Göteborg`)}`;
 // A category that only repeats the diet label ("Kött", "Veg") is left out.
 const REPEATS_DIET = /^(kött|fisk|veg|vegetarisk[at]?|vegetariska|grönt)$/i;
 const shownCategory = (d) => (d.category && !REPEATS_DIET.test(d.category.trim()) ? tr(d.category) : '');
 
-// "Öppet till 14.00 · 1 min gång · 11.30–14.00" (rows leave the hours out); the status span is kept up to date
-// by keepTime.
+// "Öppet till 14.00 · 1 min gång · 11.30–14.00 · Kilsgatan 4 ↗" (rows leave the hours and address out); the
+// status span is kept up to date by keepTime.
 function placeMeta(r, withHours = true) {
   const meta = el('p', 'place-meta');
   const s = status(r, lunch.isToday);
@@ -187,8 +190,17 @@ function placeMeta(r, withHours = true) {
     meta.append(badge, ' · ');
   }
   meta.append(el('span', 'walk', t('card.walk', walkMinutes(r))));
-  if (withHours) meta.append(' · ', el('span', 'hours', r.hours));
+  if (withHours) meta.append(' · ', el('span', 'hours', r.hours), ' · ', mapLink(r));
   return meta;
+}
+
+function mapLink(r) {
+  const link = el('a', 'map-link', `${r.address} ↗`);
+  link.href = mapUrl(r);
+  link.target = '_blank';
+  link.rel = 'noopener';
+  link.setAttribute('aria-label', t('card.map', r.address));
+  return link;
 }
 
 function sourceLink(r) {

@@ -1522,6 +1522,16 @@ details.dish > .dish-details {
   color: var(--text);
 }
 
+.map-link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.map-link:hover {
+  color: var(--text);
+}
+
 .stars[hidden] {
   display: none;
 }

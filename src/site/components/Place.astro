@@ -9,6 +9,7 @@ interface Props {
 }
 const { r } = Astro.props;
 const walk = Math.max(1, Math.round(r.distance / 80));
+const map = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${r.name}, ${r.address}, Göteborg`)}`;
 const TAGS = { veg: 'Veg', fish: 'Fisk', meat: 'Kött' };
 const DIETS = { veg: 'Vegetariskt', fish: 'Fisk', meat: 'Kött' };
 const REPEATS_DIET = /^(kött|fisk|veg|vegetarisk[at]?|vegetariska|grönt)$/i;
@@ -17,7 +18,7 @@ const showCategory = (d: Dish) => d.category && !REPEATS_DIET.test(d.category.tr
 <article class="card" data-id={r.id}>
   <div class="card-head">
     <h2>{r.name}</h2>
-    <p class="place-meta"><span class="walk">{walk} min gång</span> · <span class="hours">{r.hours}</span></p>
+    <p class="place-meta"><span class="walk">{walk} min gång</span> · <span class="hours">{r.hours}</span> · <a class="map-link" href={map} target="_blank" rel="noopener" aria-label={`${r.address}, visa på karta`}>{r.address} ↗</a></p>
     {r.price && <p class="price">{r.price}</p>}
     {r.stale && <p class="badge warn">Menyn gäller vecka {r.menuWeek} – kan vara inaktuell</p>}
   </div>
