@@ -2,6 +2,7 @@
 // and the raw HTML, and returns { week, dishes: [{ category, name, description }], embed? }.
 // Indexing below is bounds-checked by each loop, so `?? ''` only satisfies noUncheckedIndexedAccess.
 import type { Dish, RestaurantInfo, Weekday } from '../shared/types.ts';
+import { htmlToLines } from './html.ts';
 
 export interface ParsedMenu {
   week: number | null;
@@ -79,7 +80,18 @@ function parsePagoden(lines: string[], day: Weekday): ParsedMenu {
   return { week: menuWeek(lines), dishes };
 }
 
-function parseBjorkmans(lines: string[], day: Weekday): ParsedMenu {
+// The Wix site puts each name and each description in its own rich-text block, and a long
+// description can span several <p>s there. Read one line per block so a wrapped description
+// can't shift the name/description pairs; fall back to page lines if the blocks are gone.
+function wixTextBlocks(html: string): string[] {
+  return [...html.matchAll(/<div[^>]*data-testid="richTextElement"[^>]*>([\s\S]*?)<\/div>/g)]
+    .map((m) => htmlToLines(m[1] ?? '').join(' '))
+    .filter(Boolean);
+}
+
+function parseBjorkmans(pageLines: string[], day: Weekday, html: string): ParsedMenu {
+  const blocks = wixTextBlocks(html);
+  const lines = blocks.length ? blocks : pageLines;
   const start = lines.indexOf(day.toLocaleUpperCase('sv'));
   if (start < 0) return { week: menuWeek(lines), dishes: [] };
   const upperDays = WEEKDAYS.map((d) => d.toLocaleUpperCase('sv'));
@@ -88,7 +100,7 @@ function parseBjorkmans(lines: string[], day: Weekday): ParsedMenu {
     const l = lines[i] ?? '';
     if (upperDays.includes(l) || /^VECKA \d+/.test(l) || l === 'GRÖNT') break;
     // Each day block carries a hidden "<Weekday> / Stängt" badge; skip it.
-    if (isWeekday(l) || l === 'Stängt') continue;
+    if (isWeekday(l.replace(/ ?Stängt$/, '')) || l === 'Stängt') continue;
     body.push(l);
   }
   const dishes: Dish[] = [];

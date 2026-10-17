@@ -13,6 +13,8 @@ const NAMED: Record<string, string> = {
   Ouml: 'Ö',
   eacute: 'é',
   Eacute: 'É',
+  oacute: 'ó',
+  Oacute: 'Ó',
   uuml: 'ü',
   Uuml: 'Ü',
   ndash: '–',
