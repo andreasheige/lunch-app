@@ -702,19 +702,16 @@ function renderListing() {
     if (radio.value === 'mine') radio.disabled = !myOrder();
   }
   // No lunch today (weekend): the notices and the week's recap, since the views assume at least one place.
-  const listing = lunch.data.day
-    ? [sorting ? sortView() : VIEWS[view]()]
-    : lunch.history
-      ? [weekRecap(lunch.history)]
-      : [];
+  const listing = lunch.data.day ? [sorting ? sortView() : VIEWS[view]()] : [weekRecap(lunch.history)].filter(Boolean);
   container.replaceChildren(...lunch.notices.map((n) => el('p', 'notice', n)), ...listing);
   updateFilterSummary(filter);
 }
 
-// The weekend's look back (/history.json): the week's best-rated dishes and the ones that keep coming back.
+// The weekend's look back (/history.json): the week's best-rated dishes and the ones that keep coming back. A part
+// with nothing in it is left out, and the whole card when both are empty; the History tab on /stats says why.
 function weekRecap(h) {
+  if (!h?.week || (!h.top.length && !h.recurring.length)) return null;
   const box = el('section', 'recap');
-  if (!h.week) return box;
   const head = el('div', 'recap-head');
   head.append(
     el('h2', null, t('history.recap')),
@@ -740,8 +737,8 @@ function weekRecap(h) {
   more.href = '/stats#history';
   box.append(
     head,
-    top.length ? list(t('history.top'), top) : el('p', 'empty', t('history.no-votes')),
-    back.length ? list(t('history.recurring'), back) : el('p', 'empty', t('history.no-recurring')),
+    ...(top.length ? [list(t('history.top'), top)] : []),
+    ...(back.length ? [list(t('history.recurring'), back)] : []),
     more,
   );
   return box;
