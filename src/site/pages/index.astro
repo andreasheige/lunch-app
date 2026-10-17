@@ -110,6 +110,8 @@ const allergens = [
   <main id="restaurants" aria-live="polite" aria-busy="true">
     {places.length ? (
       <div class="cards">{places.map((r) => <Place r={r} />)}</div>
+    ) : lunch && !lunch.day ? (
+      <p class="notice" data-i18n="notice.weekend">Det är helg – inga luncher idag. Restaurangerna är tillbaka med nya menyer på måndag.</p>
     ) : (
       <>
         <article class="place skeleton" aria-hidden="true"><span></span><span></span><span></span><span></span></article>
