@@ -53,6 +53,47 @@ export function groupWeek(rows: HistoryDishRow[]): NonNullable<HistoryResponse['
     }));
 }
 
+export interface ServedOnRow {
+  date: string;
+  restaurant: string;
+  dish: string;
+}
+
+/** Share of a place's menu days above which a dish counts as part of a fixed menu, not as coming back. */
+const FIXED_SHARE = 0.6;
+
+// Dishes that come back: served, then missing on at least one of that place's menu days, then served again.
+// `times` counts those separate runs, so a fixed menu (one unbroken run, or on most of the place's days) and a
+// weekly special (Monday to Friday) don't count until they really return. Rows in any order; ids, not names.
+export function recurringDishes(rows: ServedOnRow[], limit = 20): HistoryResponse['recurring'] {
+  const placeDays = new Map<string, string[]>();
+  const dishDays = new Map<string, Set<string>>();
+  for (const r of rows) {
+    const days = placeDays.get(r.restaurant) ?? [];
+    placeDays.set(r.restaurant, days);
+    if (!days.includes(r.date)) days.push(r.date);
+    const key = `${r.restaurant}\n${r.dish}`;
+    const served = dishDays.get(key) ?? new Set<string>();
+    dishDays.set(key, served);
+    served.add(r.date);
+  }
+  for (const days of placeDays.values()) days.sort();
+  const out: HistoryResponse['recurring'] = [];
+  for (const [key, served] of dishDays) {
+    const [restaurant = '', dish = ''] = key.split('\n');
+    const days = placeDays.get(restaurant) ?? [];
+    if (served.size > days.length * FIXED_SHARE) continue;
+    let runs = 0;
+    days.forEach((day, i) => {
+      if (served.has(day) && (i === 0 || !served.has(days[i - 1] ?? ''))) runs++;
+    });
+    if (runs < 2) continue;
+    const dates = [...served].sort();
+    out.push({ restaurant, dish, times: runs, first: dates[0] ?? '', last: dates[dates.length - 1] ?? '' });
+  }
+  return out.sort((a, b) => b.times - a.times || b.last.localeCompare(a.last)).slice(0, limit);
+}
+
 /** Today's dishes with how often each place served them before (rows from earlier days only). */
 export function addServed(lunch: LunchResponse, rows: ServedRow[]): LunchResponse {
   if (!rows.length) return lunch;

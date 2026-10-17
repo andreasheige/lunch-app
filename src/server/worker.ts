@@ -12,7 +12,15 @@ import type {
   TodaysRatings,
 } from '../shared/types.ts';
 import { addDiets, type Classified, DIET_PROMPT, parseModelDiets, unlabelledDishes } from './diet.ts';
-import { addServed, groupWeek, type HistoryDishRow, type ServedRow, weekBounds } from './history.ts';
+import {
+  addServed,
+  groupWeek,
+  type HistoryDishRow,
+  recurringDishes,
+  type ServedOnRow,
+  type ServedRow,
+  weekBounds,
+} from './history.ts';
 import { getTodaysLunch, isoWeek, parseCaptured } from './lunch.ts';
 import { menuDayRows } from './menudays.ts';
 import { type ContactRow, FROM, notifyEmail } from './notify.ts';
@@ -361,17 +369,14 @@ async function history(request: Request, env: Env, ctx: ExecutionContext): Promi
          WHERE date BETWEEN ? AND ? GROUP BY restaurant, dish
          ORDER BY (COUNT(*) >= 2) DESC, avg DESC, votes DESC LIMIT 5`,
       ).bind(from, to),
-      env.DB.prepare(
-        `SELECT restaurant, dish, COUNT(DISTINCT date) AS times, MIN(date) AS first, MAX(date) AS last FROM menu_days
-         WHERE date <= ? GROUP BY restaurant, dish HAVING times >= 2 ORDER BY times DESC, last DESC LIMIT 20`,
-      ).bind(lunch.date),
+      env.DB.prepare('SELECT date, restaurant, dish FROM menu_days WHERE date <= ?').bind(lunch.date),
     ]);
     const rows = <T>(r: D1Result | undefined) => (r?.results ?? []) as T[]; // D1 rows are untyped; shapes match the SELECTs above
     data = {
       ...data,
       week: { week: isoWeek(new Date(`${from}T00:00:00Z`)), from, to, days: groupWeek(rows<HistoryDishRow>(week)) },
       top: rows<HistoryResponse['top'][number]>(top).map((d) => ({ ...d, restaurant: name(d.restaurant) })),
-      recurring: rows<HistoryResponse['recurring'][number]>(recurring).map((d) => ({
+      recurring: recurringDishes(rows<ServedOnRow>(recurring)).map((d) => ({
         ...d,
         restaurant: name(d.restaurant),
       })),
