@@ -9,6 +9,7 @@
   },
   "scripts": {
     "start": "astro build && node server.ts",
+    "dev": "node scripts/build.ts && wrangler d1 migrations apply lunch-app --local && wrangler dev",
     "build": "node scripts/build.ts",
     "test": "node --test",
     "lint": "biome check .",
@@ -17,11 +18,12 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
-    "@cloudflare/workers-types": "5.20261001.1",
+    "@cloudflare/workers-types": "5.20261016.1",
     "@types/node": "24.19.0",
     "astro": "7.3.8",
     "playwright": "1.63.0",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "wrangler": "4.151.1"
   },
   "dependencies": {
     "sortablejs": "1.15.7"
