@@ -73,6 +73,25 @@ test('Björkmans: Friday (first on the page) does not bleed into Thursday', () =
   assert.equal(dishes[4].name, 'Fredagsdessert');
 });
 
+// bjorkmans.html is the raw page from 2026-10-17 (vecka 42), scripts and styles removed.
+test('Björkmans: a description spread over two <p>s stays with its dish', () => {
+  const html = fs.readFileSync(new URL('fixtures/bjorkmans.html', import.meta.url), 'utf8');
+  const { week, dishes } = parser('bjorkmans')(htmlToLines(html), 'Fredag', html);
+  assert.equal(week, 42);
+  assert.deepEqual(
+    dishes.map((d) => d.name),
+    ['Veggie enchiladas', 'Pulled chicken burger', 'Teri yaki lax', 'Schnitzel ”saltimbocca”', 'Fredagsdessert'],
+  );
+  assert.match(dishes[0].description ?? '', /chili, & koriander$/);
+  assert.match(dishes[1].description ?? '', /^Riven bbqkryddad kyckling/);
+});
+
+test('Björkmans: accented capitals are decoded before sentence case', () => {
+  const html = fs.readFileSync(new URL('fixtures/bjorkmans.html', import.meta.url), 'utf8');
+  const { dishes } = parser('bjorkmans')(htmlToLines(html), 'Onsdag', html);
+  assert.equal(dishes[3]?.name, 'Grillad secreto ibericó');
+});
+
 test('every parser returns no dishes (not a crash) when the page changes shape', () => {
   for (const r of RESTAURANTS)
     assert.deepEqual(r.parse(['Hej', 'Något helt annat'], 'Måndag', '<p>Hej</p>').dishes, []);
