@@ -292,6 +292,27 @@ test('Carotte: Thursday stops at the dessert heading, Friday before the price li
   assert.match(day('Fredag')[2].name, /^Halloumiburgare/);
 });
 
+// carotte-v43.txt was captured 2026-10-19 (vecka 43): no soup set, the salad heading in capitals, and Wednesday's
+// meat dish wraps onto a second line.
+test('Carotte v43: a blank soup is left out and the capitalised salad heading still counts', () => {
+  const { week, dishes } = parser('carotte')(fixture('carotte-v43'), 'Måndag');
+  assert.equal(week, 43);
+  assert.deepEqual(
+    dishes.map((d) => d.category),
+    ['Kött', 'Fisk', 'Veg', 'Veckans sallad'],
+  );
+  assert.match(dishes[3].name, /^Ceasarsallad/);
+});
+
+test('Carotte v43: a dish wrapping onto the next line stays one dish', () => {
+  const { dishes } = parser('carotte')(fixture('carotte-v43'), 'Onsdag');
+  assert.deepEqual(
+    dishes.map((d) => d.category),
+    ['Kött', 'Fisk', 'Veg', 'Veckans sallad'],
+  );
+  assert.match(dishes[0].name, /morot och koriander$/);
+});
+
 test('parseCaptured keeps string-array entries and treats anything else as nothing captured', () => {
   assert.deepEqual(parseCaptured('{"poppels":["MÅNDAG","X"],"bad":[1],"worse":"x"}'), { poppels: ['MÅNDAG', 'X'] });
   assert.deepEqual(parseCaptured(null), {});
