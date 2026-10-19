@@ -229,8 +229,9 @@ function parseDelissimo(lines: string[], day: Weekday): ParsedMenu {
   return { week: null, dishes };
 }
 
-// Day sections under "Dagens lunch v.41" hold "Kött: …" / "Fisk: …" / "Veg: …" lines; anything else
-// ("Torsdagsdessert", the next day) ends the section. The weekly salad and soup above them are served all week.
+// Day sections under "Dagens lunch v.41" hold "Kött: …" / "Fisk: …" / "Veg: …" lines; a line starting in lower case
+// continues the dish above, anything else ("Torsdagsdessert", the next day) ends the section. The weekly salad and
+// soup above them are served all week; a soup line with no name (", serveras med …") means none is set.
 const CAROTTE_DISH = /^(Kött|Fisk|Veg): (.+)$/;
 
 function parseCarotte(lines: string[], day: Weekday): ParsedMenu {
@@ -238,11 +239,14 @@ function parseCarotte(lines: string[], day: Weekday): ParsedMenu {
   const header = lines.findIndex((l) => /^Dagens lunch v\./.test(l));
   const start = header >= 0 ? lines.indexOf(day, header) : -1;
   for (let i = start + 1; start >= 0 && i < lines.length; i++) {
-    const m = (lines[i] ?? '').match(CAROTTE_DISH);
-    if (!m) break;
-    dishes.push({ category: m[1] ?? '', name: m[2] ?? '' });
+    const line = lines[i] ?? '';
+    const m = line.match(CAROTTE_DISH);
+    const last = dishes.at(-1);
+    if (m) dishes.push({ category: m[1] ?? '', name: m[2] ?? '' });
+    else if (last && /^\p{Ll}/u.test(line)) last.name = `${last.name} ${line}`;
+    else break;
   }
-  const salad = lines.indexOf('Veckans sallad', header);
+  const salad = header >= 0 ? lines.findIndex((l, i) => i > header && /^Veckans sallad$/i.test(l)) : -1;
   if (header >= 0 && salad >= 0 && lines[salad + 1]) {
     const choice = lines[salad + 2] ?? '';
     dishes.push({
@@ -252,7 +256,8 @@ function parseCarotte(lines: string[], day: Weekday): ParsedMenu {
     });
   }
   const soup = lines.indexOf('Dagens soppa', header);
-  if (header >= 0 && soup >= 0 && lines[soup + 1]) dishes.push({ category: 'Soppa', name: lines[soup + 1] ?? '' });
+  if (header >= 0 && soup >= 0 && /^\p{L}/u.test(lines[soup + 1] ?? ''))
+    dishes.push({ category: 'Soppa', name: lines[soup + 1] ?? '' });
   return { week: menuWeek(lines), dishes };
 }
 
