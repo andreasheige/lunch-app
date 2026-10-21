@@ -240,14 +240,14 @@ test('Delissimo: wrapped lines are joined and an unlabelled dish keeps its own e
   assert.equal(friday[1].category, 'Pasta pesce');
 });
 
-test('Delissimo: finds the Platinan PDF link on the home page', () => {
+test('Delissimo: finds the PDF linked as PLATINAN on the home page', () => {
   const { pdf } = restaurant('delissimo');
   assert.ok(pdf);
-  assert.equal(
-    pdf('<a href="http://delissimo.se/wp-content/uploads/2026/09/Platinan.pdf">'),
-    'http://delissimo.se/wp-content/uploads/2026/09/Platinan.pdf',
-  );
-  assert.equal(pdf('<a href="/Veckans-lunch.pdf">'), null);
+  const links =
+    '<a href="http://delissimo.se/wp-content/uploads/2026/10/Gamle.pdf">GAMLESTADEN</a> | ' +
+    '<a href="http://delissimo.se/wp-content/uploads/2026/10/Centralen.pdf">PLATINAN</a></p>';
+  assert.equal(pdf(links), 'http://delissimo.se/wp-content/uploads/2026/10/Centralen.pdf');
+  assert.equal(pdf('<a href="/Veckans-lunch.pdf">ÖJERSJÖ</a>'), null);
 });
 
 test('readPdf: creation date from the Info dictionary', () => {
