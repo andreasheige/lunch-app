@@ -110,26 +110,41 @@ test('isoWeek and Stockholm date', () => {
   assert.equal(stockholmDate(new Date('2026-09-27T23:30:00Z')).getUTCDay(), 1);
 });
 
+// indya.html is the raw page from 2026-10-21 (vecka 43), scripts and styles removed.
+const indyaHtml = fs.readFileSync(new URL('fixtures/indya.html', import.meta.url), 'utf8');
+const indya = (day: Weekday) => parser('indya')(htmlToLines(indyaHtml), day, indyaHtml);
+
 test('Indya: Monday stops before the fixed "Stående Rätter" dishes', () => {
-  const { week, dishes } = parser('indya')(fixture('indya'), 'Måndag');
-  assert.equal(week, 40);
+  const { week, dishes } = indya('Måndag');
+  assert.equal(week, 43);
   assert.deepEqual(
     dishes.map((d) => d.name),
-    ['Chicken Do Pyaza', 'Lamm Korma', 'Vegetarisk Thali', 'Dagens Thali (139 kr)'],
+    ['Pepper Chicken', 'Lamm Vindaloo', 'Vegetarisk Thali', 'Dagens Thali (139 kr)'],
   );
-  assert.match(dishes[1].description ?? '', /^Krämig och mild lammgryta/);
+  assert.match(dishes[1].description ?? '', /^Mört lamm i het och syrlig curry/);
 });
 
-test('Indya: Friday keeps its extra dessert and skips the duplicated block', () => {
-  const { dishes } = parser('indya')(fixture('indya'), 'Fredag');
+test('Indya: days in the two-column grid get their own menu, not the next block', () => {
+  // Source order: "ONSDAG", "TORSDAG", Wednesday's menu, "FREDAG", Friday's menu, Thursday's menu.
+  assert.equal(indya('Onsdag').dishes[0]?.name, 'Cream Garlic Chicken');
+  assert.equal(indya('Torsdag').dishes[0]?.name, 'Chicken Achari');
+  assert.equal(indya('Fredag').dishes[0]?.name, 'Bhuna Chicken');
+});
+
+test('Indya: Friday keeps its extra dessert', () => {
+  const { dishes } = indya('Fredag');
   assert.equal(dishes.length, 5);
   assert.equal(dishes[4].name, 'Fredagsmys');
 });
 
 test('Indya: a stray "." line does not shift names and descriptions', () => {
   // Tuesday of v. 42 had an empty "." paragraph between two dishes.
-  const lines = ['TISDAG', 'Chilli Chicken', 'Saftig kycklingfilé', '.', 'Baingan Gosht', 'Mört lammkött', 'ONSDAG'];
-  const { dishes } = parser('indya')(lines, 'Tisdag');
+  const text = (lines: string[]) =>
+    `<div data-kind="Component" data-specific-kind="TEXT">${lines.map((l) => `<p>${l}</p>`).join('')}</div>`;
+  const html =
+    text(['TISDAG']) +
+    text(['Chilli Chicken', 'Saftig kycklingfilé', '.', 'Baingan Gosht', 'Mört lammkött', 'Stående Rätter 139:-']);
+  const { dishes } = parser('indya')(htmlToLines(html), 'Tisdag', html);
   assert.deepEqual(
     dishes.map((d) => [d.name, d.description]),
     [
