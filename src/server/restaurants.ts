@@ -115,15 +115,38 @@ function parseBjorkmans(pageLines: string[], day: Weekday, html: string): Parsed
   return { week: menuWeek(lines), dishes };
 }
 
-function parseIndya(lines: string[], day: Weekday): ParsedMenu {
-  const start = lines.indexOf(day.toLocaleUpperCase('sv'));
-  if (start < 0) return { week: menuWeek(lines), dishes: [] };
+// The page is a two-column grid (Mon/Wed/Fri left, Tue/Thu right) whose source runs column by column, so a day's
+// menu doesn't always follow its heading: "ONSDAG", "TORSDAG", Wednesday's menu, "FREDAG", Friday's menu, Thursday's
+// menu. Each text block is a heading or a day's menu (it has "Stående Rätter"): a menu right after headings belongs to
+// the first of them, one with no heading before it to the earliest heading still without a menu.
+function indyaMenu(html: string, day: Weekday): string[] {
   const upperDays = WEEKDAYS.map((d) => d.toLocaleUpperCase('sv'));
+  const waiting: string[] = [];
+  let headings: string[] = [];
+  for (const block of html
+    .split(/<div [^>]*data-specific-kind="TEXT"[^>]*>/)
+    .slice(1)
+    .map(htmlToLines)) {
+    const [first = ''] = block;
+    if (block.length === 1 && upperDays.includes(first)) {
+      headings.push(first);
+      waiting.push(first);
+      continue;
+    }
+    const owner = block.some((l) => /^Stående Rätter/.test(l)) ? (headings[0] ?? waiting[0]) : undefined;
+    headings = [];
+    if (owner === undefined) continue;
+    waiting.splice(waiting.indexOf(owner), 1);
+    if (owner === day.toLocaleUpperCase('sv')) return block;
+  }
+  return [];
+}
+
+function parseIndya(lines: string[], day: Weekday, html: string): ParsedMenu {
   const body: string[] = [];
-  for (let i = start + 1; i < lines.length; i++) {
-    const l = lines[i] ?? '';
+  for (const l of indyaMenu(html, day)) {
     // "Stående Rätter" (the fixed dishes) closes each day's own menu.
-    if (upperDays.includes(l) || /^Stående Rätter/.test(l)) break;
+    if (/^Stående Rätter/.test(l)) break;
     // Stray paragraphs like "." would shift the name/description pairs.
     if (/\p{L}/u.test(l)) body.push(l);
   }
@@ -366,11 +389,9 @@ export const RESTAURANTS: Restaurant[] = [
     // The link text names the place; the file name has changed (Platinan.pdf → Centralen.pdf), so the file names
     // are only fallbacks.
     pdf: (html: string) =>
-      (
-        html.match(/href="([^"]*\.pdf)"[^>]*>\s*PLATINAN\s*</i) ??
+      (html.match(/href="([^"]*\.pdf)"[^>]*>\s*PLATINAN\s*</i) ??
         html.match(/href="([^"]*\/Centralen\.pdf)"/i) ??
-        html.match(/href="([^"]*\/Platinan\.pdf)"/i)
-      )?.[1] ?? null,
+        html.match(/href="([^"]*\/Platinan\.pdf)"/i))?.[1] ?? null,
     parse: parseDelissimo,
   },
   {
