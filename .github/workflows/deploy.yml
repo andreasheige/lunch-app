@@ -12,6 +12,8 @@ permissions:
   contents: read
   # build.ts asks GitHub which pull request each commit came from, to group the news by release.
   pull-requests: read
+  # A restaurant whose menu could not be read gets an issue.
+  issues: write
 
 concurrency:
   group: deploy
@@ -39,6 +41,23 @@ jobs:
       - run: npm run build
         env:
           GH_TOKEN: ${{ github.token }}
+      # One open issue per restaurant whose menu failed (error in lunch.json; weekends have no restaurants).
+      # Never fails the deploy.
+      - name: Open issues for menus that could not be read
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          open=$(gh issue list --state open --limit 500 --json title --jq '.[].title')
+          jq -r '.date as $d | .restaurants[] | select(.error) | [.name, .url, .error, $d] | @tsv' dist/lunch.json |
+            while IFS=$'\t' read -r name url error date; do
+              title="Fel: menyn för $name kunde inte läsas"
+              if grep -Fxq "$title" <<< "$open"; then continue; fi
+              printf '%s\n\n%s\n\nSida: %s\nBygge: %s\n\nUppdatera fixturen med `htmlToLines` och rätta parsern (se CLAUDE.md).\n' \
+                "$date: $error" "Byggsteget kunde inte läsa menyn för $name." "$url" "$RUN_URL" |
+                gh issue create --title "$title" --label bug --body-file -
+            done
       - run: npx --yes wrangler@4 deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

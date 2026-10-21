@@ -247,6 +247,9 @@ test('Delissimo: finds the PDF linked as PLATINAN on the home page', () => {
     '<a href="http://delissimo.se/wp-content/uploads/2026/10/Gamle.pdf">GAMLESTADEN</a> | ' +
     '<a href="http://delissimo.se/wp-content/uploads/2026/10/Centralen.pdf">PLATINAN</a></p>';
   assert.equal(pdf(links), 'http://delissimo.se/wp-content/uploads/2026/10/Centralen.pdf');
+  // Link text changed: fall back to the file names.
+  assert.equal(pdf('<a href="/2026/11/Centralen.pdf">CENTRALEN</a>'), '/2026/11/Centralen.pdf');
+  assert.equal(pdf('<a href="/2026/09/Platinan.pdf">MENY</a>'), '/2026/09/Platinan.pdf');
   assert.equal(pdf('<a href="/Veckans-lunch.pdf">ÖJERSJÖ</a>'), null);
 });
 
