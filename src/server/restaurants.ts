@@ -363,8 +363,14 @@ export const RESTAURANTS: Restaurant[] = [
     distance: 100,
     hours: '11.00–14.00',
     price: '149 kr inkl. salladsbuffé, bröd & kaffe',
-    // The link text names the place; the file name has changed (Platinan.pdf → Centralen.pdf).
-    pdf: (html: string) => html.match(/href="([^"]*\.pdf)"[^>]*>\s*PLATINAN\s*</i)?.[1] ?? null,
+    // The link text names the place; the file name has changed (Platinan.pdf → Centralen.pdf), so the file names
+    // are only fallbacks.
+    pdf: (html: string) =>
+      (
+        html.match(/href="([^"]*\.pdf)"[^>]*>\s*PLATINAN\s*</i) ??
+        html.match(/href="([^"]*\/Centralen\.pdf)"/i) ??
+        html.match(/href="([^"]*\/Platinan\.pdf)"/i)
+      )?.[1] ?? null,
     parse: parseDelissimo,
   },
   {
