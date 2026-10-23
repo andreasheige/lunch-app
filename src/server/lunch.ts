@@ -4,6 +4,9 @@ import { readPdf } from './pdf.ts';
 import { RESTAURANTS, type Restaurant, WEEKDAYS } from './restaurants.ts';
 
 const CACHE_MS = 30 * 60 * 1000;
+// A failed read is tried once more after this long; sites now and then answer one request with a page
+// missing the menu (2026-10-22: delissimo.se without its PDF links, fine the day before and after).
+const RETRY_MS = 3_000;
 const TZ = 'Europe/Stockholm';
 
 // Calendar date in Stockholm as a UTC-midnight Date, so weekday/week maths ignore the host timezone.
@@ -40,12 +43,34 @@ export function isoWeek(date: Date): number {
   return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
 }
 
+/** What a failed read got back, for the build's issue reports (never part of lunch.json). */
+export type MenuFailure = { id: string; error: string; url: string; status: number | null; excerpt: string };
+
+// The start of a page's text, enough to tell a bot check or error page from a changed layout.
+const excerpt = (lines: string[]) => lines.join(' ').slice(0, 300);
+
+// An error that knows which page it came from and what that page said.
+class PageError extends Error {
+  readonly url: string;
+  readonly status: number | null;
+  readonly excerpt: string;
+  constructor(message: string, url: string, status: number | null, excerpt: string) {
+    super(message);
+    this.url = url;
+    this.status = status;
+    this.excerpt = excerpt;
+  }
+}
+
 async function fetchPage(url: string): Promise<Response> {
   const res = await fetch(url, {
     headers: { 'user-agent': 'knowit-lunch-app (lunch menu reader)' },
     signal: AbortSignal.timeout(10_000),
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new PageError(`HTTP ${res.status}`, url, res.status, excerpt(htmlToLines(body)));
+  }
   return res;
 }
 
@@ -62,7 +87,7 @@ export function pdfMenuWeek(created: Date): number {
 async function menuSource(r: Restaurant, html: string): Promise<{ lines: string[]; week: number | null }> {
   if (!r.pdf) return { lines: htmlToLines(html), week: null };
   const href = r.pdf(html);
-  if (!href) throw new Error('hittade ingen PDF-meny');
+  if (!href) throw new PageError('hittade ingen PDF-meny', r.url, 200, excerpt(htmlToLines(html)));
   const pdf = await fetchPage(new URL(href, r.url).href.replace(/^http:/, 'https:'));
   const { lines, created } = await readPdf(new Uint8Array(await pdf.arrayBuffer()));
   return { lines, week: created ? pdfMenuWeek(created) : null };
@@ -86,42 +111,64 @@ export function parseCaptured(json: string | null): Captured {
   }
 }
 
-async function loadRestaurant(
+// The page (or its PDF) read and parsed, plus the lines it was parsed from.
+async function readMenu(r: Restaurant, day: Weekday, captured: string[] | undefined) {
+  const html = await (await fetchPage(r.url)).text();
+  const source = captured ? { lines: captured, week: null } : await menuSource(r, html);
+  return { parsed: r.parse(source.lines, day, html), source };
+}
+
+export async function loadRestaurant(
   r: Restaurant,
   day: Weekday,
   week: number,
   captured: string[] | undefined,
+  onFailure?: (failure: MenuFailure) => void,
+  retryMs = RETRY_MS,
 ): Promise<RestaurantMenu> {
   const { parse, pdf, ...info } = r;
   try {
-    const html = await (await fetchPage(r.url)).text();
-    const source = captured ? { lines: captured, week: null } : await menuSource(r, html);
-    const parsed = parse(source.lines, day, html);
+    const { parsed, source } = await readMenu(r, day, captured).catch(async () => {
+      await new Promise((resolve) => setTimeout(resolve, retryMs));
+      return readMenu(r, day, captured);
+    });
     const { dishes, embed = null } = parsed;
     const menuWeek = parsed.week ?? source.week;
+    const error = dishes.length || embed ? null : 'Hittade ingen meny för idag';
+    if (error) onFailure?.({ id: r.id, error, url: r.url, status: 200, excerpt: excerpt(source.lines) });
     return {
       ...info,
       dishes,
       embed,
       stale: menuWeek !== null && menuWeek !== week,
       menuWeek,
-      error: dishes.length || embed ? null : 'Hittade ingen meny för idag',
+      error,
     };
   } catch (err) {
+    const error = `Kunde inte hämta menyn (${err instanceof Error ? err.message : String(err)})`;
+    onFailure?.(
+      err instanceof PageError
+        ? { id: r.id, error, url: err.url, status: err.status, excerpt: err.excerpt }
+        : { id: r.id, error, url: r.url, status: null, excerpt: '' },
+    );
     return {
       ...info,
       dishes: [],
       embed: null,
       stale: false,
       menuWeek: null,
-      error: `Kunde inte hämta menyn (${err instanceof Error ? err.message : String(err)})`,
+      error,
     };
   }
 }
 
 let cache: { key: string | null; at: number; data: LunchResponse | null } = { key: null, at: 0, data: null };
 
-export async function getTodaysLunch(captured: Captured = {}, now = new Date()): Promise<LunchResponse> {
+export async function getTodaysLunch(
+  captured: Captured = {},
+  now = new Date(),
+  onFailure?: (failure: MenuFailure) => void,
+): Promise<LunchResponse> {
   const date = stockholmDate(now);
   const day = WEEKDAYS[date.getUTCDay() - 1] ?? null;
   const week = isoWeek(date);
@@ -130,7 +177,7 @@ export async function getTodaysLunch(captured: Captured = {}, now = new Date()):
   if (cache.data && cache.key === key && now.getTime() - cache.at < CACHE_MS) return cache.data;
 
   const restaurants = day
-    ? await Promise.all(RESTAURANTS.map((r) => loadRestaurant(r, day, week, captured[r.id])))
+    ? await Promise.all(RESTAURANTS.map((r) => loadRestaurant(r, day, week, captured[r.id], onFailure)))
     : [];
   const data: LunchResponse = { date: key, day, week, fetchedAt: stockholmTimestamp(now), restaurants };
   cache = { key, at: now.getTime(), data };

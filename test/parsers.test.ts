@@ -2,7 +2,14 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { test } from 'node:test';
 import { decodeEntities, htmlToLines } from '../src/server/html.ts';
-import { isoWeek, parseCaptured, pdfMenuWeek, stockholmDate } from '../src/server/lunch.ts';
+import {
+  isoWeek,
+  loadRestaurant,
+  type MenuFailure,
+  parseCaptured,
+  pdfMenuWeek,
+  stockholmDate,
+} from '../src/server/lunch.ts';
 import { readPdf } from '../src/server/pdf.ts';
 import { RESTAURANTS, type Restaurant } from '../src/server/restaurants.ts';
 import type { Weekday } from '../src/shared/types.ts';
@@ -362,4 +369,62 @@ test('Bang Bang Bangers: the sausage menu with toppings, side and price, the sam
   assert.equal(dishes[5].category, 'Nyhet');
   assert.match(dishes[6].description ?? '', /· från 85 kr$/);
   assert.deepEqual(parser('bbbangers')(fixture('bbbangers'), 'Måndag').dishes, dishes);
+});
+
+// A stand-in restaurant: one dish per page line, its PDF link (if any) found by `pdf`.
+const fakeRestaurant = (pdf?: Restaurant['pdf']): Restaurant => {
+  const { pdf: _, ...info } = restaurant('delissimo');
+  return {
+    ...info,
+    url: 'https://example.test/',
+    ...(pdf && { pdf }),
+    parse: (lines) => ({ week: null, dishes: lines.map((name) => ({ category: null, name })) }),
+  };
+};
+const withFetch = async <T>(pages: Response[], run: () => Promise<T>): Promise<T> => {
+  const real = globalThis.fetch;
+  globalThis.fetch = async () => pages.shift() ?? new Response('gone', { status: 500 });
+  try {
+    return await run();
+  } finally {
+    globalThis.fetch = real;
+  }
+};
+
+test('loadRestaurant: a failed read is tried once more, and the second answer counts', async () => {
+  const failures: MenuFailure[] = [];
+  const menu = await withFetch([new Response('busy', { status: 503 }), new Response('<p>Pasta</p>')], () =>
+    loadRestaurant(fakeRestaurant(), 'Måndag', 43, undefined, (f) => failures.push(f), 0),
+  );
+  assert.equal(menu.error, null);
+  assert.deepEqual(
+    menu.dishes.map((d) => d.name),
+    ['Pasta'],
+  );
+  assert.deepEqual(failures, []);
+});
+
+test('loadRestaurant: a page without the PDF link twice reports its status and text', async () => {
+  const failures: MenuFailure[] = [];
+  const page = () => new Response('<h1>Just a moment</h1><p>Checking your browser</p>');
+  const menu = await withFetch([page(), page()], () =>
+    loadRestaurant(
+      fakeRestaurant(() => null),
+      'Måndag',
+      43,
+      undefined,
+      (f) => failures.push(f),
+      0,
+    ),
+  );
+  assert.equal(menu.error, 'Kunde inte hämta menyn (hittade ingen PDF-meny)');
+  assert.deepEqual(failures, [
+    {
+      id: 'delissimo',
+      error: menu.error,
+      url: 'https://example.test/',
+      status: 200,
+      excerpt: 'Just a moment Checking your browser',
+    },
+  ]);
 });
