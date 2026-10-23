@@ -41,7 +41,8 @@ jobs:
       - run: npm run build
         env:
           GH_TOKEN: ${{ github.token }}
-      # One open issue per restaurant whose menu failed (error in lunch.json; weekends have no restaurants).
+      # One open issue per restaurant whose menu failed (build-failures.json; weekends have no restaurants), unless
+      # the live site read it fine: then the site answered this runner badly once and there is nothing to fix.
       # Never fails the deploy.
       - name: Open issues for menus that could not be read
         continue-on-error: true
@@ -50,12 +51,23 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           open=$(gh issue list --state open --limit 500 --json title --jq '.[].title')
-          jq -r '.date as $d | .restaurants[] | select(.error) | [.name, .url, .error, $d] | @tsv' dist/lunch.json |
-            while IFS=$'\t' read -r name url error date; do
+          live=$(curl -fsS --max-time 30 https://lunchit.se/lunch.json || echo '{}')
+          date=$(jq -r .date dist/lunch.json)
+          jq -c '.[]' build-failures.json |
+            while read -r failure; do
+              id=$(jq -r .id <<< "$failure")
+              name=$(jq -r --arg id "$id" '.restaurants[] | select(.id == $id) | .name' dist/lunch.json)
+              if jq -e --arg id "$id" --arg d "$date" \
+                '.date == $d and any(.restaurants[]?; .id == $id and ((.dishes | length) > 0 or .embed))' <<< "$live" >/dev/null; then
+                echo "$name: failed here but the live site has its menu; no issue"
+                continue
+              fi
               title="Fel: menyn för $name kunde inte läsas"
               if grep -Fxq "$title" <<< "$open"; then continue; fi
-              printf '%s\n\n%s\n\nSida: %s\nBygge: %s\n\nUppdatera fixturen med `htmlToLines` och rätta parsern (se CLAUDE.md).\n' \
-                "$date: $error" "Byggsteget kunde inte läsa menyn för $name." "$url" "$RUN_URL" |
+              jq -r --arg d "$date" --arg name "$name" --arg run "$RUN_URL" '
+                "\($d): \(.error)\n\nByggsteget kunde inte läsa menyn för \($name), och inte heller lunchit.se har den just nu.\n\n" +
+                "Sida: \(.url)\nHTTP-status: \(.status // "ingen")\nBygge: \($run)\n\nSidans text (början):\n\n```\n" +
+                (.excerpt | gsub("`"; "´")) + "\n```\n\nUppdatera fixturen med `htmlToLines` och rätta parsern (se CLAUDE.md).\n"' <<< "$failure" |
                 gh issue create --title "$title" --label bug --body-file -
             done
       - run: npx --yes wrangler@4 deploy

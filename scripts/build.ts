@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { addDiets } from '../src/server/diet.ts';
-import { getTodaysLunch, parseCaptured } from '../src/server/lunch.ts';
+import { getTodaysLunch, type MenuFailure, parseCaptured } from '../src/server/lunch.ts';
 import {
   GIT_LOG_FORMAT,
   groupReleases,
@@ -59,7 +59,10 @@ process.stdout.write(`News: ${releases.length} releases from ${prs.length} pull 
 
 // Label-based diets only; the Worker adds Workers AI guesses for the rest.
 const captured = await fs.readFile(path.join(root, 'captured.json'), 'utf8').catch(() => null);
-const data = addDiets(await getTodaysLunch(parseCaptured(captured)), {});
+const failures: MenuFailure[] = [];
+const data = addDiets(await getTodaysLunch(parseCaptured(captured), new Date(), (f) => failures.push(f)), {});
+// What each failed read got back, for CI's issue reports; outside dist/ so it is never served.
+await fs.writeFile(path.join(root, 'build-failures.json'), JSON.stringify(failures));
 
 // Astro empties dist/ and writes the pages; the snapshot puts today's menus in the home page's HTML.
 const snapshot = path.join(root, '.astro', 'lunch-snapshot.json');
