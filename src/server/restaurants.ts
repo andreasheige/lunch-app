@@ -196,12 +196,14 @@ function parseMagasinFem(lines: string[], day: Weekday): ParsedMenu {
   return { week: menuWeek(lines), dishes };
 }
 
-// The lunch menu is a Canva design embedded in the page. Canva blocks server requests
-// (Cloudflare challenge), so we only pass the embed URL on for the browser to show.
 // The menu is a Canva design embedded in the page. Canva blocks plain fetches, so the build reads
 // its text with a real browser (scripts/capture.ts) and lunch.ts passes those lines here: "MÅNDAG"
-// headings, each followed by DISH NAME / sides pairs; the week is the bare number under the big "LU" /
-// "NCH" heading. Without captured lines the card falls back to the Canva embed.
+// headings, each followed by DISH NAME / sides pairs, plus optional "VECKANS …" dishes at the bottom
+// (two-column headings then each dish's name and sides, which can wrap onto a second line); the week
+// is the bare number under the big "LU" / "NCH" heading. Without captured lines the card falls back
+// to the Canva embed.
+const POPPELS_CHROME = /^(Zooma in och ut|Mer|Öppna helskärmsläget)$/;
+
 function parsePoppels(lines: string[], day: Weekday, html: string): ParsedMenu {
   const embed = html.match(/https:\/\/www\.canva\.com\/design\/[\w-]+\/view\?embed/)?.[0] ?? null;
   const weekLine = lines.find((l) => /^\d{1,2}$/.test(l));
@@ -214,6 +216,23 @@ function parsePoppels(lines: string[], day: Weekday, html: string): ParsedMenu {
     const description = lines[i + 1] ?? '';
     if (!isUpper(name) || /\d/.test(name) || isUpper(description)) break;
     dishes.push({ category: null, name: sentenceCase(name), description });
+  }
+  const weeklyStart = lines.findIndex((l) => /^VECKANS /.test(l));
+  if (dishes.length && weeklyStart >= 0) {
+    const categories: string[] = [];
+    let current: Dish | null = null;
+    for (let i = weeklyStart; i < lines.length; i++) {
+      const l = lines[i] ?? '';
+      if (POPPELS_CHROME.test(l) || (isUpper(l) && /\d/.test(l))) break;
+      if (/^VECKANS /.test(l)) {
+        categories.push(sentenceCase(l));
+      } else if (isUpper(l)) {
+        current = { category: categories.shift() ?? 'Veckans', name: sentenceCase(l) };
+        dishes.push(current);
+      } else if (current) {
+        current.description = current.description ? `${current.description} ${l}` : l;
+      }
+    }
   }
   return dishes.length ? { week, dishes } : { week: null, dishes, embed };
 }

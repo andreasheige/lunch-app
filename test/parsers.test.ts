@@ -205,6 +205,27 @@ test('Poppels: Friday stops before the Canva viewer controls', () => {
   );
 });
 
+// poppels-v44.txt is from 2026-10-29 (vecka 44), with "VECKANS HUSMAN" and "VECKANS SALLAD" at the bottom.
+test('Poppels v44: includes the weekly dishes on every day and joins wrapped descriptions', () => {
+  const { week, dishes } = parser('poppels')(fixture('poppels-v44'), 'Torsdag');
+  assert.equal(week, 44);
+  assert.deepEqual(dishes, [
+    { category: null, name: 'Boeuf bourguignon på högrev', description: 'Potatismos, svamp, lök, sidfläsk' },
+    { category: null, name: 'Bouef bourguignon på kålrot', description: 'Potatismos, svamp, lök' },
+    {
+      category: 'Veckans husman',
+      name: 'Wallenbergare på kalv',
+      description: 'Potatismos, brynt smör, ärtor, lingon',
+    },
+    {
+      category: 'Veckans sallad',
+      name: 'Sesamglaserad kyckling',
+      description: 'Limemarinerat svartris, syrad lök, sallad, sojabönor, gochujangdressing',
+    },
+  ]);
+  assert.deepEqual(parser('poppels')(fixture('poppels-v44'), 'Fredag').dishes.slice(2), dishes.slice(2));
+});
+
 test('Poppels: without captured text it falls back to the embed and reports no week', () => {
   const html = '<iframe src="https://www.canva.com/design/DAFJA8wNZsw/view?embed"></iframe>';
   const menu = parser('poppels')(['Lunch', '12', 'Måndag–fredag 11.30–14.00'], 'Måndag', html);
