@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import {
   addDiets,
   dietFromCategory,
+  dietFromDish,
   dishKey,
   dishKind,
   mentions,
@@ -30,6 +31,22 @@ test('dietFromCategory reads the labels the sites use and leaves the rest to the
   for (const [category, diet] of cases) assert.equal(dietFromCategory(category), diet, String(category));
 });
 
+test('dietFromDish classifies vegetarian mains by name when no meat or fish is in the dish', () => {
+  const cases: [{ category?: string | null; name: string; description?: string }, string | null][] = [
+    [{ name: 'Bouef bourguignon på kålrot', description: 'Potatismos, svamp, lök' }, 'veg'],
+    [{ name: 'Boeuf bourguignon på högrev', description: 'Potatismos, svamp, lök, sidfläsk' }, null],
+    [{ name: 'Halloumi’n chips', description: 'Pommes, tartarsås, ärtor, citron' }, 'veg'],
+    [{ name: 'Friterad rotselleri', description: 'Ris, lime- och chilisås, pak choi, rostad lök' }, 'veg'],
+    [{ name: 'Hoisinbakad vitkål', description: 'Ris, sallad på vita bönor och chili, sojamajo' }, 'veg'],
+    [{ name: 'Rosmarinportabello', description: 'Pasta rigatoni, svampsås, parmesan' }, 'veg'],
+    [{ name: 'Halv special', description: 'Vegkorv, potatismos, rotfruktsallad, stekt brioche' }, null],
+    [{ name: 'Biff med morot och lök', description: 'Potatis' }, null],
+    [{ name: 'Kålrot med sidfläsk', description: 'Potatismos' }, null],
+  ];
+  for (const [dish, diet] of cases)
+    assert.equal(dietFromDish({ category: dish.category ?? null, ...dish }), diet, dish.name);
+});
+
 test('addDiets prefers the restaurant label and flags model guesses', () => {
   const r = {
     dishes: [
@@ -47,12 +64,21 @@ test('addDiets prefers the restaurant label and flags model guesses', () => {
   ]);
 });
 
-test('unlabelledDishes sends only dishes the label says nothing about, once each', () => {
-  const dish = { category: 'East Asia', name: 'Wokad tofu', description: 'Ris' };
+test('unlabelledDishes sends only dishes the label or name says nothing about, once each', () => {
+  const dish = { category: 'East Asia', name: 'Asian fusion bowl', description: 'Ris' };
   const data = {
-    restaurants: [{ dishes: [dish, { category: 'Veg', name: 'Falafel' }] }, { dishes: [dish] }],
+    restaurants: [
+      {
+        dishes: [
+          dish,
+          { category: 'Veg', name: 'Falafel' },
+          { category: null, name: 'Bouef bourguignon på kålrot', description: 'Potatismos, svamp, lök' },
+        ],
+      },
+      { dishes: [dish] },
+    ],
   } as LunchResponse; // only dishes matter here
-  assert.deepEqual([...unlabelledDishes(data)], [['Wokad tofu\nRis', 'Wokad tofu – Ris']]);
+  assert.deepEqual([...unlabelledDishes(data)], [['Asian fusion bowl\nRis', 'Asian fusion bowl – Ris']]);
 });
 
 test('parseModelDiets maps ids to known diets and drops everything else per dish', () => {

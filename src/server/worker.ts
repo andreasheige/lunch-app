@@ -56,7 +56,7 @@ async function cachedAiJson(
   maxTokens: number,
 ): Promise<unknown> {
   const input = JSON.stringify(Object.fromEntries(texts.map((t, i) => [i + 1, t])));
-  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${DIET_MODEL}\n${input}`));
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${DIET_MODEL}\n${prompt}\n${input}`));
   const id = [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('');
   const key = new Request(`${origin}/${path}/${id}`);
   const cached: unknown = await (await caches.default.match(key))?.json();
