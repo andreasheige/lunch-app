@@ -21,8 +21,10 @@ async function capturePoppels(): Promise<string[]> {
     const page = await browser.newPage({ locale: 'sv-SE' });
     await page.goto(embed, { waitUntil: 'load', timeout: 60_000 });
     // Cloudflare's "Vänta…" page comes first; poll until Canva has rendered the menu text.
+    // Canva puts each visual line on its own block element, so innerText preserves the line breaks.
     for (let tries = 0; tries < 30; tries++) {
-      const lines = (await page.innerText('body'))
+      const text = (await page.locator('body').allInnerTexts()).join('\n');
+      const lines = text
         .split('\n')
         .map((l) => l.trim())
         .filter(Boolean);

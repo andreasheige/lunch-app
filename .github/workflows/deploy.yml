@@ -5,7 +5,7 @@ on:
     branches: [main]
   schedule:
     # Weekdays 10:00 CEST / 09:00 CET, so Poppels' captured menu follows the week (see scripts/capture.ts).
-    - cron: '0 8 * * 1-5'
+    - cron: "0 8 * * 1-5"
   workflow_dispatch:
 
 permissions:

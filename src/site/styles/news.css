@@ -165,14 +165,13 @@ main.news {
 main.news-post {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;
-  grid-template-areas: "post facts" "pager .";
   gap: 28px 40px;
   align-items: start;
   padding-block: 22px 48px;
 }
 
 #news-post {
-  grid-area: post;
+  grid-column: 1;
   max-width: 720px;
 }
 
@@ -238,7 +237,8 @@ main.news-post {
 }
 
 .news-facts {
-  grid-area: facts;
+  grid-column: 2;
+  grid-row: 1;
   position: sticky;
   top: 20px;
   display: grid;
@@ -266,7 +266,7 @@ main.news-post {
 }
 
 .news-pager {
-  grid-area: pager;
+  grid-column: 1;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
@@ -301,10 +301,11 @@ main.news-post {
 @media (max-width: 859px) {
   main.news-post {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "post" "facts" "pager";
   }
 
   .news-facts {
+    grid-column: 1;
+    grid-row: auto;
     position: static;
   }
 }
