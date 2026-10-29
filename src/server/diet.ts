@@ -134,7 +134,11 @@ export function dishKind(d: Dish, diet: Diet | undefined): DishKind | null {
 export function vegOverride(d: Dish): boolean {
   const full = `${d.name} ${d.description ?? ''}`;
   if (KINDS.some(([, re, implies]) => implies && re.test(full))) return false;
-  if (/sidfläsk|skinka|prosciutto|pancetta|salsiccia|merguez|nduja|ansjovis|beef|pork|lamb|duck|turkey/i.test(full))
+  if (
+    /kött|sidfläsk|gris|skinka|prosciutto|pancetta|salsiccia|merguez|nduja|kalkon|fågel|vilt|ren(skav|kött)|krabb|ostron|ansjovis|beef|pork|lamb|duck|turkey/i.test(
+      full,
+    )
+  )
     return false;
   return /\b(vegetarisk|vegansk|veg\b)/i.test(d.name) || new RegExp(`\\bpå\\s+${VEG_MAIN.source}`, 'i').test(d.name);
 }

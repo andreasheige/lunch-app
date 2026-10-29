@@ -42,6 +42,8 @@ test('vegOverride catches vegetarian "på <veg>" and "Vegetarisk …" dishes wit
     [{ name: 'Nötstek med morot', description: 'Potatis och skysås' }, false],
     [{ name: 'Kalkonschnitzel med blomkål' }, false],
     [{ name: 'Bouef bourguignon på kålrot', description: 'Potatismos, svamp, lök, sidfläsk' }, false],
+    [{ name: 'Gryta på bönor och nötkött', description: 'Ris' }, false],
+    [{ name: 'Thali – vegetarisk eller kött' }, false],
   ];
   for (const [dish, expected] of cases) assert.equal(vegOverride({ category: null, ...dish }), expected, dish.name);
 });
@@ -52,6 +54,7 @@ test('addDiets prefers the restaurant label and flags model guesses', () => {
       { category: 'Fisk', name: 'Lax' },
       { category: null, name: 'Svamp yakiniku', description: 'Ris' },
       { category: null, name: 'Bouef bourguignon på kålrot', description: 'Potatismos, svamp, lök' },
+      { category: null, name: 'Gryta på bönor och nötkött', description: 'Ris' },
       { category: null, name: 'Okänd' },
     ],
   } as RestaurantMenu; // only dishes matter here
@@ -60,6 +63,7 @@ test('addDiets prefers the restaurant label and flags model guesses', () => {
     [dishKey({ category: null, name: 'Lax' })]: 'meat',
     'Svamp yakiniku\nRis': 'veg',
     'Bouef bourguignon på kålrot\nPotatismos, svamp, lök': 'meat',
+    'Gryta på bönor och nötkött\nRis': 'meat',
   } as const;
   assert.deepEqual(addDiets(data, classified).restaurants[0]?.dishes, [
     { category: 'Fisk', name: 'Lax', diet: 'fish', kind: 'fish' },
@@ -70,6 +74,14 @@ test('addDiets prefers the restaurant label and flags model guesses', () => {
       description: 'Potatismos, svamp, lök',
       diet: 'veg',
       dietByAi: true,
+    },
+    {
+      category: null,
+      name: 'Gryta på bönor och nötkött',
+      description: 'Ris',
+      diet: 'meat',
+      dietByAi: true,
+      kind: 'soup',
     },
     { category: null, name: 'Okänd' },
   ]);
