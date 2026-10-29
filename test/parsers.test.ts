@@ -233,8 +233,11 @@ test('Poppels: stops the weekly block before weekday headings when VECKANS appea
     '145 KR',
     '45',
     'VECKANS HUSMAN',
-    'WALLENBERGARE',
-    'Potatismos',
+    'VECKANS SALLAD',
+    'LUTFISK',
+    'Potatis, ärtor, vitsås',
+    'MERGUEZ & LINSER',
+    'Merguez, gröna linser, syrad lök',
     'MÅNDAG',
     'KYCKLING TIKKA MASALA',
     'Ris, raita',
@@ -247,7 +250,8 @@ test('Poppels: stops the weekly block before weekday headings when VECKANS appea
   assert.equal(week, 45);
   assert.deepEqual(dishes, [
     { category: null, name: 'Kyckling tikka masala', description: 'Ris, raita' },
-    { category: 'Veckans husman', name: 'Wallenbergare', description: 'Potatismos' },
+    { category: 'Veckans husman', name: 'Lutfisk', description: 'Potatis, ärtor, vitsås' },
+    { category: 'Veckans sallad', name: 'Merguez & linser', description: 'Merguez, gröna linser, syrad lök' },
   ]);
 });
 

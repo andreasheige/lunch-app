@@ -202,7 +202,7 @@ function parseMagasinFem(lines: string[], day: Weekday): ParsedMenu {
 // (two-column headings then each dish's name and sides, which can wrap onto a second line); the week
 // is the bare number under the big "LU" / "NCH" heading. Without captured lines the card falls back
 // to the Canva embed.
-const POPPELS_STOP = /^(Zooma in och ut|Mer|Öppna helskärmsläget|LU|NCH|Lunch med\b)/;
+const POPPELS_STOP = /^(?:(?:Zooma in och ut|Mer|Öppna helskärmsläget|LU|NCH)$|Lunch med\b)/;
 
 function parsePoppels(lines: string[], day: Weekday, html: string): ParsedMenu {
   const embed = html.match(/https:\/\/www\.canva\.com\/design\/[\w-]+\/view\?embed/)?.[0] ?? null;
