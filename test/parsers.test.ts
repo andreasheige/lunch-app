@@ -226,6 +226,31 @@ test('Poppels v44: includes the weekly dishes on every day and joins wrapped des
   assert.deepEqual(parser('poppels')(fixture('poppels-v44'), 'Fredag').dishes.slice(2), dishes.slice(2));
 });
 
+test('Poppels: stops the weekly block before weekday headings when VECKANS appears above the days', () => {
+  const lines = [
+    'LU',
+    'NCH',
+    '145 KR',
+    '45',
+    'VECKANS HUSMAN',
+    'WALLENBERGARE',
+    'Potatismos',
+    'MÅNDAG',
+    'KYCKLING TIKKA MASALA',
+    'Ris, raita',
+    'TISDAG',
+    'FLÄSKKARRÉ',
+    'Stekt potatis',
+    'Zooma in och ut',
+  ];
+  const { week, dishes } = parser('poppels')(lines, 'Måndag');
+  assert.equal(week, 45);
+  assert.deepEqual(dishes, [
+    { category: null, name: 'Kyckling tikka masala', description: 'Ris, raita' },
+    { category: 'Veckans husman', name: 'Wallenbergare', description: 'Potatismos' },
+  ]);
+});
+
 test('Poppels: without captured text it falls back to the embed and reports no week', () => {
   const html = '<iframe src="https://www.canva.com/design/DAFJA8wNZsw/view?embed"></iframe>';
   const menu = parser('poppels')(['Lunch', '12', 'Måndag–fredag 11.30–14.00'], 'Måndag', html);
