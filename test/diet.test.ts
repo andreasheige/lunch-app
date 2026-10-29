@@ -53,21 +53,31 @@ test('addDiets prefers the restaurant label and flags model guesses', () => {
     dishes: [
       { category: 'Fisk', name: 'Lax' },
       { category: null, name: 'Svamp yakiniku', description: 'Ris' },
-      { category: null, name: 'Bouef bourguignon på kålrot', description: 'Potatismos, svamp, lök' },
-      { category: null, name: 'Gryta på bönor och nötkött', description: 'Ris' },
       { category: null, name: 'Okänd' },
     ],
   } as RestaurantMenu; // only dishes matter here
   const data = { restaurants: [r] } as LunchResponse;
+  const classified = { [dishKey({ category: null, name: 'Lax' })]: 'meat', 'Svamp yakiniku\nRis': 'veg' } as const;
+  assert.deepEqual(addDiets(data, classified).restaurants[0]?.dishes, [
+    { category: 'Fisk', name: 'Lax', diet: 'fish', kind: 'fish' },
+    { category: null, name: 'Svamp yakiniku', description: 'Ris', diet: 'veg', dietByAi: true, kind: 'mushroom' },
+    { category: null, name: 'Okänd' },
+  ]);
+});
+
+test('addDiets overrides model meat classification when vegOverride matches', () => {
+  const r = {
+    dishes: [
+      { category: null, name: 'Bouef bourguignon på kålrot', description: 'Potatismos, svamp, lök' },
+      { category: null, name: 'Gryta på bönor och nötkött', description: 'Ris' },
+    ],
+  } as RestaurantMenu;
+  const data = { restaurants: [r] } as LunchResponse;
   const classified = {
-    [dishKey({ category: null, name: 'Lax' })]: 'meat',
-    'Svamp yakiniku\nRis': 'veg',
     'Bouef bourguignon på kålrot\nPotatismos, svamp, lök': 'meat',
     'Gryta på bönor och nötkött\nRis': 'meat',
   } as const;
   assert.deepEqual(addDiets(data, classified).restaurants[0]?.dishes, [
-    { category: 'Fisk', name: 'Lax', diet: 'fish', kind: 'fish' },
-    { category: null, name: 'Svamp yakiniku', description: 'Ris', diet: 'veg', dietByAi: true, kind: 'mushroom' },
     {
       category: null,
       name: 'Bouef bourguignon på kålrot',
@@ -83,7 +93,6 @@ test('addDiets prefers the restaurant label and flags model guesses', () => {
       dietByAi: true,
       kind: 'soup',
     },
-    { category: null, name: 'Okänd' },
   ]);
 });
 

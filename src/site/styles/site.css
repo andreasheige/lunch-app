@@ -603,6 +603,37 @@ footer {
   accent-color: var(--accent-emphasis);
 }
 
+/* Loading skeleton */
+
+.skeleton {
+  gap: 12px;
+  min-height: 240px;
+}
+
+.skeleton span {
+  display: block;
+  height: 14px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--surface) 0%, var(--border) 50%, var(--surface) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+.skeleton span:first-child {
+  width: 55%;
+  height: 28px;
+  margin-bottom: 8px;
+}
+.skeleton span:nth-child(2) {
+  width: 90%;
+}
+.skeleton span:nth-child(3) {
+  width: 75%;
+}
+.skeleton span:nth-child(4) {
+  width: 82%;
+}
+
 .order-choice input:disabled + span {
   color: var(--muted);
 }
@@ -1226,6 +1257,18 @@ details.dish > .dish-details {
   cursor: pointer;
 }
 
+.source {
+  align-self: flex-start;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.source:hover {
+  color: var(--text);
+}
+
 .card > .source {
   align-self: stretch;
   margin: 0;
@@ -1245,6 +1288,19 @@ details.dish > .dish-details {
   .overview {
     grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
   }
+}
+
+.menu-list {
+  margin: 8px 0 4px;
+  padding: 0;
+  list-style: none;
+}
+
+.menu-list > li {
+  display: grid;
+  gap: 4px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
 }
 
 .place-list {
@@ -1337,6 +1393,11 @@ details.dish > .dish-details {
   background: var(--bg);
 }
 
+.place-menu {
+  display: grid;
+  gap: 6px;
+}
+
 .place-acc > .place-menu {
   padding: 4px 16px 16px;
   background: var(--bg);
@@ -1360,11 +1421,6 @@ details.dish > .dish-details {
   line-height: 1.2;
 }
 
-.place-menu {
-  display: grid;
-  gap: 6px;
-}
-
 .place-detail .place-menu {
   padding: 4px 16px 12px;
 }
@@ -1384,19 +1440,6 @@ details.dish > .dish-details {
 .box-head-note {
   color: var(--muted);
   font-weight: 400;
-}
-
-.menu-list {
-  margin: 8px 0 4px;
-  padding: 0;
-  list-style: none;
-}
-
-.menu-list > li {
-  display: grid;
-  gap: 4px;
-  padding: 14px 0;
-  border-top: 1px solid var(--border);
 }
 
 .place-detail .dish-name {
@@ -1432,12 +1475,18 @@ details.dish > .dish-details {
   vertical-align: top;
 }
 
-.dish-table tbody tr:first-child td {
-  border-top: 0;
-}
-
 .dish-table tr.first-of-place td {
   border-top-color: var(--border-strong);
+}
+
+/* Every other place's dishes on a soft tint, so a place's rows read as one group. */
+.dish-table tr.tinted td,
+.dish-rows > li.tinted {
+  background: var(--tint);
+}
+
+.dish-table tbody tr:first-child td {
+  border-top: 0;
 }
 
 .dish-table td:first-child {
@@ -1448,12 +1497,6 @@ details.dish > .dish-details {
   display: block;
   margin-top: 2px;
   font-size: 0.82rem;
-}
-
-/* Every other place's dishes on a soft tint, so a place's rows read as one group. */
-.dish-table tr.tinted td,
-.dish-rows > li.tinted {
-  background: var(--tint);
 }
 
 .dish-table .place-cell {
@@ -1558,18 +1601,6 @@ details.dish > .dish-details {
   background: #fff;
 }
 
-.source {
-  align-self: flex-start;
-  color: var(--muted);
-  font-size: 0.85rem;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.source:hover {
-  color: var(--text);
-}
-
 .map-link {
   color: inherit;
   text-decoration: underline;
@@ -1640,37 +1671,6 @@ details.dish > .dish-details {
 
 .star:hover {
   border-color: var(--border-strong);
-}
-
-/* Loading skeleton */
-
-.skeleton {
-  gap: 12px;
-  min-height: 240px;
-}
-
-.skeleton span {
-  display: block;
-  height: 14px;
-  border-radius: var(--radius-sm);
-  background: linear-gradient(90deg, var(--surface) 0%, var(--border) 50%, var(--surface) 100%);
-  background-size: 200% 100%;
-  animation: shimmer 1.4s linear infinite;
-}
-
-.skeleton span:first-child {
-  width: 55%;
-  height: 28px;
-  margin-bottom: 8px;
-}
-.skeleton span:nth-child(2) {
-  width: 90%;
-}
-.skeleton span:nth-child(3) {
-  width: 75%;
-}
-.skeleton span:nth-child(4) {
-  width: 82%;
 }
 
 @keyframes shimmer {
