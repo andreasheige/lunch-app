@@ -3,12 +3,12 @@ import { test } from 'node:test';
 import {
   addDiets,
   dietFromCategory,
-  dietFromDish,
   dishKey,
   dishKind,
   mentions,
   parseModelDiets,
   unlabelledDishes,
+  vegOverride,
 } from '../src/server/diet.ts';
 import type { LunchResponse, RestaurantMenu } from '../src/shared/types.ts';
 
@@ -31,20 +31,19 @@ test('dietFromCategory reads the labels the sites use and leaves the rest to the
   for (const [category, diet] of cases) assert.equal(dietFromCategory(category), diet, String(category));
 });
 
-test('dietFromDish classifies vegetarian mains by name when no meat or fish is in the dish', () => {
-  const cases: [{ category?: string | null; name: string; description?: string }, string | null][] = [
-    [{ name: 'Bouef bourguignon på kålrot', description: 'Potatismos, svamp, lök' }, 'veg'],
-    [{ name: 'Boeuf bourguignon på högrev', description: 'Potatismos, svamp, lök, sidfläsk' }, null],
-    [{ name: 'Halloumi’n chips', description: 'Pommes, tartarsås, ärtor, citron' }, 'veg'],
-    [{ name: 'Friterad rotselleri', description: 'Ris, lime- och chilisås, pak choi, rostad lök' }, 'veg'],
-    [{ name: 'Hoisinbakad vitkål', description: 'Ris, sallad på vita bönor och chili, sojamajo' }, 'veg'],
-    [{ name: 'Rosmarinportabello', description: 'Pasta rigatoni, svampsås, parmesan' }, 'veg'],
-    [{ name: 'Halv special', description: 'Vegkorv, potatismos, rotfruktsallad, stekt brioche' }, null],
-    [{ name: 'Biff med morot och lök', description: 'Potatis' }, null],
-    [{ name: 'Kålrot med sidfläsk', description: 'Potatismos' }, null],
+test('vegOverride catches vegetarian "på <veg>" and "Vegetarisk …" dishes without mislabelling meat dishes', () => {
+  const cases: [{ name: string; description?: string }, boolean][] = [
+    [{ name: 'Bouef bourguignon på kålrot', description: 'Potatismos, svamp, lök' }, true],
+    [{ name: 'Boeuf bourguignon på högrev', description: 'Potatismos, svamp, lök, sidfläsk' }, false],
+    [{ name: 'Vegetarisk Thali', description: 'Serveras med raita' }, true],
+    [{ name: 'Dagens thali (139 kr)', description: 'Kombinationstallrik med dagens kyckling, lamm och veg' }, false],
+    [{ name: 'Kalops med inlagda rödbetor', description: 'Kokt potatis' }, false],
+    [{ name: 'Pytt i panna med stekt ägg och rödbetor' }, false],
+    [{ name: 'Nötstek med morot', description: 'Potatis och skysås' }, false],
+    [{ name: 'Kalkonschnitzel med blomkål' }, false],
+    [{ name: 'Bouef bourguignon på kålrot', description: 'Potatismos, svamp, lök, sidfläsk' }, false],
   ];
-  for (const [dish, diet] of cases)
-    assert.equal(dietFromDish({ category: dish.category ?? null, ...dish }), diet, dish.name);
+  for (const [dish, expected] of cases) assert.equal(vegOverride({ category: null, ...dish }), expected, dish.name);
 });
 
 test('addDiets prefers the restaurant label and flags model guesses', () => {
@@ -52,33 +51,36 @@ test('addDiets prefers the restaurant label and flags model guesses', () => {
     dishes: [
       { category: 'Fisk', name: 'Lax' },
       { category: null, name: 'Svamp yakiniku', description: 'Ris' },
+      { category: null, name: 'Bouef bourguignon på kålrot', description: 'Potatismos, svamp, lök' },
       { category: null, name: 'Okänd' },
     ],
   } as RestaurantMenu; // only dishes matter here
   const data = { restaurants: [r] } as LunchResponse;
-  const classified = { [dishKey({ category: null, name: 'Lax' })]: 'meat', 'Svamp yakiniku\nRis': 'veg' } as const;
+  const classified = {
+    [dishKey({ category: null, name: 'Lax' })]: 'meat',
+    'Svamp yakiniku\nRis': 'veg',
+    'Bouef bourguignon på kålrot\nPotatismos, svamp, lök': 'meat',
+  } as const;
   assert.deepEqual(addDiets(data, classified).restaurants[0]?.dishes, [
     { category: 'Fisk', name: 'Lax', diet: 'fish', kind: 'fish' },
     { category: null, name: 'Svamp yakiniku', description: 'Ris', diet: 'veg', dietByAi: true, kind: 'mushroom' },
+    {
+      category: null,
+      name: 'Bouef bourguignon på kålrot',
+      description: 'Potatismos, svamp, lök',
+      diet: 'veg',
+      dietByAi: true,
+    },
     { category: null, name: 'Okänd' },
   ]);
 });
 
-test('unlabelledDishes sends only dishes the label or name says nothing about, once each', () => {
-  const dish = { category: 'East Asia', name: 'Asian fusion bowl', description: 'Ris' };
+test('unlabelledDishes sends only dishes the label says nothing about, once each', () => {
+  const dish = { category: 'East Asia', name: 'Wokad tofu', description: 'Ris' };
   const data = {
-    restaurants: [
-      {
-        dishes: [
-          dish,
-          { category: 'Veg', name: 'Falafel' },
-          { category: null, name: 'Bouef bourguignon på kålrot', description: 'Potatismos, svamp, lök' },
-        ],
-      },
-      { dishes: [dish] },
-    ],
+    restaurants: [{ dishes: [dish, { category: 'Veg', name: 'Falafel' }] }, { dishes: [dish] }],
   } as LunchResponse; // only dishes matter here
-  assert.deepEqual([...unlabelledDishes(data)], [['Asian fusion bowl\nRis', 'Asian fusion bowl – Ris']]);
+  assert.deepEqual([...unlabelledDishes(data)], [['Wokad tofu\nRis', 'Wokad tofu – Ris']]);
 });
 
 test('parseModelDiets maps ids to known diets and drops everything else per dish', () => {
