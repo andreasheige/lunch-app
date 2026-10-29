@@ -18,19 +18,40 @@ export function dietFromCategory(category: string | null): Diet | null {
   return null;
 }
 
+const MEAT_OR_FISH_WORD =
+  /kött|högrev|biff|kalv|lamm|hjort|älg|secreto|fläsk|karré|sidfläsk|bacon|kassler|skinka|salsiccia|chorizo|merguez|korv(?!stroganoff)|kyckling|chicken|fågel|\bank(a|bröst)|fisk|fish|\blax|torsk|kolja|\bsej\b|kummel|havskatt|röding|sill|strömming|gös|abborre|tonfisk|flundra|rödspätta|makrill|räk|scampi|skaldjur|mussl|kräft|hummer/i;
+
+// Dishes whose name states a vegetarian main ("Bouef bourguignon på kålrot", "Svamp yakiniku", "Halloumi'n chips")
+// even when the dish style is borrowed from a meat or fish classic, as long as no meat/fish is named in the dish.
+export function dietFromDish(d: Dish): Diet | null {
+  const fromCategory = dietFromCategory(d.category);
+  if (fromCategory) return fromCategory;
+  const full = `${d.name} ${d.description ?? ''}`;
+  if (MEAT_OR_FISH_WORD.test(full)) return null;
+  if (
+    /\b(vegetarisk|vegansk|veg\b|vegkorv)|halloumi|paneer|tofu|seitan|tempeh|falafel|quorn|sojafärs|anamma|portabello|rotselleri|kålrot|blomkål|vitkål|spetskål|palsternacka|\bbetor\b|rödbet|\bmorot\b|\blinser\b|linsgryta|linssoppa|\bbönor\b/i.test(
+      d.name,
+    )
+  )
+    return 'veg';
+  return null;
+}
+
 export const dishKey = (d: Dish): string => `${d.name}\n${d.description ?? ''}`;
 
 export const DIET_PROMPT = `You classify Swedish lunch dishes. The user sends a JSON object mapping ids to dishes.
 For each, answer "veg" (vegetarian or vegan: no meat, poultry, fish or seafood), "fish" (fish or seafood, no meat
 or poultry), "meat" (meat or poultry, with or without fish), or "unknown" (you can't tell, or the guest picks the
-protein). Reply with a JSON object mapping every id to its answer, e.g. {"1": "veg", "2": "meat"}.`;
+protein). Judge by the actual ingredients, not a meat-dish name used for a vegetarian version: "på kålrot",
+"på rotselleri", "på svamp", "på halloumi", "på blomkål" etc. (e.g. "Bouef bourguignon på kålrot") with no meat or
+fish in the description is "veg". Reply with a JSON object mapping every id to its answer, e.g. {"1": "veg", "2": "meat"}.`;
 
 // Dishes whose label says nothing about diet, deduplicated: dishKey -> the text the model sees.
 export function unlabelledDishes(data: LunchResponse): Map<string, string> {
   return new Map(
     data.restaurants
       .flatMap((r) => r.dishes)
-      .filter((d) => !dietFromCategory(d.category))
+      .filter((d) => !dietFromDish(d))
       .map((d) => [dishKey(d), [d.name, d.description].filter(Boolean).join(' – ')]),
   );
 }
@@ -131,7 +152,7 @@ export function addDiets(data: LunchResponse, classified: Classified): LunchResp
       ...r,
       dishes: r.dishes.map((d): Dish => {
         const found = mentions(d);
-        const fromMenu = dietFromCategory(d.category);
+        const fromMenu = dietFromDish(d);
         const guess = fromMenu ? undefined : classified[dishKey(d)];
         const diet = fromMenu ?? guess;
         const kind = dishKind(d, diet);
