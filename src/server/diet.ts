@@ -18,24 +18,8 @@ export function dietFromCategory(category: string | null): Diet | null {
   return null;
 }
 
-const MEAT_OR_FISH_WORD =
-  /kött|högrev|biff|kalv|lamm|hjort|älg|secreto|fläsk|karré|sidfläsk|bacon|kassler|skinka|salsiccia|chorizo|merguez|korv(?!stroganoff)|kyckling|chicken|fågel|\bank(a|bröst)|fisk|fish|\blax|torsk|kolja|\bsej\b|kummel|havskatt|röding|sill|strömming|gös|abborre|tonfisk|flundra|rödspätta|makrill|räk|scampi|skaldjur|mussl|kräft|hummer/i;
-
-// Dishes whose name states a vegetarian main ("Bouef bourguignon på kålrot", "Svamp yakiniku", "Halloumi'n chips")
-// even when the dish style is borrowed from a meat or fish classic, as long as no meat/fish is named in the dish.
-export function dietFromDish(d: Dish): Diet | null {
-  const fromCategory = dietFromCategory(d.category);
-  if (fromCategory) return fromCategory;
-  const full = `${d.name} ${d.description ?? ''}`;
-  if (MEAT_OR_FISH_WORD.test(full)) return null;
-  if (
-    /\b(vegetarisk|vegansk|veg\b|vegkorv)|halloumi|paneer|tofu|seitan|tempeh|falafel|quorn|sojafärs|anamma|portabello|rotselleri|kålrot|blomkål|vitkål|spetskål|palsternacka|\bbetor\b|rödbet|\bmorot\b|\blinser\b|linsgryta|linssoppa|\bbönor\b/i.test(
-      d.name,
-    )
-  )
-    return 'veg';
-  return null;
-}
+const VEG_MAIN =
+  /(?:halloumi|paneer|tofu|seitan|tempeh|falafel|quorn|sojafärs|anamma|portabello|rotselleri|kålrot|blomkål|vitkål|spetskål|palsternacka|svamp|linser|bönor|morot|betor|rödbet)/i;
 
 export const dishKey = (d: Dish): string => `${d.name}\n${d.description ?? ''}`;
 
@@ -51,7 +35,7 @@ export function unlabelledDishes(data: LunchResponse): Map<string, string> {
   return new Map(
     data.restaurants
       .flatMap((r) => r.dishes)
-      .filter((d) => !dietFromDish(d))
+      .filter((d) => !dietFromCategory(d.category))
       .map((d) => [dishKey(d), [d.name, d.description].filter(Boolean).join(' – ')]),
   );
 }
@@ -145,6 +129,16 @@ export function dishKind(d: Dish, diet: Diet | undefined): DishKind | null {
   return null;
 }
 
+// Dishes that borrow a meat or fish dish name for a vegetarian main ("Bouef bourguignon på kålrot") or explicitly
+// declare themselves vegetarian ("Vegetarisk Thali"), as long as no meat/fish protein is named anywhere in the dish.
+export function vegOverride(d: Dish): boolean {
+  const full = `${d.name} ${d.description ?? ''}`;
+  if (KINDS.some(([, re, implies]) => implies && re.test(full))) return false;
+  if (/sidfläsk|skinka|prosciutto|pancetta|salsiccia|merguez|nduja|ansjovis|beef|pork|lamb|duck|turkey/i.test(full))
+    return false;
+  return /\b(vegetarisk|vegansk|veg\b)/i.test(d.name) || new RegExp(`\\bpå\\s+${VEG_MAIN.source}`, 'i').test(d.name);
+}
+
 export function addDiets(data: LunchResponse, classified: Classified): LunchResponse {
   return {
     ...data,
@@ -152,8 +146,8 @@ export function addDiets(data: LunchResponse, classified: Classified): LunchResp
       ...r,
       dishes: r.dishes.map((d): Dish => {
         const found = mentions(d);
-        const fromMenu = dietFromDish(d);
-        const guess = fromMenu ? undefined : classified[dishKey(d)];
+        const fromMenu = dietFromCategory(d.category);
+        const guess = fromMenu ? undefined : vegOverride(d) ? 'veg' : classified[dishKey(d)];
         const diet = fromMenu ?? guess;
         const kind = dishKind(d, diet);
         return {
