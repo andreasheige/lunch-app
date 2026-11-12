@@ -919,11 +919,22 @@ function setupDayStrip(home, todayDate) {
   const buttons = [...document.querySelectorAll('[data-day]')];
   const menu = document.getElementById('day-menu');
   placePopover(menu, document.getElementById('day-open'));
+  const todayParam = todayDate ? DAY_PARAMS[new Date(todayDate).getUTCDay() - 1] : null;
+  const todayIndex = todayParam ? DAY_PARAMS.indexOf(todayParam) : 0;
+  // 2024-01-01 was a Monday: the long weekday names in the page's language.
+  const longName = (param) => WEEKDAY_FMT.format(new Date(Date.UTC(2024, 0, 1 + DAY_PARAMS.indexOf(param))));
+  for (const b of buttons) {
+    const param = b.dataset.day;
+    b.textContent = param === todayParam ? `${longName(param)} · ${t('day.today')}` : longName(param);
+    // Days already gone have no menu to look at; from the weekend on, next week's days are all open.
+    b.disabled = DAY_PARAMS.indexOf(param) < todayIndex;
+  }
   const mark = (param) => {
     for (const b of buttons) b.setAttribute('aria-pressed', String(b.dataset.day === param));
-    document.getElementById('day-open-label').textContent = t(param ? `day.${param}` : 'day.open');
+    const label = document.getElementById('day-open-label');
+    label.textContent = param ? longName(param) : t('day.open');
+    label.parentElement.classList.toggle('chosen', Boolean(param) && param !== todayParam);
   };
-  const todayParam = todayDate ? DAY_PARAMS[new Date(todayDate).getUTCDay() - 1] : null;
   mark(todayParam);
   const heading = document.getElementById('today');
   const container = document.getElementById('restaurants');
