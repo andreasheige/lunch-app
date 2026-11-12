@@ -162,24 +162,57 @@ export async function loadRestaurant(
   }
 }
 
-let cache: { key: string | null; at: number; data: LunchResponse | null } = { key: null, at: 0, data: null };
+export const NOT_PUBLISHED = 'Menyn är inte publicerad än – kom tillbaka senare';
 
-export async function getTodaysLunch(
+// A coming day's menu is only trusted when the page names the right week; a place still showing last
+// week's (or nothing) has simply not published it yet.
+function asUpcoming(m: RestaurantMenu): RestaurantMenu {
+  return m.stale || m.error ? { ...m, dishes: [], embed: null, stale: false, error: NOT_PUBLISHED } : m;
+}
+
+/** The date of `day` in the current ISO week, or next week's from Saturday on. */
+export function dateForDay(day: Weekday, now = new Date()): Date {
+  const date = stockholmDate(now);
+  const dow = date.getUTCDay();
+  const target = WEEKDAYS.indexOf(day) + 1;
+  date.setUTCDate(date.getUTCDate() + (dow === 0 ? target : dow === 6 ? target + 1 : target - dow));
+  return date;
+}
+
+const menuCache = new Map<string, { at: number; data: LunchResponse }>();
+
+/** The menus for `day` (today when omitted); other days than today are previews and never saved as served. */
+export async function getLunch(
   captured: Captured = {},
   now = new Date(),
   onFailure?: (failure: MenuFailure) => void,
+  requested?: Weekday,
 ): Promise<LunchResponse> {
-  const date = stockholmDate(now);
+  const today = stockholmDate(now);
+  const date = requested ? dateForDay(requested, now) : today;
   const day = WEEKDAYS[date.getUTCDay() - 1] ?? null;
   const week = isoWeek(date);
   const key = date.toISOString().slice(0, 10);
+  const upcoming = date.getTime() !== today.getTime();
 
-  if (cache.data && cache.key === key && now.getTime() - cache.at < CACHE_MS) return cache.data;
+  const hit = menuCache.get(key);
+  if (hit && now.getTime() - hit.at < CACHE_MS) return hit.data;
 
   const restaurants = day
-    ? await Promise.all(RESTAURANTS.map((r) => loadRestaurant(r, day, week, captured[r.id], onFailure)))
+    ? await Promise.all(
+        RESTAURANTS.map(async (r) => {
+          const m = await loadRestaurant(r, day, week, captured[r.id], upcoming ? undefined : onFailure);
+          return upcoming ? asUpcoming(m) : m;
+        }),
+      )
     : [];
   const data: LunchResponse = { date: key, day, week, fetchedAt: stockholmTimestamp(now), restaurants };
-  cache = { key, at: now.getTime(), data };
+  menuCache.set(key, { at: now.getTime(), data });
   return data;
 }
+
+export const getTodaysLunch = (
+  captured: Captured = {},
+  now = new Date(),
+  onFailure?: (failure: MenuFailure) => void,
+): Promise<LunchResponse> => getLunch(captured, now, onFailure);
