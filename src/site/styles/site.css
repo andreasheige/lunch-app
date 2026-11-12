@@ -828,7 +828,18 @@ dialog {
 }
 
 .views.days {
-  grid-auto-columns: auto;
+  grid-auto-flow: row;
+  border-radius: 16px;
+}
+
+/* A day other than today is showing. */
+.display-open.chosen {
+  border-color: var(--accent-emphasis);
+  background: var(--accent-subtle, var(--surface));
+}
+
+#day-open-label {
+  text-transform: capitalize;
 }
 
 .views button {
@@ -846,6 +857,17 @@ dialog {
   background: var(--surface);
   font-weight: 700;
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+}
+
+.days > button {
+  border-radius: 12px;
+  text-align: left;
+  text-transform: capitalize;
+}
+
+.days > button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .notice {
