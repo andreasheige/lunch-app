@@ -667,6 +667,7 @@ function setupSort() {
   const menu = document.getElementById('display-menu');
   const opener = document.getElementById('display-open');
   placePopover(menu, opener);
+  placePopover(document.getElementById('day-menu'), document.getElementById('day-open'));
   document.getElementById('sort-toggle').addEventListener('click', () => {
     menu.hidePopover();
     sorting = true;
@@ -918,7 +919,7 @@ const DAY_PARAMS = ['mon', 'tue', 'wed', 'thu', 'fri'];
 function setupDayStrip(home, todayDate) {
   const buttons = [...document.querySelectorAll('[data-day]')];
   const menu = document.getElementById('day-menu');
-  placePopover(menu, document.getElementById('day-open'));
+  document.getElementById('day-open').disabled = false;
   const todayParam = todayDate ? DAY_PARAMS[new Date(todayDate).getUTCDay() - 1] : null;
   const todayIndex = todayParam ? DAY_PARAMS.indexOf(todayParam) : 0;
   // 2024-01-01 was a Monday: the long weekday names in the page's language.
