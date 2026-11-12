@@ -230,7 +230,7 @@ function parsePoppels(lines: string[], day: Weekday, html: string): ParsedMenu {
       } else if (isUpper(l)) {
         const category = categories.shift();
         if (!category) break;
-        current = { category, name: sentenceCase(l) };
+        current = { category, name: sentenceCase(l.replace(/[\s,;:]+$/, '')) };
         dishes.push(current);
       } else if (current) {
         current.description = current.description ? `${current.description} ${l}` : l;

@@ -226,6 +226,23 @@ test('Poppels v44: includes the weekly dishes on every day and joins wrapped des
   assert.deepEqual(parser('poppels')(fixture('poppels-v44'), 'Fredag').dishes.slice(2), dishes.slice(2));
 });
 
+// poppels-v46.txt is from 2026-11-12 (vecka 46): the weekly husman title ends in a comma.
+test('Poppels v46: a weekly dish name loses its trailing comma', () => {
+  const { dishes } = parser('poppels')(fixture('poppels-v46'), 'Torsdag');
+  assert.deepEqual(dishes.slice(2), [
+    {
+      category: 'Veckans husman',
+      name: 'Pannbiff med lök',
+      description: 'Kokt potatis, gräddsås, rårörda lingon, pressgurka',
+    },
+    {
+      category: 'Veckans sallad',
+      name: 'Chèvre chaud',
+      description: 'Rödbetor, sallad, rostade solrosfrön, linser, getostkräm, krutonger',
+    },
+  ]);
+});
+
 test('Poppels: stops the weekly block before weekday headings when VECKANS appears above the days', () => {
   const lines = [
     'LU',
