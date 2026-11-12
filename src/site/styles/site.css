@@ -1231,6 +1231,9 @@ details.dish > .dish-details {
 }
 
 .dish-list > li {
+  display: grid;
+  gap: 6px;
+  padding: 11px 16px 12px;
   border-top: 1px solid var(--neutral);
 }
 
@@ -1238,12 +1241,7 @@ details.dish > .dish-details {
   border-top: 0;
 }
 
-.card details.dish > summary,
 .dish-rows details.dish > summary {
-  padding-inline: 16px;
-}
-
-.card details.dish > .dish-details {
   padding-inline: 16px;
 }
 

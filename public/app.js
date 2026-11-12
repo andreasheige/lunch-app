@@ -310,7 +310,7 @@ function menuIssues(r) {
 const CARD_LIMIT = 4;
 const expandedCards = new Set();
 
-// View A, "Kort": a card per place, one line per dish; a dish opens (<details>) to its description and rating.
+// View A, "Kort": a card per place, every dish with its description and rating.
 // Long menus show the first four dishes and a "Visa N till" button.
 function cardsView() {
   const grid = el('div', 'cards');
@@ -328,11 +328,7 @@ function cardsView() {
       const open = expandedCards.has(r.id) || dishes.length <= CARD_LIMIT + 1;
       for (const [i, f] of dishes.entries()) {
         const li = el('li', f.unsure ? 'unsure' : null);
-        const details = el('details', 'dish');
-        const summary = el('summary');
-        summary.append(dishLine(r, f, true));
-        details.append(summary, dishDetails(r, f.d));
-        li.append(details);
+        li.append(dishLine(r, f, true), dishDetails(r, f.d));
         li.hidden = !open && i >= CARD_LIMIT;
         list.append(li);
       }
