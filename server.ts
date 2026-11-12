@@ -3,8 +3,17 @@ import fs from 'node:fs/promises';
 import http from 'node:http';
 import path from 'node:path';
 import { addDiets } from './src/server/diet.ts';
-import { getTodaysLunch, parseCaptured } from './src/server/lunch.ts';
+import { getLunch, parseCaptured } from './src/server/lunch.ts';
 import { GIT_LOG_FORMAT, groupReleases, parseCommitLog, toPosts } from './src/server/releases.ts';
+import type { Weekday } from './src/shared/types.ts';
+
+const DAYS: Record<string, Weekday | undefined> = {
+  mon: 'Måndag',
+  tue: 'Tisdag',
+  wed: 'Onsdag',
+  thu: 'Torsdag',
+  fri: 'Fredag',
+};
 
 const PORT = Number(process.env.PORT) || 3000;
 // The pages as `astro build` wrote them (npm start builds first); lunch.json and releases.json are live below.
@@ -21,12 +30,15 @@ const TYPES: Record<string, string> = {
 };
 
 const server = http.createServer(async (req, res) => {
-  const { pathname } = new URL(req.url ?? '/', 'http://localhost');
+  const { pathname, searchParams } = new URL(req.url ?? '/', 'http://localhost');
 
   if (pathname === '/lunch.json') {
     const captured = await fs.readFile(path.join(import.meta.dirname, 'captured.json'), 'utf8').catch(() => null);
     // Label-based diets only; Workers AI guesses need the Worker (wrangler dev).
-    const data = addDiets(await getTodaysLunch(parseCaptured(captured)), {});
+    const data = addDiets(
+      await getLunch(parseCaptured(captured), new Date(), undefined, DAYS[searchParams.get('day') ?? '']),
+      {},
+    );
     res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
     return res.end(JSON.stringify(data));
   }
