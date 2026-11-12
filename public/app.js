@@ -296,8 +296,12 @@ function dishDetails(r, d) {
   return box;
 }
 
+// Same text as NOT_PUBLISHED in src/server/lunch.ts: a place with no menu yet for a coming day.
+const NOT_PUBLISHED = 'Menyn är inte publicerad än – kom tillbaka senare';
+
 // The menu body shared by the views: an error, the Canva facade, or nothing (the view lists the dishes).
 function menuIssues(r) {
+  if (r.error === NOT_PUBLISHED) return [el('p', 'empty', t('menu.pending'))];
   if (r.error) return [el('p', 'empty', tr(r.error))];
   if (r.embed) return [embedFacade(r)];
   return [];
@@ -907,6 +911,57 @@ function setupFilter() {
   return filter;
 }
 
+const DAY_PARAMS = ['mon', 'tue', 'wed', 'thu', 'fri'];
+
+// "Mån … Fre": preview another day's menus (lunch.json?day=…) without ratings or the picker; the day already
+// shown (today) restores the page as loaded.
+function setupDayStrip(home, todayDate) {
+  const buttons = [...document.querySelectorAll('[data-day]')];
+  const mark = (param) => {
+    for (const b of buttons) b.setAttribute('aria-pressed', String(b.dataset.day === param));
+  };
+  const todayParam = todayDate ? DAY_PARAMS[new Date(todayDate).getUTCDay() - 1] : null;
+  mark(todayParam);
+  const heading = document.getElementById('today');
+  const container = document.getElementById('restaurants');
+  let asked = 0;
+  for (const b of buttons) {
+    b.addEventListener('click', async () => {
+      const param = b.dataset.day;
+      const mine = ++asked;
+      mark(param);
+      if (param === todayParam) {
+        lunch = home;
+        heading.textContent = DATE_FMT.format(new Date(home.data.date));
+        document.getElementById('week').textContent = t('week', home.data.week);
+        document.getElementById('picker-open').hidden = !home.data.day;
+        renderHeaderStatus();
+        renderListing();
+        return;
+      }
+      container.setAttribute('aria-busy', 'true');
+      try {
+        const res = await fetch(`lunch.json?day=${param}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error(res.status);
+        const data = await res.json();
+        if (mine !== asked) return;
+        const day = WEEKDAY_FMT.format(new Date(data.date));
+        lunch = { data, isToday: false, sorted: [], notices: [t('notice.preview', day)], rateDate: null };
+        lunch.sorted = orderPlaces();
+        heading.textContent = DATE_FMT.format(new Date(data.date));
+        document.getElementById('week').textContent = t('week', data.week);
+        document.getElementById('picker-open').hidden = true;
+        renderHeaderStatus();
+        renderListing();
+      } catch {
+        if (mine === asked) container.replaceChildren(el('p', 'notice', t('notice.failed')));
+      } finally {
+        container.setAttribute('aria-busy', 'false');
+      }
+    });
+  }
+}
+
 async function main() {
   const container = document.getElementById('restaurants');
   const heading = document.getElementById('today');
@@ -941,6 +996,7 @@ async function main() {
     renderHeaderStatus();
     renderListing();
     if (isToday) showYesterday(data.date);
+    setupDayStrip(lunch, data.day ? data.date : null);
     // No lunch today (weekend): nothing to pick from.
     document.getElementById('picker-open').hidden = !data.day;
     if (!data.day) {

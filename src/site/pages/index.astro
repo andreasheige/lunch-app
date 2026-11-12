@@ -71,6 +71,13 @@ const allergens = [
   </div>
   <p id="lunch-status" class="lunch-status"></p>
   <p id="lunch-soon" class="lunch-soon" hidden></p>
+  <nav id="day-strip" class="day-strip" aria-label="Välj dag" data-i18n-label="day.label">
+    <button type="button" class="chip" data-day="mon" aria-pressed="false" data-i18n="day.mon">Mån</button>
+    <button type="button" class="chip" data-day="tue" aria-pressed="false" data-i18n="day.tue">Tis</button>
+    <button type="button" class="chip" data-day="wed" aria-pressed="false" data-i18n="day.wed">Ons</button>
+    <button type="button" class="chip" data-day="thu" aria-pressed="false" data-i18n="day.thu">Tors</button>
+    <button type="button" class="chip" data-day="fri" aria-pressed="false" data-i18n="day.fri">Fre</button>
+  </nav>
 </header>
 <div class="page-body">
   <button type="button" id="picker-open" class="decide">

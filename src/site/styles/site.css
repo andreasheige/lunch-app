@@ -357,6 +357,14 @@ footer {
   min-height: 1.5em;
 }
 
+.day-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  min-height: 36px;
+}
+
 .page-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

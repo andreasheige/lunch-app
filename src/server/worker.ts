@@ -10,6 +10,7 @@ import type {
   ReleaseText,
   StatsResponse,
   TodaysRatings,
+  Weekday,
   YesterdayResponse,
 } from '../shared/types.ts';
 import { addDiets, type Classified, DIET_PROMPT, parseModelDiets, unlabelledDishes } from './diet.ts';
@@ -22,7 +23,7 @@ import {
   type ServedRow,
   weekBounds,
 } from './history.ts';
-import { getTodaysLunch, isoWeek, parseCaptured } from './lunch.ts';
+import { getLunch, isoWeek, parseCaptured, stockholmDate } from './lunch.ts';
 import { menuDayRows } from './menudays.ts';
 import { type ContactRow, FROM, notifyEmail } from './notify.ts';
 import { type PreviousMenu, parseRating, rangeStart, ratingKey } from './ratings.ts';
@@ -161,23 +162,40 @@ async function releasePosts(
   return { posts, complete: posts.every((p) => !p.pending) };
 }
 
+const DAY_PARAMS: Record<string, Weekday | undefined> = Object.assign(Object.create(null), {
+  mon: 'Måndag',
+  tue: 'Tisdag',
+  wed: 'Onsdag',
+  thu: 'Torsdag',
+  fri: 'Fredag',
+});
+
 // /lunch.json, edge-cached and keyed by deployed version, so a deploy starts with an empty cache instead of
 // serving the old menu list.
 async function lunchResponse(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-  const origin = new URL(request.url).origin;
-  const key = new Request(`${origin}/lunch.json?v=${env.CF_VERSION_METADATA.id}`);
+  const { origin, searchParams } = new URL(request.url);
+  const asked = searchParams.get('day');
+  const requested = asked ? DAY_PARAMS[asked] : undefined;
+  const key = new Request(`${origin}/lunch.json?v=${env.CF_VERSION_METADATA.id}${requested ? `&day=${asked}` : ''}`);
   const cached = await caches.default.match(key);
   if (cached) return cached;
 
   // Menus the build read with a real browser (captured.json, see scripts/capture.ts); 404 when none were.
   const capturedRes = await env.ASSETS.fetch(new Request(`${origin}/captured.json`));
-  const lunch = await getTodaysLunch(parseCaptured(capturedRes.ok ? await capturedRes.text() : null));
-  const data = await servedBefore(env, addDiets(lunch, await classify(env.AI, lunch, origin)));
+  const lunch = await getLunch(
+    parseCaptured(capturedRes.ok ? await capturedRes.text() : null),
+    new Date(),
+    undefined,
+    requested,
+  );
+  const preview = lunch.date !== stockholmDate().toISOString().slice(0, 10);
+  const diets = addDiets(lunch, await classify(env.AI, lunch, origin));
+  const data = preview ? diets : await servedBefore(env, diets);
   const res = new Response(JSON.stringify(data), {
     headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': `public, max-age=${MAX_AGE}` },
   });
   ctx.waitUntil(caches.default.put(key, res.clone()));
-  ctx.waitUntil(saveMenuDay(env, data));
+  if (!preview) ctx.waitUntil(saveMenuDay(env, data));
   return res;
 }
 
