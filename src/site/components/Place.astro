@@ -1,7 +1,6 @@
 ---
 // One card as app.js's cardsView draws it (same classes and order; keep the two in step), in Swedish, with every
-// dish and without the time-dependent status or ratings. Each dish is a <details>, so it opens without JavaScript
-// too. app.js redraws the listing from the live data.
+// dish and without the time-dependent status or ratings. Every dish is listed with its description. app.js redraws the listing from the live data.
 import type { Dish, RestaurantMenu } from '../../shared/types.ts';
 
 interface Props {
@@ -33,23 +32,19 @@ const showCategory = (d: Dish) => d.category && !REPEATS_DIET.test(d.category.tr
     <ul class="dish-list">
       {r.dishes.map((d) => (
         <li>
-          <details class="dish">
-            <summary>
-              <span class="dish-line">
-                <span class="dish-name">
-                  {d.diet && (
-                    <span class={`tag ${d.diet}`} title={d.dietByAi ? `${DIETS[d.diet]} (AI-bedömning)` : undefined}>{TAGS[d.diet]}</span>
-                  )}
-                  {d.name}
-                </span>
-                <span class="dish-avg"></span>
-              </span>
-            </summary>
-            <div class="dish-details">
-              {showCategory(d) && <span class="category">{d.category}</span>}
-              {d.description && <span class="desc">{d.description}</span>}
-            </div>
-          </details>
+          <span class="dish-line">
+            <span class="dish-name">
+              {d.diet && (
+                <span class={`tag ${d.diet}`} title={d.dietByAi ? `${DIETS[d.diet]} (AI-bedömning)` : undefined}>{TAGS[d.diet]}</span>
+              )}
+              {d.name}
+            </span>
+            <span class="dish-avg"></span>
+          </span>
+          <div class="dish-details">
+            {showCategory(d) && <span class="category">{d.category}</span>}
+            {d.description && <span class="desc">{d.description}</span>}
+          </div>
         </li>
       ))}
     </ul>
