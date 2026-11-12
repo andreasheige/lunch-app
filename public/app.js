@@ -652,17 +652,21 @@ function sortView() {
   return box;
 }
 
-// The Visning menu: view, order (nearest first / my order) and "Ändra min ordning…", which opens sort mode.
-function setupSort() {
-  const menu = document.getElementById('display-menu');
-  const opener = document.getElementById('display-open');
-  // Below its button on wide screens; a bottom sheet on phones (site.css).
+// Below its button on wide screens; a bottom sheet on phones (site.css).
+function placePopover(menu, opener) {
   menu.addEventListener('toggle', (event) => {
     if (event.newState !== 'open' || !matchMedia('(min-width: 720px)').matches) return;
     const box = opener.getBoundingClientRect();
     menu.style.top = `${box.bottom + 8}px`;
     menu.style.left = `${Math.max(16, box.right - menu.offsetWidth)}px`;
   });
+}
+
+// The Visning menu: view, order (nearest first / my order) and "Ändra min ordning…", which opens sort mode.
+function setupSort() {
+  const menu = document.getElementById('display-menu');
+  const opener = document.getElementById('display-open');
+  placePopover(menu, opener);
   document.getElementById('sort-toggle').addEventListener('click', () => {
     menu.hidePopover();
     sorting = true;
@@ -909,12 +913,15 @@ function setupFilter() {
 
 const DAY_PARAMS = ['mon', 'tue', 'wed', 'thu', 'fri'];
 
-// "Mån … Fre": preview another day's menus (lunch.json?day=…) without ratings or the picker; the day already
+// The Dag menu, "Mån … Fre": preview another day's menus (lunch.json?day=…) without ratings or the picker; the day already
 // shown (today) restores the page as loaded.
 function setupDayStrip(home, todayDate) {
   const buttons = [...document.querySelectorAll('[data-day]')];
+  const menu = document.getElementById('day-menu');
+  placePopover(menu, document.getElementById('day-open'));
   const mark = (param) => {
     for (const b of buttons) b.setAttribute('aria-pressed', String(b.dataset.day === param));
+    document.getElementById('day-open-label').textContent = t(param ? `day.${param}` : 'day.open');
   };
   const todayParam = todayDate ? DAY_PARAMS[new Date(todayDate).getUTCDay() - 1] : null;
   mark(todayParam);
@@ -926,6 +933,7 @@ function setupDayStrip(home, todayDate) {
       const param = b.dataset.day;
       const mine = ++asked;
       mark(param);
+      menu.hidePopover();
       if (param === todayParam) {
         lunch = home;
         heading.textContent = DATE_FMT.format(new Date(home.data.date));
