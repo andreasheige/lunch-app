@@ -27,6 +27,7 @@ import { getLunch, isoWeek, parseCaptured, stockholmDate } from './lunch.ts';
 import { menuDayRows } from './menudays.ts';
 import { type ContactRow, FROM, notifyEmail } from './notify.ts';
 import { type PreviousMenu, parseRating, rangeStart, ratingKey } from './ratings.ts';
+import { capturedIsStale, redeploy } from './redeploy.ts';
 import { type NoteLang, noteLang, parseReleaseText, RELEASE_PROMPTS, releaseInput, toPosts } from './releases.ts';
 import { githubHeaders, handleReport, type ReportEnv } from './report.ts';
 import { RESTAURANTS } from './restaurants.ts';
@@ -517,9 +518,21 @@ async function notifyReporters(env: Env): Promise<void> {
   }
 }
 
+// Cron: starts the deploy when the menu captured at build time is from another week (see redeploy.ts).
+async function redeployIfStale(env: Env): Promise<void> {
+  try {
+    const res = await env.ASSETS.fetch(new Request('https://lunchit.se/captured.json'));
+    if (capturedIsStale(parseCaptured(res.ok ? await res.text() : null))) await redeploy(env.GITHUB_TOKEN);
+  } catch (err) {
+    // Tried again on the next run; surfaces in Workers Logs.
+    console.error('redeploy: failed', err instanceof Error ? err.message : err);
+  }
+}
+
 export default {
   async scheduled(_event, env, ctx): Promise<void> {
     ctx.waitUntil(notifyReporters(env));
+    ctx.waitUntil(redeployIfStale(env));
   },
 
   async fetch(request, env, ctx): Promise<Response> {
