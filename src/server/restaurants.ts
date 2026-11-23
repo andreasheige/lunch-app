@@ -36,6 +36,12 @@ function sentenceCase(s: string): string {
   return lower.charAt(0).toLocaleUpperCase('sv') + lower.slice(1);
 }
 
+// An allergen line under a dish: "Gluten • Ägg • Fisk", "Soja", "Svaveldioxid och Sulfit".
+const POCKET_ALLERGENS =
+  /^[A-ZÅÄÖ][a-zåäö]+(?: och [A-ZÅÄÖ][a-zåäö]+)?(?: • [A-ZÅÄÖ][a-zåäö]+(?: och [A-ZÅÄÖ][a-zåäö]+)?)*$/;
+
+// Each dish is one line, with an allergen line under most. Until v. 48 a "Dagens vegetariska/fisk/kött"
+// label came before each dish; since then there are no labels, so the dishes have no category.
 function parsePocket(lines: string[], day: Weekday): ParsedMenu {
   const start = lines.indexOf(
     day,
@@ -43,14 +49,17 @@ function parsePocket(lines: string[], day: Weekday): ParsedMenu {
   );
   if (start < 0) return { week: menuWeek(lines), dishes: [] };
   const dishes: Dish[] = [];
+  let category: string | null = null;
   for (let i = start + 1; i < lines.length; i++) {
     const l = lines[i] ?? '';
-    const next = lines[i + 1];
     if (isWeekday(l) || l === 'Klimato') break;
-    if (/^Dagens /.test(l) && next) {
-      const category = l.replace(/^Dagens /, '');
-      dishes.push({ category: category.charAt(0).toLocaleUpperCase('sv') + category.slice(1), name: next });
-      i++;
+    if (l === 'Idag' || POCKET_ALLERGENS.test(l)) continue;
+    if (/^Dagens /.test(l)) {
+      const label = l.replace(/^Dagens /, '');
+      category = label.charAt(0).toLocaleUpperCase('sv') + label.slice(1);
+    } else {
+      dishes.push({ category, name: l });
+      category = null;
     }
   }
   return { week: menuWeek(lines), dishes };
@@ -115,29 +124,70 @@ function parseBjorkmans(pageLines: string[], day: Weekday, html: string): Parsed
   return { week: menuWeek(lines), dishes };
 }
 
-// The page is a two-column grid (Mon/Wed/Fri left, Tue/Thu right) whose source runs column by column, so a day's
-// menu doesn't always follow its heading: "ONSDAG", "TORSDAG", Wednesday's menu, "FREDAG", Friday's menu, Thursday's
-// menu. Each text block is a heading or a day's menu (it has "Stående Rätter"): a menu right after headings belongs to
-// the first of them, one with no heading before it to the earliest heading still without a menu.
+type IndyaBlock = { id: string; lines: string[] };
+
+// A day's menu block ends with the fixed dishes ("Stående Rätter", until v. 47) or the "DAGENS Thali" combo.
+const isIndyaMenu = (lines: string[]) => lines.some((l) => /^(?:Stående Rätter|DAGENS\b)/i.test(l));
+
+// Wix's mobile layout (window._mobileEditorData): container id -> its blocks top to bottom, each day's heading
+// (inside a background block) right before its menu.
+function indyaMobileLayout(html: string): Map<string, string[]> {
+  const json = html.match(/window\._mobileEditorData=(\{.*?\});?\s*<\/script>/s)?.[1];
+  try {
+    const data: unknown = JSON.parse(json ?? 'null');
+    if (typeof data !== 'object' || data === null || !('data' in data)) return new Map();
+    const lists: unknown = data.data;
+    if (typeof lists !== 'object' || lists === null) return new Map();
+    return new Map(
+      Object.entries(lists).filter(
+        (e): e is [string, string[]] => Array.isArray(e[1]) && e[1].every((id) => typeof id === 'string'),
+      ),
+    );
+  } catch {
+    return new Map();
+  }
+}
+
+// The page is a two-column grid (Mon/Wed/Fri left, Tue/Thu right) whose source order doesn't say which menu is
+// whose: v. 43 had "ONSDAG", "TORSDAG", Wednesday's menu, …; v. 48 "TISDAG", "TORSDAG", Thursday's menu, Tuesday's.
+// The mobile layout does, so that comes first. Without it (or the day in it): a menu right after headings belongs
+// to the first of them, one with no heading before it to the earliest heading still without a menu.
 function indyaMenu(html: string, day: Weekday): string[] {
   const upperDays = WEEKDAYS.map((d) => d.toLocaleUpperCase('sv'));
+  const wanted = day.toLocaleUpperCase('sv');
+  const parts = html.split(/<div ([^>]*data-specific-kind="TEXT"[^>]*)>/);
+  const blocks: IndyaBlock[] = [];
+  for (let i = 1; i + 1 < parts.length; i += 2) {
+    blocks.push({ id: parts[i]?.match(/data-id="([^"]+)"/)?.[1] ?? '', lines: htmlToLines(parts[i + 1] ?? '') });
+  }
+  const isHeading = (b: IndyaBlock | undefined) => b?.lines.length === 1 && upperDays.includes(b.lines[0] ?? '');
+
+  const byId = new Map(blocks.filter((b) => b.id).map((b) => [b.id, b]));
+  const mobile = indyaMobileLayout(html);
+  for (const list of mobile.values()) {
+    let current: string | undefined;
+    for (const id of list) {
+      const heading = [id, ...(mobile.get(id) ?? [])].map((c) => byId.get(c)).find(isHeading);
+      const block = byId.get(id);
+      if (heading) current = heading.lines[0];
+      else if (current === wanted && block && isIndyaMenu(block.lines)) return block.lines;
+    }
+  }
+
   const waiting: string[] = [];
   let headings: string[] = [];
-  for (const block of html
-    .split(/<div [^>]*data-specific-kind="TEXT"[^>]*>/)
-    .slice(1)
-    .map(htmlToLines)) {
-    const [first = ''] = block;
-    if (block.length === 1 && upperDays.includes(first)) {
+  for (const block of blocks) {
+    const [first = ''] = block.lines;
+    if (isHeading(block)) {
       headings.push(first);
       waiting.push(first);
       continue;
     }
-    const owner = block.some((l) => /^Stående Rätter/.test(l)) ? (headings[0] ?? waiting[0]) : undefined;
+    const owner = isIndyaMenu(block.lines) ? (headings[0] ?? waiting[0]) : undefined;
     headings = [];
     if (owner === undefined) continue;
     waiting.splice(waiting.indexOf(owner), 1);
-    if (owner === day.toLocaleUpperCase('sv')) return block;
+    if (owner === wanted) return block.lines;
   }
   return [];
 }

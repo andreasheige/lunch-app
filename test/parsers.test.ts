@@ -46,6 +46,26 @@ test('Pocket: Friday stops before the Klimato footer', () => {
   assert.match(dishes[2].name, /^Pasta Alfredo/);
 });
 
+test('Pocket v48: no "Dagens" labels any more, so each line that is not allergens is a dish', () => {
+  const { week, dishes } = parser('pocket')(fixture('pocket-v48'), 'Måndag');
+  assert.equal(week, 48);
+  assert.deepEqual(
+    dishes.map((d) => [d.category, d.name]),
+    [
+      [null, 'Vegetarisk gulaschgryta med potatispuré, yoghurt, rostad paprika'],
+      [null, 'Fiskgryta med dill och fänkål, kokt potatis och citronaioli'],
+      [null, 'Pytt i panna med stekt ägg, inlagda rödbetor och senapskräm'],
+    ],
+  );
+});
+
+test('Pocket v48: one-word and "och" allergen lines are skipped, Friday stops at Klimato', () => {
+  assert.equal(parser('pocket')(fixture('pocket-v48'), 'Tisdag').dishes.length, 3);
+  const { dishes } = parser('pocket')(fixture('pocket-v48'), 'Fredag');
+  assert.equal(dishes.length, 3);
+  assert.match(dishes[2].name, /^Klassisk fisksoppa/);
+});
+
 test('Pagoden: Monday skips the intro text and groups by kitchen', () => {
   const { week, dishes } = parser('pagoden')(fixture('pagoden'), 'Måndag');
   assert.equal(week, 40);
@@ -142,6 +162,24 @@ test('Indya: Friday keeps its extra dessert', () => {
   const { dishes } = indya('Fredag');
   assert.equal(dishes.length, 5);
   assert.equal(dishes[4].name, 'Fredagsmys');
+});
+
+// indya-v48.html is the raw page from 2026-11-23 (vecka 48), styles and scripts removed except Wix's mobile layout:
+// no "Stående Rätter" any more, and the source has "TISDAG", "TORSDAG", then Thursday's menu before Tuesday's.
+const indya48Html = fs.readFileSync(new URL('fixtures/indya-v48.html', import.meta.url), 'utf8');
+const indya48 = (day: Weekday) => parser('indya')(htmlToLines(indya48Html), day, indya48Html);
+
+test('Indya v48: each day gets its own menu (checked against the rendered page), without "Stående Rätter"', () => {
+  const { week, dishes } = indya48('Måndag');
+  assert.equal(week, 48);
+  assert.deepEqual(
+    dishes.map((d) => d.name),
+    ['Murgh Makhni', 'Lamm Karahi', 'Vegetarisk Thali', 'Dagens Thali (139 kr)'],
+  );
+  assert.deepEqual(
+    (['Tisdag', 'Onsdag', 'Torsdag', 'Fredag'] as const).map((d) => indya48(d).dishes[0]?.name),
+    ['Chicken Tikka Masala', 'Chicken Hyderabadi', 'Palak Chicken', 'Chicken Lababdar'],
+  );
 });
 
 test('Indya: a stray "." line does not shift names and descriptions', () => {
