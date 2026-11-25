@@ -121,11 +121,11 @@ const allergens = [
       </fieldset>
     </div>
   </div>
-  <main id="restaurants" aria-live="polite" aria-busy="true">
+  <main id="restaurants" aria-live="polite" aria-busy="true" data-snapshot={lunch?.date}>
     {places.length ? (
-      <div class="cards">{places.map((r) => <Place r={r} />)}</div>
+      <div class="cards snapshot">{places.map((r) => <Place r={r} />)}</div>
     ) : lunch && !lunch.day ? (
-      <p class="notice" data-i18n="notice.weekend">Det är helg – inga luncher idag. Restaurangerna är tillbaka med nya menyer på måndag.</p>
+      <p class="notice snapshot" data-i18n="notice.weekend">Det är helg – inga luncher idag. Restaurangerna är tillbaka med nya menyer på måndag.</p>
     ) : (
       <>
         <article class="place skeleton" aria-hidden="true"><span></span><span></span><span></span><span></span></article>
@@ -134,6 +134,16 @@ const allergens = [
       </>
     )}
   </main>
+  {/* The menus above are from the build. GitHub can start the morning deploy hours late, so on a new day they are
+     the previous day's: hide them before the first paint (space kept) until app.js draws today's. */}
+  <script is:inline>
+    (() => {
+      const m = document.getElementById('restaurants');
+      const s = m.dataset.snapshot;
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Stockholm' }).format(new Date());
+      if (s && s !== today) m.classList.add('stale');
+    })();
+  </script>
   <details id="yesterday" class="yesterday" hidden></details>
 </div>
 <footer>
