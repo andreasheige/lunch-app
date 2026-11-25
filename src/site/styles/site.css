@@ -811,6 +811,11 @@ dialog {
   padding-bottom: 32px;
 }
 
+/* The build's menus are another day's (index.astro): kept for the layout, not shown, until app.js redraws. */
+#restaurants.stale > .snapshot {
+  visibility: hidden;
+}
+
 /* No listing to make room for (weekends): the recap and the previous day's section follow straight on. */
 #restaurants.no-lunch {
   min-height: 0;
