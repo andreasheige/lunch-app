@@ -121,7 +121,20 @@ const allergens = [
       </fieldset>
     </div>
   </div>
-  <main id="restaurants" aria-live="polite" aria-busy="true" data-snapshot={lunch?.date}>
+  {/* The menus below are from the build. GitHub can start the morning deploy hours late, so on a new day they are
+     the previous day's: hide them (space kept) until app.js draws today's. Runs before <main> is parsed, so they
+     never paint; the date is built from parts, as format() output varies between browsers. */}
+  {lunch && (
+    <script is:inline define:vars={{ snapshot: lunch.date }}>
+      const p = Object.fromEntries(
+        new Intl.DateTimeFormat('en', { timeZone: 'Europe/Stockholm', year: 'numeric', month: '2-digit', day: '2-digit' })
+          .formatToParts(new Date())
+          .map((x) => [x.type, x.value]),
+      );
+      if (snapshot !== `${p.year}-${p.month}-${p.day}`) document.documentElement.classList.add('stale-menus');
+    </script>
+  )}
+  <main id="restaurants" aria-live="polite" aria-busy="true">
     {places.length ? (
       <div class="cards snapshot">{places.map((r) => <Place r={r} />)}</div>
     ) : lunch && !lunch.day ? (
@@ -134,16 +147,6 @@ const allergens = [
       </>
     )}
   </main>
-  {/* The menus above are from the build. GitHub can start the morning deploy hours late, so on a new day they are
-     the previous day's: hide them before the first paint (space kept) until app.js draws today's. */}
-  <script is:inline>
-    (() => {
-      const m = document.getElementById('restaurants');
-      const s = m.dataset.snapshot;
-      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Stockholm' }).format(new Date());
-      if (s && s !== today) m.classList.add('stale');
-    })();
-  </script>
   <details id="yesterday" class="yesterday" hidden></details>
 </div>
 <footer>
