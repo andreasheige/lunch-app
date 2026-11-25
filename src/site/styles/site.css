@@ -812,7 +812,7 @@ dialog {
 }
 
 /* The build's menus are another day's (index.astro): kept for the layout, not shown, until app.js redraws. */
-#restaurants.stale > .snapshot {
+.stale-menus #restaurants > .snapshot {
   visibility: hidden;
 }
 
