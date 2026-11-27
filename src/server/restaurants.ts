@@ -12,11 +12,19 @@ export interface ParsedMenu {
 
 export type Parser = (lines: string[], day: Weekday, html: string) => ParsedMenu;
 
-export interface Restaurant extends RestaurantInfo {
-  parse: Parser;
-  /** For menus published as a PDF: finds the PDF link in the page HTML. */
-  pdf?: (html: string) => string | null;
-}
+export type Restaurant = RestaurantInfo &
+  (
+    | {
+        parse: Parser;
+        /** For menus published as a PDF: finds the PDF link in the page HTML. */
+        pdf?: (html: string) => string | null;
+      }
+    /** No menu to read: these dishes every weekday (worker.ts adds visitors' salads for `userDishes`). */
+    | { fixed: Dish[] }
+  );
+
+/** A restaurant whose menu is read from its site. */
+export type MenuRestaurant = Extract<Restaurant, { parse: Parser }>;
 
 const WEEKDAYS: readonly Weekday[] = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag'];
 const isWeekday = (l: string): boolean => (WEEKDAYS as readonly string[]).includes(l);
@@ -485,6 +493,17 @@ export const RESTAURANTS: Restaurant[] = [
     hours: '11.00–13.30',
     price: 'Korv 85–130 kr · vegansk korv finns',
     parse: parseBangers,
+  },
+  {
+    id: 'picadeli',
+    name: 'Picadeli Lilla Bommen',
+    url: 'https://www.picadeli.se/',
+    address: 'Lilla Bommen',
+    distance: 450,
+    hours: '11.00–14.00',
+    price: 'Salladsbar, betala per vikt',
+    userDishes: true,
+    fixed: [],
   },
 ];
 

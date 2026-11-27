@@ -1,5 +1,5 @@
 // Cloudflare Worker: live /lunch.json (edge-cached 30 min) and its English /translations.json, /releases.json,
-// ratings (POST /rate, /ratings.json, /yesterday.json, /stats.json), menu history (/history.json), POST /report → GitHub issue; everything else is served from
+// ratings (POST /rate, /ratings.json, /yesterday.json, /stats.json), menu history (/history.json), POST /report → GitHub issue, POST /salad (visitors' Picadeli salads); everything else is served from
 // dist/ assets.
 import type {
   HistoryResponse,
@@ -31,6 +31,7 @@ import { capturedIsStale, redeploy } from './redeploy.ts';
 import { type NoteLang, noteLang, parseReleaseText, RELEASE_PROMPTS, releaseInput, toPosts } from './releases.ts';
 import { githubHeaders, handleReport, type ReportEnv } from './report.ts';
 import { RESTAURANTS } from './restaurants.ts';
+import { approveSalads, handleSalad, type SaladRow, saladDishes } from './salads.ts';
 import { menuStrings, parseTranslations, TRANSLATE_PROMPT, type Translations } from './translate.ts';
 
 interface Env extends ReportEnv {
@@ -188,7 +189,7 @@ async function lunchResponse(request: Request, env: Env, ctx: ExecutionContext):
     new Date(),
     undefined,
     requested,
-  );
+  ).then((l) => withSalads(env, l));
   const preview = lunch.date !== stockholmDate().toISOString().slice(0, 10);
   const diets = addDiets(lunch, await classify(env.AI, lunch, origin));
   const data = preview ? diets : await servedBefore(env, diets);
@@ -198,6 +199,28 @@ async function lunchResponse(request: Request, env: Env, ctx: ExecutionContext):
   ctx.waitUntil(caches.default.put(key, res.clone()));
   if (!preview) ctx.waitUntil(saveMenuDay(env, data));
   return res;
+}
+
+// The approved salads (D1 salads) as the dishes of the place that shows visitors' salads; on a failure it keeps
+// none, so the page still works.
+async function withSalads(env: Env, lunch: LunchResponse): Promise<LunchResponse> {
+  if (!lunch.day) return lunch;
+  const place = lunch.restaurants.find((r) => r.userDishes);
+  if (!place) return lunch;
+  try {
+    const { results } = await env.DB.prepare(
+      `SELECT s.name, s.ingredients, s.price, s.created_at, AVG(r.stars) AS avg FROM salads s
+       LEFT JOIN ratings r ON r.restaurant = ? AND r.dish = s.name
+       WHERE s.status = 'approved' GROUP BY s.id`,
+    )
+      .bind(place.id)
+      .all<SaladRow>();
+    const dishes = saladDishes(results);
+    return { ...lunch, restaurants: lunch.restaurants.map((r) => (r === place ? { ...r, dishes } : r)) };
+  } catch (err) {
+    console.error('salads: lookup failed', err instanceof Error ? err.message : err);
+    return lunch;
+  }
 }
 
 // Marks today's dishes a place served on earlier days (menu_days), for the "served before" line; a failure only
@@ -533,11 +556,13 @@ export default {
   async scheduled(_event, env, ctx): Promise<void> {
     ctx.waitUntil(notifyReporters(env));
     ctx.waitUntil(redeployIfStale(env));
+    ctx.waitUntil(approveSalads(env, NOTIFY_BATCH));
   },
 
   async fetch(request, env, ctx): Promise<Response> {
     const { pathname } = new URL(request.url);
     if (pathname === '/report') return handleReport(request, env);
+    if (pathname === '/salad') return handleSalad(request, env);
     if (pathname === '/releases.json') {
       const url = new URL(request.url);
       const lang = noteLang(url.searchParams.get('lang'));

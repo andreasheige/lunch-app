@@ -1,7 +1,7 @@
 // POST /report: turns the in-page bug/feature form into a GitHub issue, so reporters need no GitHub account.
 import type { ReportKind, ReportResponse } from '../shared/types.ts';
 
-const REPO = 'andreasheige/lunch-app';
+export const REPO = 'andreasheige/lunch-app';
 const KINDS: Record<ReportKind, string> = { bug: 'Fel', 'feat-req': 'Önskemål' };
 const MAX_BODY_CHARS = 16 * 1024;
 const MAX_TITLE = 120;
@@ -72,7 +72,7 @@ export function parseReport(input: unknown): Report | null {
   return { kind, title, text, token, contact: notify ? { name, email } : null };
 }
 
-async function verifyTurnstile(secret: string, token: string, ip: string): Promise<boolean> {
+export async function verifyTurnstile(secret: string, token: string, ip: string): Promise<boolean> {
   const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
     method: 'POST',
     body: new URLSearchParams({ secret, response: token, remoteip: ip }),

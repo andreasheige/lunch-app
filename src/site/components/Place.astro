@@ -49,5 +49,7 @@ const showCategory = (d: Dish) => d.category && !REPEATS_DIET.test(d.category.tr
       ))}
     </ul>
   )}
+  {r.userDishes && !r.error && !r.dishes.length && <p class="empty">Inga sallader än – bli först!</p>}
+  {r.userDishes && !r.error && <button type="button" class="card-more salad-add">+ Lägg till din sallad</button>}
   <a class="source" href={r.url} target="_blank" rel="noopener">Restaurangens sida ↗</a>
 </article>

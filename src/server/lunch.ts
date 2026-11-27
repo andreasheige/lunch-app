@@ -1,7 +1,7 @@
 import type { LunchResponse, RestaurantMenu, Weekday } from '../shared/types.ts';
 import { htmlToLines } from './html.ts';
 import { readPdf } from './pdf.ts';
-import { RESTAURANTS, type Restaurant, WEEKDAYS } from './restaurants.ts';
+import { type MenuRestaurant, RESTAURANTS, type Restaurant, WEEKDAYS } from './restaurants.ts';
 
 const CACHE_MS = 30 * 60 * 1000;
 // A failed read is tried once more after this long; sites now and then answer one request with a page
@@ -84,7 +84,7 @@ export function pdfMenuWeek(created: Date): number {
 
 // Page text lines; for restaurants whose menu is a PDF linked from the page (r.pdf finds the link),
 // the PDF's lines and the week its creation date points to.
-async function menuSource(r: Restaurant, html: string): Promise<{ lines: string[]; week: number | null }> {
+async function menuSource(r: MenuRestaurant, html: string): Promise<{ lines: string[]; week: number | null }> {
   if (!r.pdf) return { lines: htmlToLines(html), week: null };
   const href = r.pdf(html);
   if (!href) throw new PageError('hittade ingen PDF-meny', r.url, 200, excerpt(htmlToLines(html)));
@@ -112,7 +112,7 @@ export function parseCaptured(json: string | null): Captured {
 }
 
 // The page (or its PDF) read and parsed, plus the lines it was parsed from.
-async function readMenu(r: Restaurant, day: Weekday, captured: string[] | undefined) {
+async function readMenu(r: MenuRestaurant, day: Weekday, captured: string[] | undefined) {
   const html = await (await fetchPage(r.url)).text();
   const source = captured ? { lines: captured, week: null } : await menuSource(r, html);
   return { parsed: r.parse(source.lines, day, html), source };
@@ -126,6 +126,10 @@ export async function loadRestaurant(
   onFailure?: (failure: MenuFailure) => void,
   retryMs = RETRY_MS,
 ): Promise<RestaurantMenu> {
+  if ('fixed' in r) {
+    const { fixed, ...info } = r;
+    return { ...info, dishes: fixed, embed: null, stale: false, menuWeek: null, error: null };
+  }
   const { parse, pdf, ...info } = r;
   try {
     const { parsed, source } = await readMenu(r, day, captured).catch(async () => {
