@@ -70,6 +70,12 @@ jobs:
                 (.excerpt | gsub("`"; "´")) + "\n```\n\nUppdatera fixturen med `htmlToLines` och rätta parsern (se CLAUDE.md).\n"' <<< "$failure" |
                 gh issue create --title "$title" --label bug --body-file -
             done
+      # New D1 migrations (migrations/) before the code that needs them; a no-op when there are none. Needs D1 Edit
+      # on the API token. A failed migration stops the deploy, so the live code never runs against an old schema.
+      - run: npx --yes wrangler@4 d1 migrations apply lunch-app --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - run: npx --yes wrangler@4 deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
