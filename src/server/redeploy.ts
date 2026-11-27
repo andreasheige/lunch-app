@@ -24,7 +24,7 @@ export function capturedIsStale(captured: Captured, now = new Date()): boolean {
   if (dow === 0 || dow === 6 || hour < FIRST_HOUR || hour >= LAST_HOUR) return false;
   const lines = captured.poppels;
   const poppels = RESTAURANTS.find((r) => r.id === 'poppels');
-  if (!lines || !poppels) return false;
+  if (!lines || !poppels || !('parse' in poppels)) return false;
   const { week } = poppels.parse(lines, 'Måndag', '');
   return week !== null && week !== isoWeek(today);
 }

@@ -11,7 +11,7 @@ import {
   stockholmDate,
 } from '../src/server/lunch.ts';
 import { readPdf } from '../src/server/pdf.ts';
-import { RESTAURANTS, type Restaurant } from '../src/server/restaurants.ts';
+import { type MenuRestaurant, RESTAURANTS } from '../src/server/restaurants.ts';
 import type { Weekday } from '../src/shared/types.ts';
 
 // Fixtures are the restaurants' pages as captured 2026-09-28 (vecka 40), already flattened with htmlToLines.
@@ -20,9 +20,9 @@ const fixture = (id: string): string[] =>
     .readFileSync(new URL(`fixtures/${id}.txt`, import.meta.url), 'utf8')
     .trimEnd()
     .split('\n');
-const restaurant = (id: string): Restaurant => {
+const restaurant = (id: string): MenuRestaurant => {
   const r = RESTAURANTS.find((r) => r.id === id);
-  if (!r) throw new Error(`no restaurant ${id}`);
+  if (!r || !('parse' in r)) throw new Error(`no restaurant ${id} with a parser`);
   return r;
 };
 const parser =
@@ -121,7 +121,7 @@ test('Björkmans: accented capitals are decoded before sentence case', () => {
 
 test('every parser returns no dishes (not a crash) when the page changes shape', () => {
   for (const r of RESTAURANTS)
-    assert.deepEqual(r.parse(['Hej', 'Något helt annat'], 'Måndag', '<p>Hej</p>').dishes, []);
+    if ('parse' in r) assert.deepEqual(r.parse(['Hej', 'Något helt annat'], 'Måndag', '<p>Hej</p>').dishes, []);
 });
 
 test('htmlToLines strips scripts, tags and entities', () => {
@@ -477,7 +477,7 @@ test('Bang Bang Bangers: the sausage menu with toppings, side and price, the sam
 });
 
 // A stand-in restaurant: one dish per page line, its PDF link (if any) found by `pdf`.
-const fakeRestaurant = (pdf?: Restaurant['pdf']): Restaurant => {
+const fakeRestaurant = (pdf?: MenuRestaurant['pdf']): MenuRestaurant => {
   const { pdf: _, ...info } = restaurant('delissimo');
   return {
     ...info,
@@ -506,6 +506,26 @@ test('loadRestaurant: a failed read is tried once more, and the second answer co
     menu.dishes.map((d) => d.name),
     ['Pasta'],
   );
+  assert.deepEqual(failures, []);
+});
+
+test('loadRestaurant: a place with fixed dishes reads nothing and has no error', async () => {
+  const failures: MenuFailure[] = [];
+  const picadeli = RESTAURANTS.find((r) => r.id === 'picadeli');
+  assert.ok(picadeli && 'fixed' in picadeli);
+  const menu = await withFetch([], () =>
+    loadRestaurant({ ...picadeli, fixed: [{ category: 'Sallad', name: 'Tonfisk' }] }, 'Måndag', 43, undefined, (f) =>
+      failures.push(f),
+    ),
+  );
+  assert.equal(menu.error, null);
+  assert.equal(menu.stale, false);
+  assert.equal(menu.userDishes, true);
+  assert.deepEqual(
+    menu.dishes.map((d) => d.name),
+    ['Tonfisk'],
+  );
+  assert.equal('fixed' in menu, false);
   assert.deepEqual(failures, []);
 });
 

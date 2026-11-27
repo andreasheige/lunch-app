@@ -15,7 +15,7 @@ import {
   parseReleaseText,
   toPosts,
 } from '../src/server/releases.ts';
-import type { ReleasePost, ReleaseText } from '../src/shared/types.ts';
+import type { LunchResponse, ReleasePost, ReleaseText } from '../src/shared/types.ts';
 
 const root = path.join(import.meta.dirname, '..');
 const dist = path.join(root, 'dist');
@@ -57,10 +57,27 @@ await fs.mkdir(path.dirname(newsSnapshot), { recursive: true });
 await fs.writeFile(newsSnapshot, JSON.stringify(toPosts(releases, written)));
 process.stdout.write(`News: ${releases.length} releases from ${prs.length} pull requests, ${written.size} written\n`);
 
+// Visitors' salads (the userDishes place) live in the Worker's D1, so the HTML gets them from the live site's
+// lunch.json for the same day; none when it can't be reached or has none yet.
+async function withLiveSalads(lunch: LunchResponse): Promise<LunchResponse> {
+  try {
+    const res = await fetch('https://lunchit.se/lunch.json', { signal: AbortSignal.timeout(10_000) });
+    // Our own Worker's /lunch.json; a wrong shape throws below and counts as unreachable.
+    const live = (await res.json()) as LunchResponse;
+    if (!res.ok || live.date !== lunch.date) return lunch;
+    const dishes = new Map(live.restaurants.filter((r) => r.userDishes).map((r) => [r.id, r.dishes]));
+    return { ...lunch, restaurants: lunch.restaurants.map((r) => ({ ...r, dishes: dishes.get(r.id) ?? r.dishes })) };
+  } catch {
+    return lunch;
+  }
+}
+
 // Label-based diets only; the Worker adds Workers AI guesses for the rest.
 const captured = await fs.readFile(path.join(root, 'captured.json'), 'utf8').catch(() => null);
 const failures: MenuFailure[] = [];
-const data = addDiets(await getTodaysLunch(parseCaptured(captured), new Date(), (f) => failures.push(f)), {});
+const data = await withLiveSalads(
+  addDiets(await getTodaysLunch(parseCaptured(captured), new Date(), (f) => failures.push(f)), {}),
+);
 // What each failed read got back, for CI's issue reports; outside dist/ so it is never served.
 await fs.writeFile(path.join(root, 'build-failures.json'), JSON.stringify(failures));
 

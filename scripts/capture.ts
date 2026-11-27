@@ -10,7 +10,7 @@ const out = path.join(import.meta.dirname, '..', 'captured.json');
 
 async function capturePoppels(): Promise<string[]> {
   const poppels = RESTAURANTS.find((r) => r.id === 'poppels');
-  if (!poppels) throw new Error('no poppels in RESTAURANTS');
+  if (!poppels || !('parse' in poppels)) throw new Error('no poppels with a parser in RESTAURANTS');
   const res = await fetch(poppels.url, { headers: { 'user-agent': 'knowit-lunch-app (lunch menu reader)' } });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const embed = poppels.parse([], 'Måndag', await res.text()).embed;

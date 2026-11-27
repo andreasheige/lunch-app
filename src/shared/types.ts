@@ -55,6 +55,8 @@ export interface RestaurantInfo {
   distance: number;
   hours: string;
   price: string | null;
+  /** Its dishes are salads visitors suggested (POST /salad), not a menu read from a site. */
+  userDishes?: true;
 }
 
 // One restaurant's entry in lunch.json.
@@ -227,3 +229,12 @@ export interface ReportRequest {
 }
 
 export type ReportResponse = { ok: true; url?: string } | { error: string };
+
+// POST /salad body: a Picadeli salad a visitor suggests. Ingredients one per line. `website` is the honeypot.
+export interface SaladRequest {
+  name: string;
+  ingredients: string;
+  price?: string;
+  token: string;
+  website?: string;
+}

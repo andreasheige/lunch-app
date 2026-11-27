@@ -307,6 +307,17 @@ function menuIssues(r) {
   return [];
 }
 
+// A place of visitors' salads with none yet invites the first; otherwise the filter hid them all.
+const emptyText = (r) => (r.userDishes && !r.dishes.length ? t('salad.none') : t('filter.none'));
+
+// "Lägg till din sallad" under the salads of a userDishes place; opens the salad dialog (setupSalad).
+function saladButton() {
+  const button = el('button', 'card-more salad-add', `+ ${t('salad.add')}`);
+  button.type = 'button';
+  button.addEventListener('click', () => openSalad());
+  return button;
+}
+
 const CARD_LIMIT = 4;
 const expandedCards = new Set();
 
@@ -333,7 +344,7 @@ function cardsView() {
         list.append(li);
       }
       card.append(list);
-      if (!dishes.length) card.append(el('p', 'empty', t('filter.none')));
+      if (!dishes.length) card.append(el('p', 'empty', emptyText(r)));
       if (dishes.length > CARD_LIMIT + 1) {
         const more = el('button', 'card-more', open ? t('card.fewer') : t('card.more', dishes.length - CARD_LIMIT));
         more.type = 'button';
@@ -346,6 +357,7 @@ function cardsView() {
         });
         card.append(more);
       }
+      if (r.userDishes) card.append(saladButton());
     }
     card.append(sourceLink(r));
     grid.append(card);
@@ -385,7 +397,8 @@ function placeMenu(r) {
       list.append(li);
     }
     menu.append(list);
-    if (!dishes.length) menu.append(el('p', 'empty', t('filter.none')));
+    if (!dishes.length) menu.append(el('p', 'empty', emptyText(r)));
+    if (r.userDishes) menu.append(saladButton());
   }
   menu.append(sourceLink(r));
   return menu;
@@ -1287,6 +1300,66 @@ function setupReport() {
 }
 
 setupReport();
+
+let saladWidget = null;
+let openSalad = () => {};
+
+// The salad dialog: POST /salad, which saves the salad for review (src/server/salads.ts).
+function setupSalad() {
+  const dialog = document.getElementById('salad-dialog');
+  const form = document.getElementById('salad-form');
+  const statusEl = document.getElementById('salad-status');
+  const submit = document.getElementById('salad-submit');
+  openSalad = async () => {
+    statusEl.textContent = '';
+    dialog.showModal();
+    try {
+      const turnstile = await loadTurnstile();
+      saladWidget ??= turnstile.render('#salad-turnstile', { sitekey: TURNSTILE_SITE_KEY, language: LANG });
+    } catch {
+      statusEl.textContent = t('report.turnstile-failed');
+    }
+  };
+  document.getElementById('salad-cancel').addEventListener('click', () => dialog.close());
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!form.reportValidity()) return;
+    const token = window.turnstile?.getResponse(saladWidget);
+    if (!token) {
+      statusEl.textContent = t('report.wait');
+      return;
+    }
+    submit.disabled = true;
+    statusEl.textContent = t('report.sending');
+    try {
+      const res = await fetch('salad', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...Object.fromEntries(new FormData(form)), token }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok)
+        throw new Error(
+          LANG !== 'sv' && res.status === 409
+            ? t('salad.taken')
+            : LANG !== 'sv' && res.status === 400
+              ? t('salad.invalid')
+              : serverError(res.status, data.error),
+        );
+      form.reset();
+      statusEl.textContent = t('salad.thanks');
+      setTimeout(() => dialog.close(), 2000);
+    } catch (err) {
+      statusEl.textContent = err instanceof TypeError ? t('report.offline') : err.message;
+    } finally {
+      submit.disabled = false;
+      window.turnstile?.reset(saladWidget);
+    }
+  });
+}
+
+setupSalad();
 
 // "Lägg till på hemskärmen": Chrome & co. have their own install prompt (beforeinstallprompt); iOS has none, so
 // there the link shows the Share → Lägg till på hemskärmen steps. Hidden once running from the home screen.

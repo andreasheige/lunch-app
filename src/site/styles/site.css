@@ -747,6 +747,7 @@ dialog {
 
 .sheet::backdrop,
 #report-dialog::backdrop,
+#salad-dialog::backdrop,
 #install-dialog::backdrop {
   background: var(--scrim);
 }
@@ -1742,9 +1743,10 @@ footer p {
   color: var(--muted);
 }
 
-/* Report and install dialogs */
+/* Report, salad and install dialogs */
 
 #report-dialog,
+#salad-dialog,
 #install-dialog {
   width: min(480px, calc(100% - 32px));
   padding: 24px;
@@ -1752,25 +1754,30 @@ footer p {
   border-radius: 12px;
   background: var(--surface);
 }
-#report-form {
+#report-form,
+#salad-form {
   display: grid;
   gap: 14px;
 }
 #report-form h2,
+#salad-form h2,
 #install-dialog h2 {
   font-family: var(--font-head);
   margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
 }
-#report-form label {
+#report-form label,
+#salad-form label {
   display: grid;
   gap: 6px;
   color: var(--muted);
   font-size: 0.9rem;
 }
 #report-form input:not([type="radio"], [type="checkbox"]),
-#report-form textarea {
+#report-form textarea,
+#salad-form input,
+#salad-form textarea {
   padding: 10px 12px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
@@ -1778,7 +1785,8 @@ footer p {
   color: var(--text);
   font: inherit;
 }
-#report-form textarea {
+#report-form textarea,
+#salad-form textarea {
   resize: vertical;
 }
 .kind {

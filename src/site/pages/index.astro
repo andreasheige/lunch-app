@@ -227,4 +227,20 @@ const allergens = [
     <p class="report-note" data-i18n="report.public">Rubrik och beskrivning blir ett publikt ärende på GitHub – skriv inga personuppgifter där.</p>
   </form>
 </dialog>
+<dialog id="salad-dialog" aria-labelledby="salad-heading">
+  <form id="salad-form" method="dialog" novalidate>
+    <h2 id="salad-heading" data-i18n="salad.heading">Lägg till din sallad</h2>
+    <label><span data-i18n="salad.name">Namn på salladen</span> <input name="name" required minlength="2" maxlength="60" autocomplete="off"></label>
+    <label><span data-i18n="salad.ingredients">Ingredienser, en per rad</span> <textarea name="ingredients" required maxlength="800" rows="6"></textarea></label>
+    <label><span data-i18n="salad.price">Pris (valfritt)</span> <input name="price" maxlength="20" autocomplete="off"></label>
+    <label class="hp" aria-hidden="true">Webbplats <input name="website" tabindex="-1" autocomplete="off"></label>
+    <div id="salad-turnstile"></div>
+    <p id="salad-status" class="report-status" role="status"></p>
+    <div class="report-actions">
+      <button type="button" id="salad-cancel" data-i18n="report.cancel">Avbryt</button>
+      <button type="submit" id="salad-submit" data-i18n="report.send">Skicka</button>
+    </div>
+    <p class="report-note" data-i18n="salad.note">Salladen granskas innan den syns och blir ett publikt ärende på GitHub – skriv inga personuppgifter.</p>
+  </form>
+</dialog>
 </Layout>
